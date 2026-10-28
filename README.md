@@ -26,14 +26,11 @@ rupia/
 │   └── webpack.config.js
 ├── templates/
 ├── static/
-├── docker/
 ├── manage.py
 ├── pyproject.toml
 ├── requirements.txt
 ├── package.json
-├── Makefile
-├── docker-compose.yml         # MySQL 8
-└── docker-compose.prod.yml
+└── Makefile
 ```
 
 Un módulo de negocio es una app en la raíz, plana: `models.py`, `views.py`, `forms.py`, `filters.py`, `tables.py`, `urls.py`, `api.py`. Sin carpetas por formulario.
