@@ -1,4 +1,4 @@
-.PHONY: install dev test lint migrate messages build
+.PHONY: install dev test lint migrate build
 
 install:
 	uv sync
@@ -19,7 +19,3 @@ test:
 lint:
 	uv run ruff check .
 	uv run ruff format --check .
-
-messages:
-	uv run python manage.py makemessages -l es -l en -l de --ignore .venv --ignore node_modules
-	uv run python manage.py compilemessages

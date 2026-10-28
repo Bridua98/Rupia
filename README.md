@@ -26,7 +26,6 @@ rupia/
 │   └── webpack.config.js
 ├── templates/
 ├── static/
-├── locale/                    # es, en, de
 ├── docker/
 ├── manage.py
 ├── pyproject.toml
