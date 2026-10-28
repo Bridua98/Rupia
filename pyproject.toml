@@ -50,5 +50,8 @@ extend-exclude = [".venv", "node_modules", "static", "staticfiles"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+"**/migrations/*.py" = ["E501"]
+
 [tool.ruff.lint.isort]
-known-first-party = ["core", "rupia"]
+known-first-party = ["core", "inventario", "personas", "rupia"]

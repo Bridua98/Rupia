@@ -35,6 +35,8 @@ INSTALLED_APPS = [
     "django_htmx",
     "simple_menu",
     "core",
+    "inventario",
+    "personas",
 ]
 
 MIDDLEWARE = [
