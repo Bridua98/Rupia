@@ -51,13 +51,45 @@
     });
   }
 
-  function closeActionMenu(menu) {
+  function finishCloseActionMenu(menu) {
     var panel = menu.querySelector(".action-menu-panel");
     var trigger = menu.querySelector(".action-menu-trigger");
     if (!panel || !trigger) return;
     panel.hidden = true;
     trigger.setAttribute("aria-expanded", "false");
     resetActionMenuConfirm(menu);
+  }
+
+  function closeActionMenu(menu) {
+    var panel = menu.querySelector(".action-menu-panel");
+    if (!panel) return;
+    if (!menu.classList.contains("is-open")) {
+      finishCloseActionMenu(menu);
+      return;
+    }
+    menu.classList.remove("is-open");
+    var closed = false;
+    function onEnd(event) {
+      if (closed || (event && event.propertyName !== "opacity")) return;
+      closed = true;
+      panel.removeEventListener("transitionend", onEnd);
+      finishCloseActionMenu(menu);
+    }
+    panel.addEventListener("transitionend", onEnd);
+    window.setTimeout(onEnd, 220);
+  }
+
+  function openActionMenu(menu) {
+    var panel = menu.querySelector(".action-menu-panel");
+    var trigger = menu.querySelector(".action-menu-trigger");
+    if (!panel || !trigger) return;
+    panel.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        menu.classList.add("is-open");
+      });
+    });
   }
 
   function resetActionMenuConfirm(menu) {
@@ -90,13 +122,12 @@
 
       trigger.addEventListener("click", function (event) {
         event.stopPropagation();
-        if (openMenu === menu && !panel.hidden) {
+        if (openMenu === menu && menu.classList.contains("is-open")) {
           closeOpenMenu();
           return;
         }
         closeOpenMenu();
-        panel.hidden = false;
-        trigger.setAttribute("aria-expanded", "true");
+        openActionMenu(menu);
         openMenu = menu;
       });
 
