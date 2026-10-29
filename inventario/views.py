@@ -34,6 +34,24 @@ class MarcaListView(LoginRequiredMixin, SingleTableView):
     def get_queryset(self):
         return Marca.objects.order_by("descripcion", "pk")
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        qs = self.get_queryset()
+        count = qs.count()
+        context.update(
+            {
+                "page_title": "Marcas",
+                "eyebrow": "Inventario",
+                "title": "Marcas",
+                "back_url": reverse("home"),
+                "create_url": reverse("marca_create"),
+                "create_label": "Nueva marca",
+                "record_count": count,
+                "list_hint": "Flechas para moverse. Enter abre la marca.",
+            }
+        )
+        return context
+
     def selected_pk(self):
         raw = self.request.GET.get("marca", "")
         ids = list(self.get_queryset().values_list("pk", flat=True))
