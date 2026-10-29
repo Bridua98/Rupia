@@ -73,6 +73,10 @@ def test_listado_marca_la_fila_pedida(ingresada):
         if 'aria-selected="true"' in part
     )
     assert f'data-id="{beta.pk}"' in selected
+    assert 'class="detail-panel"' in response.content.decode()
+    assert "Abrir ficha" in response.content.decode()
+    assert f'href="/inventario/marcas/{beta.pk}/"' in response.content.decode()
+    assert 'aria-label="Cerrar"' in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -195,3 +199,31 @@ def test_no_elimina_marca_en_uso(ingresada):
     assert Marca.objects.filter(pk=marca.pk).exists()
     ficha = ingresada.get(response.url)
     assert "está en uso y no se puede eliminar." in ficha.content.decode()
+
+
+@pytest.mark.django_db
+def test_buscar_filtra_el_listado(ingresada):
+    Marca.objects.create(descripcion="Alfa")
+    Marca.objects.create(descripcion="Beta")
+
+    response = ingresada.get("/inventario/marcas/?q=Alf")
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "Alfa" in content
+    assert "Beta" not in content
+    assert "1 registro" in content
+
+
+@pytest.mark.django_db
+def test_alta_desde_el_listado_conserva_el_error(ingresada):
+    response = ingresada.post(
+        "/inventario/marcas/nueva/",
+        {"descripcion": "   ", "accion": "guardar", "desde": "listado"},
+    )
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "Escribí la descripción." in content
+    assert 'class="detail-panel"' in content
+    assert Marca.objects.count() == 0

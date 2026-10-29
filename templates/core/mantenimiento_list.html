@@ -5,22 +5,36 @@
 {% block title %}{{ page_title }} · Rupia{% endblock %}
 
 {% block work %}
-<div data-rupia="list">
-  <a class="back" href="{{ back_url }}">Volver</a>
-  <div class="stage-head">
-    <div>
-      <p class="eyebrow">{{ eyebrow }}</p>
-      <h1>{{ title }}</h1>
-      {% if record_count is not None %}
-        <p class="record-count">{{ record_count }} registro{{ record_count|pluralize }}</p>
-      {% endif %}
+<div class="ledger{% if detail_open %} is-split{% endif %}" data-rupia="list">
+  <div class="ledger-main">
+    <a class="back" href="{{ back_url }}">Volver</a>
+    <div class="stage-head">
+      <div>
+        <p class="eyebrow">{{ eyebrow }}</p>
+        <h1>{{ title }}</h1>
+        {% if record_count is not None %}
+          <p class="record-count">{{ record_count }} registro{{ record_count|pluralize }}</p>
+        {% endif %}
+      </div>
+      <a class="button" href="{{ create_url }}">{{ create_label }}</a>
     </div>
-    <a class="button" href="{{ create_url }}">{{ create_label }}</a>
+    {% if search_label %}
+      <form class="list-search" method="get" action="{{ list_url }}">
+        <input
+          type="search"
+          name="q"
+          value="{{ query }}"
+          placeholder="{{ search_placeholder }}"
+          aria-label="{{ search_label }}"
+        >
+      </form>
+    {% endif %}
+    {% render_table table %}
+    {% if list_hint %}
+      <p class="hint">{{ list_hint }}</p>
+    {% endif %}
   </div>
-  {% render_table table %}
-  {% if list_hint %}
-    <p class="hint">{{ list_hint }}</p>
-  {% endif %}
+  {% block detail %}{% endblock %}
 </div>
 {% endblock %}
 

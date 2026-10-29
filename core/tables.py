@@ -19,6 +19,6 @@ class ActionMenuColumn(tables.Column):
             "core/action_menu.html",
             {
                 "record": record,
-                "actions": self.get_actions(record),
+                "actions": self.get_actions(record, table),
             },
         )

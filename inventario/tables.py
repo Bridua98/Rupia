@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 from django.urls import reverse
 
 import django_tables2 as tables
@@ -6,11 +8,17 @@ from core.tables import ActionMenuColumn
 from inventario.models import Marca
 
 
-def marca_row_actions(record):
+def marca_row_actions(record, table=None):
+    params = {"marca": record.pk}
+    request = getattr(table, "request", None)
+    if request is not None:
+        q = request.GET.get("q", "").strip()
+        if q:
+            params["q"] = q
     return [
         {
             "label": "Modificar",
-            "href": reverse("marca_update", args=[record.pk]),
+            "href": f"{reverse('marca_list')}?{urlencode(params)}",
         },
         {
             "label": "Eliminar",
