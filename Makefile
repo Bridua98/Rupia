@@ -1,4 +1,4 @@
-.PHONY: install dev test lint migrate build
+.PHONY: install dev test lint migrate build bootstrap
 
 install:
 	uv sync
@@ -12,6 +12,10 @@ build:
 
 migrate:
 	uv run python manage.py migrate
+
+bootstrap:
+	uv run python manage.py migrate
+	uv run python manage.py ensure_superuser
 
 test:
 	uv run pytest

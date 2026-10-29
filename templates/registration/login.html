@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Ingresar · Rupia{% endblock %}
+{% block body_class %}login{% endblock %}
+
+{% block content %}
+<main class="login-shell">
+  <section class="login-aside" aria-label="Rupia">
+    <div class="mark" aria-hidden="true"><span>R</span></div>
+    <div class="aside-copy">
+      <p class="kicker">Rupia</p>
+      <p class="display">El acceso<br>es personal.</p>
+      <div class="rule" aria-hidden="true"></div>
+    </div>
+    <p class="aside-foot">Solo personal autorizado.</p>
+    <span class="folio" aria-hidden="true">01</span>
+  </section>
+
+  <section class="login-main">
+    <div class="login-card">
+      <p class="eyebrow">Sesión</p>
+      <h1>Ingresar</h1>
+
+      <form method="post" action="{% url 'login' %}" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+
+        {% if form.non_field_errors %}
+          <div class="banner" role="alert">
+            {% for error in form.non_field_errors %}
+              <p>{{ error }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="field">
+          {{ form.username }}
+          <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+          {% for error in form.username.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="field is-secret">
+          {{ form.password }}
+          <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+          <button
+            type="button"
+            class="reveal"
+            data-toggle-password
+            aria-controls="{{ form.password.id_for_label }}"
+            aria-pressed="false"
+          >Mostrar</button>
+          {% for error in form.password.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <button class="button" type="submit">Entrar</button>
+      </form>
+    </div>
+  </section>
+</main>
+<script>
+  (function () {
+    var button = document.querySelector("[data-toggle-password]");
+    if (!button) return;
+    var input = document.getElementById(button.getAttribute("aria-controls"));
+    if (!input) return;
+    button.addEventListener("click", function () {
+      var showing = input.getAttribute("type") === "text";
+      input.setAttribute("type", showing ? "password" : "text");
+      button.textContent = showing ? "Mostrar" : "Ocultar";
+      button.setAttribute("aria-pressed", showing ? "false" : "true");
+      input.focus();
+    });
+  })();
+</script>
+{% endblock %}

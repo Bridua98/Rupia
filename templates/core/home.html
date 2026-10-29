@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio · Rupia{% endblock %}
+{% block body_class %}app{% endblock %}
+
+{% block content %}
+<header class="topbar">
+  <a class="brand" href="{% url 'home' %}">
+    <span class="mark mark-small" aria-hidden="true"><span>R</span></span>
+    Rupia
+  </a>
+  <div class="session">
+    <span class="session-name">{{ user.get_username }}</span>
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="text-button">Salir</button>
+    </form>
+  </div>
+</header>
+<main class="stage">
+  <p class="eyebrow">Sesión activa</p>
+  <h1>Hola, {{ user.get_username }}.</h1>
+  {% if user.is_staff %}
+    <p class="lede">Personas y stock se administran desde el panel.</p>
+    <a class="button" href="{% url 'admin:index' %}">Abrir administración</a>
+  {% else %}
+    <p class="lede">Tu sesión quedó abierta.</p>
+  {% endif %}
+</main>
+{% endblock %}
