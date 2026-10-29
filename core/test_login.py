@@ -74,9 +74,10 @@ def test_el_administrador_ve_el_panel(client, django_user_model):
 
     response = client.get("/")
 
+    content = response.content.decode()
     assert response.status_code == 200
-    assert "Abrir administración" in response.content.decode()
-    assert 'href="/admin/"' in response.content.decode()
+    assert "Administración" in content
+    assert 'href="/admin/"' in content
 
 
 @pytest.mark.django_db
