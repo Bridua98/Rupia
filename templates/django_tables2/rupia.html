@@ -1,0 +1,29 @@
+{% load django_tables2 %}
+<div class="sheet-wrap">
+  <table {% render_attrs table.attrs %}>
+    {% if table.show_header %}
+      <thead>
+        <tr>
+          {% for column in table.columns %}
+            <th scope="col">{{ column.header }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+    {% endif %}
+    <tbody>
+      {% for row in table.paginated_rows %}
+        <tr {{ row.attrs.as_html }}>
+          {% for column, cell in row.items %}
+            <td>{{ cell }}</td>
+          {% endfor %}
+        </tr>
+      {% empty %}
+        {% if table.empty_text %}
+          <tr>
+            <td colspan="{{ table.columns|length }}">{{ table.empty_text }}</td>
+          </tr>
+        {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

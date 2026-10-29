@@ -1,0 +1,23 @@
+{% extends "app.html" %}
+{% load static %}
+{% load django_tables2 %}
+
+{% block title %}Marcas · Rupia{% endblock %}
+
+{% block work %}
+<div data-rupia="list">
+  <div class="stage-head">
+    <div>
+      <p class="eyebrow">Inventario</p>
+      <h1>Marcas</h1>
+    </div>
+    <a class="button" href="{% url 'marca_create' %}">Nueva marca</a>
+  </div>
+  {% render_table table %}
+  <p class="hint">Flechas para moverse. Enter abre la marca.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/rupia-tabla.js' %}"></script>
+{% endblock %}
