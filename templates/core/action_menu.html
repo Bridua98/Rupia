@@ -2,23 +2,29 @@
   <button
     type="button"
     class="action-menu-trigger"
-    aria-haspopup="true"
+    aria-haspopup="menu"
     aria-expanded="false"
+    aria-label="Acciones"
   >
-    Opciones
+    <svg class="action-menu-icon" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+      <circle cx="9" cy="4.25" r="1.35" fill="currentColor"/>
+      <circle cx="9" cy="9" r="1.35" fill="currentColor"/>
+      <circle cx="9" cy="13.75" r="1.35" fill="currentColor"/>
+    </svg>
   </button>
-  <div class="action-menu-panel" hidden>
+  <div class="action-menu-panel" role="menu" hidden>
     <ul class="action-menu-list" data-action-panel="menu">
       {% for action in actions %}
         {% if action.href %}
-          <li>
-            <a class="action-menu-link" href="{{ action.href }}">{{ action.label }}</a>
+          <li class="action-menu-item" role="none">
+            <a class="action-menu-link" role="menuitem" href="{{ action.href }}">{{ action.label }}</a>
           </li>
         {% elif action.delete_url %}
-          <li>
+          <li class="action-menu-item action-menu-item-danger" role="none">
             <button
               type="button"
               class="action-menu-link action-menu-link-danger"
+              role="menuitem"
               data-delete-trigger
               data-confirm="{{ action.confirm_message }}"
               data-action="{{ action.delete_url }}"
