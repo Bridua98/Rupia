@@ -31,6 +31,7 @@
 
     document.addEventListener("keydown", function (event) {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.target.closest("input, textarea, select")) return;
       var list = rows(root);
       if (!list.length) return;
       var index = list.findIndex(function (row) {
@@ -49,6 +50,23 @@
         window.location.href = list[index].getAttribute("data-href");
       }
     });
+  }
+
+  function placeActionMenu(menu) {
+    var trigger = menu.querySelector(".action-menu-trigger");
+    var panel = menu.querySelector(".action-menu-panel");
+    if (!trigger || !panel) return;
+    var rect = trigger.getBoundingClientRect();
+    var width = panel.offsetWidth || 168;
+    var height = panel.offsetHeight || 88;
+    var left = rect.left + rect.width / 2 - width / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+    var top = rect.bottom + 6;
+    if (top + height > window.innerHeight - 8) {
+      top = Math.max(8, rect.top - height - 6);
+    }
+    panel.style.left = left + "px";
+    panel.style.top = top + "px";
   }
 
   function finishCloseActionMenu(menu) {
@@ -85,6 +103,7 @@
     if (!panel || !trigger) return;
     panel.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
+    placeActionMenu(menu);
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
         menu.classList.add("is-open");
@@ -140,6 +159,7 @@
           deleteForm.action = action;
           menu.querySelector("[data-action-panel='menu']").hidden = true;
           confirmPanel.hidden = false;
+          placeActionMenu(menu);
         });
       }
 
@@ -158,6 +178,13 @@
     document.addEventListener("click", function () {
       closeOpenMenu();
     });
+
+    window.addEventListener("resize", function () {
+      if (openMenu) placeActionMenu(openMenu);
+    });
+    document.addEventListener("scroll", function () {
+      if (openMenu) placeActionMenu(openMenu);
+    }, true);
 
     document.addEventListener("keydown", function (event) {
       if (event.key === "Escape") {
@@ -231,6 +258,7 @@
 
     document.addEventListener("keydown", function (event) {
       if (event.key === "Escape") {
+        if (document.querySelector("[data-rupia='action-menu'].is-open")) return;
         if (confirmBox && !confirmBox.hidden) {
           event.preventDefault();
           cancelBtn.click();
