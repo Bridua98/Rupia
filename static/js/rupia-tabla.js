@@ -11,6 +11,8 @@
   }
 
   function initList(root) {
+    initActionMenus(root);
+
     function select(id, focusRow) {
       rows(root).forEach(function (row) {
         var on = row.getAttribute("data-id") === String(id);
@@ -21,6 +23,7 @@
     }
 
     root.addEventListener("click", function (event) {
+      if (event.target.closest("[data-rupia='action-menu']")) return;
       var row = event.target.closest("tr[data-href]");
       if (!row || !root.contains(row)) return;
       window.location.href = row.getAttribute("data-href");
@@ -44,6 +47,97 @@
         if (event.target.closest("a, button")) return;
         event.preventDefault();
         window.location.href = list[index].getAttribute("data-href");
+      }
+    });
+  }
+
+  function closeActionMenu(menu) {
+    var panel = menu.querySelector(".action-menu-panel");
+    var trigger = menu.querySelector(".action-menu-trigger");
+    if (!panel || !trigger) return;
+    panel.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+    resetActionMenuConfirm(menu);
+  }
+
+  function resetActionMenuConfirm(menu) {
+    var menuPanel = menu.querySelector("[data-action-panel='menu']");
+    var confirmPanel = menu.querySelector("[data-action-panel='confirm']");
+    if (menuPanel) menuPanel.hidden = false;
+    if (confirmPanel) confirmPanel.hidden = true;
+  }
+
+  function initActionMenus(root) {
+    var openMenu = null;
+
+    function closeOpenMenu() {
+      if (openMenu) {
+        closeActionMenu(openMenu);
+        openMenu = null;
+      }
+    }
+
+    root.querySelectorAll("[data-rupia='action-menu']").forEach(function (menu) {
+      var trigger = menu.querySelector(".action-menu-trigger");
+      var panel = menu.querySelector(".action-menu-panel");
+      var confirmPanel = menu.querySelector("[data-action-panel='confirm']");
+      var confirmText = menu.querySelector("[data-confirm-text]");
+      var deleteForm = menu.querySelector("[data-delete-form]");
+      var deleteTrigger = menu.querySelector("[data-delete-trigger]");
+      var cancelBtn = menu.querySelector("[data-delete-cancel]");
+
+      if (!trigger || !panel) return;
+
+      trigger.addEventListener("click", function (event) {
+        event.stopPropagation();
+        if (openMenu === menu && !panel.hidden) {
+          closeOpenMenu();
+          return;
+        }
+        closeOpenMenu();
+        panel.hidden = false;
+        trigger.setAttribute("aria-expanded", "true");
+        openMenu = menu;
+      });
+
+      if (deleteTrigger && confirmPanel && deleteForm) {
+        deleteTrigger.addEventListener("click", function (event) {
+          event.stopPropagation();
+          var message = deleteTrigger.getAttribute("data-confirm") || "";
+          var action = deleteTrigger.getAttribute("data-action") || "";
+          if (confirmText) confirmText.textContent = message;
+          deleteForm.action = action;
+          menu.querySelector("[data-action-panel='menu']").hidden = true;
+          confirmPanel.hidden = false;
+        });
+      }
+
+      if (cancelBtn) {
+        cancelBtn.addEventListener("click", function (event) {
+          event.stopPropagation();
+          resetActionMenuConfirm(menu);
+        });
+      }
+
+      panel.addEventListener("click", function (event) {
+        event.stopPropagation();
+      });
+    });
+
+    document.addEventListener("click", function () {
+      closeOpenMenu();
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        if (!openMenu) return;
+        var confirmPanel = openMenu.querySelector("[data-action-panel='confirm']");
+        if (confirmPanel && !confirmPanel.hidden) {
+          event.preventDefault();
+          resetActionMenuConfirm(openMenu);
+          return;
+        }
+        closeOpenMenu();
       }
     });
   }

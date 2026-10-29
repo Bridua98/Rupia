@@ -1,0 +1,45 @@
+<div class="action-menu" data-rupia="action-menu">
+  <button
+    type="button"
+    class="action-menu-trigger"
+    aria-haspopup="true"
+    aria-expanded="false"
+  >
+    Opciones
+  </button>
+  <div class="action-menu-panel" hidden>
+    <ul class="action-menu-list" data-action-panel="menu">
+      {% for action in actions %}
+        {% if action.href %}
+          <li>
+            <a class="action-menu-link" href="{{ action.href }}">{{ action.label }}</a>
+          </li>
+        {% elif action.delete_url %}
+          <li>
+            <button
+              type="button"
+              class="action-menu-link action-menu-link-danger"
+              data-delete-trigger
+              data-confirm="{{ action.confirm_message }}"
+              data-action="{{ action.delete_url }}"
+            >
+              {{ action.label }}
+            </button>
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+    <div class="action-menu-confirm" data-action-panel="confirm" hidden>
+      <p class="action-menu-confirm-text" data-confirm-text></p>
+      <form method="post" class="action-menu-confirm-form" data-delete-form>
+        {% csrf_token %}
+        <div class="action-menu-confirm-actions">
+          <button type="submit" class="button button-danger button-compact">Eliminar</button>
+          <button type="button" class="button button-ghost button-compact" data-delete-cancel>
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

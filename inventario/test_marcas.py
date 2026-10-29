@@ -52,6 +52,11 @@ def test_listado_marca_la_primera_fila(ingresada):
     selected = next(part for part in content.split("<tr") if 'aria-selected="true"' in part)
     assert f'data-id="{alfa.pk}"' in selected
     assert "Nueva marca" in content
+    assert 'href="/"' in content
+    assert "Volver" in content
+    assert "Opciones" in content
+    assert "Modificar" in content
+    assert "2 registros" in content
     assert "Flechas para moverse" in content
 
 

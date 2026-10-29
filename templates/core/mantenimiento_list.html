@@ -1,0 +1,29 @@
+{% extends "app.html" %}
+{% load static %}
+{% load django_tables2 %}
+
+{% block title %}{{ page_title }} · Rupia{% endblock %}
+
+{% block work %}
+<div data-rupia="list">
+  <a class="back" href="{{ back_url }}">Volver</a>
+  <div class="stage-head">
+    <div>
+      <p class="eyebrow">{{ eyebrow }}</p>
+      <h1>{{ title }}</h1>
+      {% if record_count is not None %}
+        <p class="record-count">{{ record_count }} registro{{ record_count|pluralize }}</p>
+      {% endif %}
+    </div>
+    <a class="button" href="{{ create_url }}">{{ create_label }}</a>
+  </div>
+  {% render_table table %}
+  {% if list_hint %}
+    <p class="hint">{{ list_hint }}</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/rupia-tabla.js' %}"></script>
+{% endblock %}
