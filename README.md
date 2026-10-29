@@ -36,3 +36,17 @@ rupia/
 ```
 
 Un módulo de negocio es una app en la raíz, plana: `models.py`, `views.py`, `forms.py`, `filters.py`, `tables.py`, `urls.py`, `api.py`. Sin carpetas por formulario.
+
+## Primer acceso
+
+```bash
+make bootstrap
+```
+
+Aplica las migraciones y crea el superusuario inicial si todavía no existe. En desarrollo, sin variables propias, queda así:
+
+- usuario: `admin`
+- correo: `admin@rupia.local`
+- contraseña: `Clave-inicial-Rupia-2026`
+
+La pantalla de ingreso está en `/login/`. `/admin/` usa la misma pantalla. Si el usuario ya existe, el comando no cambia su contraseña. Fuera de desarrollo, `DJANGO_SUPERUSER_PASSWORD` es obligatoria.
