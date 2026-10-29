@@ -3,6 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.shortcuts import render, resolve_url
 
+from core.menus import main_menu
+
 
 def _is_admin_path(url):
     path = url.split("?", 1)[0]
@@ -20,4 +22,4 @@ class RupiaLoginView(LoginView):
 
 @login_required
 def home(request):
-    return render(request, "core/home.html")
+    return render(request, "core/home.html", {"menu": main_menu(request)})
