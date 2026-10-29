@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block body_class %}app{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+  <aside class="app-nav" aria-label="Menú principal">
+    <a class="app-brand" href="{% url 'home' %}">
+      <span class="mark mark-small" aria-hidden="true"><span>R</span></span>
+      <span class="app-brand-name">Rupia</span>
+    </a>
+
+    <nav class="app-menu">
+      <ul class="app-menu-list">
+        {% for entry in menu %}
+          <li>
+            {% if entry.children %}
+              <span class="app-menu-group">{{ entry.label }}</span>
+              <ul class="app-menu-sublist">
+                {% for child in entry.children %}
+                  <li>
+                    <a
+                      class="app-menu-link{% if child.active %} is-active{% endif %}"
+                      href="{{ child.href }}"
+                      {% if child.active %}aria-current="page"{% endif %}
+                    >{{ child.label }}</a>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% elif entry.disabled %}
+              <span class="app-menu-link is-disabled" aria-disabled="true">{{ entry.label }}</span>
+            {% else %}
+              <a
+                class="app-menu-link{% if entry.active %} is-active{% endif %}"
+                href="{{ entry.href }}"
+                {% if entry.active %}aria-current="page"{% endif %}
+              >{{ entry.label }}</a>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </nav>
+
+    <div class="app-nav-foot">
+      <span class="session-name">{{ user.get_username }}</span>
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="text-button text-button-light">Salir</button>
+      </form>
+    </div>
+  </aside>
+
+  <main class="app-work">
+    <div class="app-stage">
+      {% if messages %}
+        <div class="banner" role="alert">
+          {% for message in messages %}
+            <p>{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% block work %}{% endblock %}
+    </div>
+  </main>
+</div>
+{% endblock %}

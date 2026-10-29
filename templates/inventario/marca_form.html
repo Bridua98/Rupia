@@ -1,0 +1,72 @@
+{% extends "app.html" %}
+{% load static %}
+
+{% block title %}{% if object %}{{ object.descripcion }}{% else %}Nueva marca{% endif %} · Rupia{% endblock %}
+
+{% block work %}
+<div
+  class="ficha"
+  data-rupia="ficha"
+  data-prev="{{ prev_url }}"
+  data-next="{{ next_url }}"
+  data-list="{{ list_url }}"
+>
+  <a class="back" href="{{ list_url }}">Volver</a>
+  <p class="eyebrow">Inventario</p>
+  {% if object %}
+    <div class="title-row">
+      <h1>{{ object.descripcion }}</h1>
+      <div class="pager">
+        {% if prev_url %}
+          <a class="step" href="{{ prev_url }}" data-record-nav aria-label="Marca anterior">←</a>
+        {% else %}
+          <button type="button" class="step" disabled aria-label="Marca anterior">←</button>
+        {% endif %}
+        <span>{{ position }} de {{ total }}</span>
+        {% if next_url %}
+          <a class="step" href="{{ next_url }}" data-record-nav aria-label="Marca siguiente">→</a>
+        {% else %}
+          <button type="button" class="step" disabled aria-label="Marca siguiente">→</button>
+        {% endif %}
+      </div>
+    </div>
+    <p class="hint">Fuera del campo, las flechas pasan a otra marca.</p>
+    <p class="field-error" id="marca-nav-error" hidden></p>
+  {% else %}
+    <h1>Nueva marca</h1>
+  {% endif %}
+
+  <form method="post" id="marca-fields">
+    {% csrf_token %}
+    <div class="field{% if form.descripcion.errors %} has-error{% endif %}">
+      {{ form.descripcion }}
+      <label for="{{ form.descripcion.id_for_label }}">Descripción</label>
+      {% for error in form.descripcion.errors %}
+        <p class="field-error">{{ error }}</p>
+      {% endfor %}
+    </div>
+    <div class="actions" id="marca-actions">
+      <button type="submit" class="button" name="accion" value="guardar">Guardar</button>
+      <button type="submit" class="button button-ghost" name="accion" value="seguir">Guardar y seguir</button>
+      {% if object %}
+        <button type="button" class="text-button text-button-danger" id="marca-delete">Eliminar</button>
+      {% endif %}
+    </div>
+  </form>
+
+  {% if object %}
+    <form method="post" action="{% url 'marca_delete' object.pk %}" id="marca-confirm" hidden>
+      {% csrf_token %}
+      <p>¿Eliminar {{ object.descripcion }}?</p>
+      <div class="actions">
+        <button type="submit" class="button button-danger">Eliminar</button>
+        <button type="button" class="button button-ghost" id="marca-delete-cancel">Cancelar</button>
+      </div>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/rupia-tabla.js' %}"></script>
+{% endblock %}
