@@ -5,7 +5,7 @@
 {% block title %}{{ page_title }} · Rupia{% endblock %}
 
 {% block work %}
-<div class="ledger{% if detail_open %} is-split{% endif %}" data-rupia="list">
+<div class="ledger{% if detail_open %} is-overlay{% endif %}" data-rupia="list">
   <div class="ledger-main">
     <a class="back" href="{{ back_url }}">
       {% include "core/icon.html" with name="back" %}
@@ -28,16 +28,73 @@
       </div>
     </div>
     {% if search_label %}
-      <form class="list-search" method="get" action="{{ list_url }}">
-        <span class="list-search-icon">{% include "core/icon.html" with name="search" %}</span>
-        <input
-          type="search"
-          name="q"
-          value="{{ query }}"
-          placeholder="{{ search_placeholder }}"
-          aria-label="{{ search_label }}"
+      <div class="list-toolbar">
+        <form class="list-search" method="get" action="{{ list_url }}">
+          <span class="list-search-icon">{% include "core/icon.html" with name="search" %}</span>
+          <input
+            type="search"
+            name="q"
+            value="{{ query }}"
+            placeholder="{{ search_placeholder }}"
+            aria-label="{{ search_label }}"
+          >
+          {% for row in list_filters %}
+            {% if row.value %}
+              <input type="hidden" name="{{ row.name }}" value="{{ row.value }}">
+            {% endif %}
+          {% endfor %}
+        </form>
+        {% if list_filters %}
+          <button
+            type="button"
+            class="button button-ghost list-filters-toggle"
+            data-filters-toggle
+            aria-expanded="{% if filters_open %}true{% else %}false{% endif %}"
+            aria-controls="list-filters"
+          >
+            {% include "core/icon.html" with name="settings" %}
+            <span>Filtros{% if active_filter_count %} ({{ active_filter_count }}){% endif %}</span>
+          </button>
+        {% endif %}
+      </div>
+      {% if list_filters %}
+        <form
+          id="list-filters"
+          class="list-filters{% if filters_open %} is-open{% endif %}"
+          method="get"
+          action="{{ list_url }}"
+          data-filters-panel
+          {% if not filters_open %}hidden{% endif %}
         >
-      </form>
+          {% if query %}
+            <input type="hidden" name="q" value="{{ query }}">
+          {% endif %}
+          <input type="hidden" name="filtros" value="1">
+          <div class="list-filters-grid">
+            {% for row in list_filters %}
+              <div class="list-filter">
+                <label for="filter-{{ row.name }}">{{ row.label }}</label>
+                <select id="filter-{{ row.name }}" name="{{ row.name }}">
+                  <option value="">Cualquiera</option>
+                  {% if row.kind == "fk" %}
+                    {% for option in row.options %}
+                      <option value="{{ option.pk }}"{% if row.value == option.pk|stringformat:"d" %} selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                  {% else %}
+                    {% for value, label in row.options %}
+                      <option value="{{ value }}"{% if row.value == value %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  {% endif %}
+                </select>
+              </div>
+            {% endfor %}
+          </div>
+          <div class="list-filters-actions">
+            <button type="submit" class="button">Aplicar</button>
+            <a class="button button-ghost" href="{{ list_url }}{% if query %}?q={{ query|urlencode }}{% endif %}">Limpiar filtros</a>
+          </div>
+        </form>
+      {% endif %}
     {% endif %}
     {% render_table table %}
     {% if list_hint %}
@@ -46,6 +103,7 @@
   </div>
   {% block detail %}
     {% if detail_open %}
+      <a class="ledger-backdrop" href="{{ close_url }}" aria-label="Cerrar"></a>
       {% include "core/detail_panel.html" %}
     {% endif %}
   {% endblock %}

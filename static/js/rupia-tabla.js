@@ -132,6 +132,16 @@
   function initList(root) {
     initActionMenus(root);
 
+    root.querySelectorAll("[data-filters-toggle]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var panel = root.querySelector("[data-filters-panel]");
+        if (!panel) return;
+        var open = panel.hidden;
+        panel.hidden = !open;
+        button.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+    });
+
     function select(id, focusRow) {
       rows(root).forEach(function (row) {
         var on = row.getAttribute("data-id") === String(id);

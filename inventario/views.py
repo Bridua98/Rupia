@@ -10,7 +10,7 @@ from core.mantenimiento import (
 )
 from inventario.forms import CategoriaForm, ItemForm, MarcaForm, UnidadForm
 from inventario.imagenes import resolver_imagen
-from inventario.models import Item, ItemCategoria, Marca, UnidadMedida
+from inventario.models import Item, ItemCategoria, Marca, TipoItem, UnidadMedida
 from inventario.tables import CategoriaTable, ItemTable, MarcaTable, UnidadTable
 
 
@@ -22,7 +22,7 @@ class MarcaMantenimiento:
     eyebrow = "Inventario"
     title = "Marcas"
     create_label = "Nueva marca"
-    list_hint = "Flechas para moverse. Enter abre la marca al costado."
+    list_hint = "Flechas para moverse. Enter abre la marca."
     search_label = "Buscar por descripción"
     search_placeholder = "Buscar por descripción..."
     search_field = "descripcion"
@@ -63,7 +63,7 @@ class CategoriaMantenimiento:
     eyebrow = "Inventario"
     title = "Categorías"
     create_label = "Nueva categoría"
-    list_hint = "Flechas para moverse. Enter abre la categoría al costado."
+    list_hint = "Flechas para moverse. Enter abre la categoría."
     search_label = "Buscar por descripción"
     search_placeholder = "Buscar por descripción..."
     search_field = "descripcion"
@@ -104,10 +104,11 @@ class UnidadMantenimiento:
     eyebrow = "Inventario"
     title = "Unidades de medida"
     create_label = "Nueva unidad"
-    list_hint = "Flechas para moverse. Enter abre la unidad al costado."
-    search_label = "Buscar por descripción"
-    search_placeholder = "Buscar por descripción..."
+    list_hint = "Flechas para moverse. Enter abre la unidad."
+    search_label = "Buscar"
+    search_placeholder = "Buscar por descripción o símbolo..."
     search_field = "descripcion"
+    search_fields = ("descripcion", "simbolo")
     selection_param = "unidad"
     record_noun = "unidad"
     order_by = ("descripcion", "pk")
@@ -145,10 +146,40 @@ class ItemMantenimiento:
     eyebrow = "Inventario"
     title = "Ítems"
     create_label = "Nuevo ítem"
-    list_hint = "Flechas para moverse. Enter abre el ítem al costado."
-    search_label = "Buscar por descripción"
-    search_placeholder = "Buscar por descripción..."
+    list_hint = "Flechas para moverse. Enter abre el ítem."
+    search_label = "Buscar"
+    search_placeholder = "Buscar por descripción, código, marca o categoría..."
     search_field = "descripcion"
+    search_fields = (
+        "descripcion",
+        "codigo_barra",
+        "marca__descripcion",
+        "categoria__descripcion",
+        "unidad_medida__descripcion",
+        "unidad_medida__simbolo",
+    )
+    filters = (
+        {"name": "tipo", "label": "Tipo", "kind": "choice", "choices": TipoItem.choices},
+        {
+            "name": "marca",
+            "label": "Marca",
+            "kind": "fk",
+            "queryset": lambda: Marca.objects.order_by("descripcion"),
+        },
+        {
+            "name": "categoria",
+            "label": "Categoría",
+            "kind": "fk",
+            "queryset": lambda: ItemCategoria.objects.order_by("descripcion"),
+        },
+        {
+            "name": "unidad_medida",
+            "label": "Unidad",
+            "kind": "fk",
+            "queryset": lambda: UnidadMedida.objects.order_by("descripcion"),
+        },
+        {"name": "activo", "label": "Activo", "kind": "bool"},
+    )
     selection_param = "item"
     record_noun = "ítem"
     order_by = ("descripcion", "pk")

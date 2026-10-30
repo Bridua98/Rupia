@@ -19,6 +19,11 @@
       {% if query %}
         <input type="hidden" name="q" value="{{ query }}">
       {% endif %}
+      {% for row in list_filters %}
+        {% if row.value %}
+          <input type="hidden" name="{{ row.name }}" value="{{ row.value }}">
+        {% endif %}
+      {% endfor %}
       {% include "core/form_fields.html" with form=panel_form %}
     </form>
   </div>
