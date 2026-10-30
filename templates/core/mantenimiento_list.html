@@ -21,8 +21,9 @@
       </div>
       <div class="stage-actions">
         {% include "core/output_menu.html" %}
-        <a class="icon-action" href="{{ create_url }}" aria-label="{{ create_label }}">
+        <a class="button button-create" href="{{ create_url }}">
           {% include "core/icon.html" with name="plus" %}
+          <span>{{ create_label }}</span>
         </a>
       </div>
     </div>

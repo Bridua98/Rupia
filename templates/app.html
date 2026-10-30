@@ -13,12 +13,23 @@
     <nav class="app-menu">
       <ul class="app-menu-list">
         {% for entry in menu %}
-          <li>
+          <li{% if entry.children %} class="app-menu-section{% if entry.expanded %} is-open{% endif %}"{% endif %}>
             {% if entry.children %}
-              <span class="app-menu-group">
-                {% include "core/menu_label.html" with icon=entry.icon label=entry.label %}
-              </span>
-              <ul class="app-menu-sublist">
+              <button
+                type="button"
+                class="app-menu-group"
+                data-menu-section-toggle
+                aria-expanded="{% if entry.expanded %}true{% else %}false{% endif %}"
+                aria-controls="menu-section-{{ forloop.counter }}"
+              >
+                <span class="app-menu-group-label">
+                  {% include "core/menu_label.html" with icon=entry.icon label=entry.label %}
+                </span>
+                <span class="app-menu-chevron" aria-hidden="true">
+                  {% include "core/icon.html" with name="chevron-down" %}
+                </span>
+              </button>
+              <ul class="app-menu-sublist" id="menu-section-{{ forloop.counter }}">
                 {% for child in entry.children %}
                   <li>
                     <a
@@ -46,28 +57,73 @@
     </nav>
 
     <div class="app-nav-foot">
-      <span class="session-name">{{ user.get_username }}</span>
+      <span class="session-avatar" aria-hidden="true">{% include "core/icon.html" with name="user" %}</span>
+      <span class="session-meta">
+        <span class="session-name">{{ user.get_username }}</span>
+        <span class="session-role">{% if user.is_staff %}Administrador{% else %}Usuario{% endif %}</span>
+      </span>
       <form method="post" action="{% url 'logout' %}">
         {% csrf_token %}
-        <button type="submit" class="text-button text-button-light">
-          {% include "core/icon.html" with name="logout" %}
-          <span>Salir</span>
+        <button type="submit" class="session-logout" aria-label="Salir">
+          {% include "core/icon.html" with name="chevron-right" %}
         </button>
       </form>
     </div>
+    <svg class="nav-mountains" viewBox="0 0 320 120" aria-hidden="true" focusable="false">
+      <path d="M0 120V78l48-28 42 30 48-46 52 42 46-40 84 28v56z"/>
+      <path d="M0 120V98l58-22 54 24 62-30 58 22 88-18v46z"/>
+    </svg>
   </aside>
 
-  <main class="app-work">
-    <div class="app-stage">
-      {% if messages %}
-        <div class="banner" role="alert">
-          {% for message in messages %}
-            <p>{{ message }}</p>
-          {% endfor %}
-        </div>
-      {% endif %}
-      {% block work %}{% endblock %}
-    </div>
-  </main>
+  <div class="app-main">
+    <header class="app-topbar">
+      <button type="button" class="topbar-icon" data-nav-toggle aria-label="Menú">
+        {% include "core/icon.html" with name="menu" %}
+      </button>
+      <div class="topbar-end">
+        <span class="topbar-icon" aria-hidden="true">{% include "core/icon.html" with name="bell" %}</span>
+        <span class="session-avatar session-avatar-top" aria-hidden="true">{% include "core/icon.html" with name="user" %}</span>
+      </div>
+    </header>
+
+    <main class="app-work">
+      <div class="app-stage">
+        {% if messages %}
+          <div class="banner" role="alert">
+            {% for message in messages %}
+              <p>{{ message }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% block work %}{% endblock %}
+      </div>
+    </main>
+  </div>
 </div>
+<script>
+  (function () {
+    var toggle = document.querySelector("[data-nav-toggle]");
+    var shell = document.querySelector(".app-shell");
+    if (!toggle || !shell) return;
+    toggle.addEventListener("click", function () {
+      var narrow = window.matchMedia("(max-width: 860px)").matches;
+      shell.classList.toggle(narrow ? "is-nav-open" : "is-nav-collapsed");
+      toggle.setAttribute(
+        "aria-expanded",
+        shell.classList.contains("is-nav-open") || !shell.classList.contains("is-nav-collapsed")
+          ? "true"
+          : "false"
+      );
+    });
+
+    document.querySelectorAll("[data-menu-section-toggle]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var section = btn.closest(".app-menu-section");
+        if (!section) return;
+        var open = section.classList.toggle("is-open");
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+    });
+  })();
+</script>
 {% endblock %}

@@ -28,7 +28,12 @@ def main_menu(request):
         kids = [child for child in children if child is not None]
         if not kids:
             return None
-        return {"label": label, "icon": icon, "children": kids}
+        return {
+            "label": label,
+            "icon": icon,
+            "children": kids,
+            "expanded": any(child.get("active") for child in kids),
+        }
 
     entries = [
         item("Inicio", url_name="home", icon="home"),

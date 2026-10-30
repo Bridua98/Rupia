@@ -19,7 +19,7 @@ class MarcaMantenimiento:
     create_label = "Nueva marca"
     list_hint = "Flechas para moverse. Enter abre la marca al costado."
     search_label = "Buscar por descripción"
-    search_placeholder = "Buscar por descripción"
+    search_placeholder = "Buscar por descripción..."
     search_field = "descripcion"
     selection_param = "marca"
     record_noun = "marca"
