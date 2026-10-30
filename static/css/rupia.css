@@ -345,6 +345,7 @@ form {
 .button:focus-visible,
 .reveal:focus-visible,
 .text-button:focus-visible,
+.selector-nueva:focus-visible,
 .brand:focus-visible,
 .app-brand:focus-visible,
 .app-menu-link:focus-visible {
@@ -1497,6 +1498,126 @@ button.topbar-icon:hover {
 .print-query {
   margin: 0 0 0.4rem;
   color: var(--ink-soft);
+}
+
+.field select {
+  width: 100%;
+  height: 2.85rem;
+  padding: 0.7rem 0 0.45rem;
+  border: 0;
+  border-bottom: 1px solid rgba(26, 36, 33, 0.28);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 1.0625rem/1.2 var(--sans);
+}
+
+.field select:focus {
+  outline: none;
+  border-bottom: 2px solid var(--forest);
+  margin-bottom: -1px;
+}
+
+.field select + label {
+  color: var(--forest);
+  transform: translateY(-1.45rem) scale(0.72);
+}
+
+.field:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding-top: 1.1rem;
+}
+
+.field:has(input[type="checkbox"]) input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.field:has(input[type="checkbox"]) label {
+  position: static;
+  transform: none;
+  pointer-events: auto;
+  font-size: 1rem;
+}
+
+.selector input[type="hidden"] {
+  display: none;
+}
+
+.selector-results {
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  right: 0;
+  top: 4.35rem;
+  max-height: 14rem;
+  margin: 0;
+  padding: 0.25rem 0;
+  overflow: auto;
+  list-style: none;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+
+.selector-results li {
+  padding: 0.45rem 0.15rem;
+  cursor: pointer;
+}
+
+.selector-results li:hover,
+.selector-results li[aria-selected="true"] {
+  background: rgba(20, 51, 43, 0.08);
+}
+
+.field .selector-query {
+  width: calc(100% - 2.6rem);
+  padding-right: 1.5rem;
+}
+
+.selector-nueva {
+  position: absolute;
+  right: 0;
+  top: 1.7rem;
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--forest);
+  cursor: pointer;
+}
+
+.selector-nueva:hover {
+  color: var(--ink);
+}
+
+.selector.is-alta {
+  padding-top: 0.4rem;
+}
+
+.selector-alta .eyebrow {
+  margin-bottom: 0.15rem;
+}
+
+.selector.is-alta .selector-buscar {
+  display: none;
+}
+
+.selector-alta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.selector-alta-actions .button {
+  margin-top: 1.1rem;
 }
 
 @media print {

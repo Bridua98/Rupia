@@ -15,7 +15,12 @@ class TipoMovimiento(models.TextChoices):
 
 class Marca(models.Model):
     id = models.AutoField(primary_key=True, db_column="marc_id")
-    descripcion = models.CharField("descripción", max_length=200, db_column="marc_descripcion")
+    descripcion = models.CharField(
+        "descripción",
+        max_length=200,
+        unique=True,
+        db_column="marc_descripcion",
+    )
 
     class Meta:
         db_table = "marcas"
@@ -32,6 +37,7 @@ class ItemCategoria(models.Model):
     descripcion = models.CharField(
         "descripción",
         max_length=300,
+        unique=True,
         db_column="itemcate_descripcion",
     )
 
@@ -50,9 +56,15 @@ class UnidadMedida(models.Model):
     descripcion = models.CharField(
         "descripción",
         max_length=100,
+        unique=True,
         db_column="unidmedi_descripcion",
     )
-    simbolo = models.CharField("símbolo", max_length=10, db_column="unidmedi_simbolo")
+    simbolo = models.CharField(
+        "símbolo",
+        max_length=10,
+        unique=True,
+        db_column="unidmedi_simbolo",
+    )
 
     class Meta:
         db_table = "unidades_medidas"
@@ -94,7 +106,12 @@ class Item(models.Model):
         blank=True,
         db_column="item_codigo_barra",
     )
-    descripcion = models.CharField("descripción", max_length=300, db_column="item_descripcion")
+    descripcion = models.CharField(
+        "descripción",
+        max_length=300,
+        unique=True,
+        db_column="item_descripcion",
+    )
     tipo = models.CharField("tipo", max_length=8, choices=TipoItem.choices, db_column="item_tipo")
     activo = models.BooleanField("activo", default=True, db_column="item_activo")
     precio = models.DecimalField(

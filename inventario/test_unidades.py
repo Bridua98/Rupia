@@ -109,6 +109,26 @@ def test_descripcion_vacia_no_graba(ingresada):
 
 
 @pytest.mark.django_db
+def test_no_repite_descripcion_ni_simbolo(ingresada):
+    UnidadMedida.objects.create(descripcion="Kilogramo", simbolo="kg")
+
+    repetida = ingresada.post(
+        "/inventario/unidades/nueva/",
+        _payload(descripcion="Kilogramo", simbolo="k"),
+    )
+    assert repetida.status_code == 200
+    assert "Ya hay una unidad con esa descripción." in repetida.content.decode()
+
+    simbolo = ingresada.post(
+        "/inventario/unidades/nueva/",
+        _payload(descripcion="Kilo", simbolo="kg"),
+    )
+    assert simbolo.status_code == 200
+    assert "Ya hay una unidad con ese símbolo." in simbolo.content.decode()
+    assert UnidadMedida.objects.count() == 1
+
+
+@pytest.mark.django_db
 def test_simbolo_vacio_no_graba(ingresada):
     response = ingresada.post(
         "/inventario/unidades/nueva/",

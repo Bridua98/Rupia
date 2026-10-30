@@ -110,6 +110,20 @@ def test_descripcion_vacia_no_graba(ingresada):
 
 
 @pytest.mark.django_db
+def test_no_repite_la_descripcion(ingresada):
+    Marca.objects.create(descripcion="Colón")
+
+    response = ingresada.post(
+        "/inventario/marcas/nueva/",
+        {"descripcion": "Colón", "accion": "guardar"},
+    )
+
+    assert response.status_code == 200
+    assert "Ya hay una marca con esa descripción." in response.content.decode()
+    assert Marca.objects.count() == 1
+
+
+@pytest.mark.django_db
 def test_edicion_guarda_cambios(ingresada):
     marca = Marca.objects.create(descripcion="Colón")
 

@@ -44,6 +44,7 @@ def main_menu(request):
                 item("Marcas", url_name="marca_list", icon="tag"),
                 item("Categorías", url_name="categoria_list", icon="tag"),
                 item("Unidades de medida", url_name="unidad_list", icon="tag"),
+                item("Ítems", url_name="item_list", icon="box"),
             ],
             icon="box",
         ),
