@@ -299,15 +299,15 @@ form {
 .reveal {
   position: absolute;
   right: 0;
-  top: 1.9rem;
-  padding: 0.2rem 0;
+  top: 1.55rem;
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
   border: 0;
   background: transparent;
   color: var(--ink-soft);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .reveal:hover,
@@ -319,6 +319,7 @@ form {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.45rem;
   margin-top: 2rem;
   padding: 0.95rem 1.35rem;
   border: 0;
@@ -379,6 +380,9 @@ form {
 }
 
 .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   padding: 0.3rem 0;
   border: 0;
   border-bottom: 1px solid transparent;
@@ -456,7 +460,9 @@ body.app {
 }
 
 .app-menu-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   padding: 0.55rem 0 0.55rem 0.85rem;
   border-left: 2px solid transparent;
   color: #e7dccb;
@@ -620,7 +626,9 @@ body.app {
 }
 
 .app-menu-group {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   padding: 0.85rem 0 0.2rem 0.85rem;
   color: rgba(231, 220, 203, 0.72);
   font-size: 0.75rem;
@@ -656,7 +664,16 @@ body.app {
   gap: 1.5rem;
 }
 
+.stage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
 .stage-head .button,
+.stage-actions .button,
 .actions .button {
   margin-top: 0;
 }
@@ -668,7 +685,9 @@ body.app {
 }
 
 .back {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   margin: 0 0 0.85rem;
   color: var(--ink-soft);
   font-weight: 500;
@@ -811,10 +830,49 @@ body.app {
   font-size: 0.95rem;
 }
 
+.icon {
+  display: block;
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: none;
+}
+
 .action-menu {
   position: relative;
   display: inline-flex;
   margin-left: auto;
+}
+
+.stage-actions .action-menu {
+  margin-left: 0;
+}
+
+.stage-actions .action-menu-trigger,
+.icon-action {
+  width: 2.75rem;
+  height: 2.75rem;
+  color: var(--forest);
+  box-shadow: inset 0 0 0 1px rgba(20, 51, 43, 0.45);
+}
+
+.icon-action {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--forest);
+  color: #f6f1e8;
+  box-shadow: none;
+  text-decoration: none;
+}
+
+.icon-action:hover {
+  background: #1d4a3d;
+  color: #f6f1e8;
+}
+
+.icon-action:focus-visible {
+  outline: 2px solid #1f6b52;
+  outline-offset: 3px;
 }
 
 .action-menu-trigger {
@@ -891,7 +949,9 @@ body.app {
 }
 
 .action-menu-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   width: 100%;
   padding: 0.5rem 0.75rem;
   border: 0;
@@ -994,13 +1054,24 @@ body.app {
 }
 
 .list-search {
+  position: relative;
   margin: 0 0 1rem;
+}
+
+.list-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.75rem;
+  display: grid;
+  color: var(--ink-soft);
+  pointer-events: none;
+  transform: translateY(-50%);
 }
 
 .list-search input {
   width: 100%;
   height: 2.6rem;
-  padding: 0 0.9rem;
+  padding: 0 0.9rem 0 2.35rem;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: rgba(255, 252, 247, 0.85);
@@ -1128,5 +1199,78 @@ body.app {
     left: 0.75rem;
     width: auto;
     max-height: min(32rem, 85dvh);
+  }
+}
+
+.sheet-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  padding: 0.75rem 1rem;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+.print-page {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+}
+
+.print-page h1 {
+  margin: 0.15rem 0 0.6rem;
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  font-weight: 560;
+  letter-spacing: -0.03em;
+}
+
+.print-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.print-table {
+  margin-top: 1rem;
+}
+
+.print-query {
+  margin: 0 0 0.4rem;
+  color: var(--ink-soft);
+}
+
+@media print {
+  .app-nav,
+  .print-toolbar,
+  .list-search,
+  .stage-actions,
+  .back,
+  .hint,
+  .sheet-pager,
+  .detail-panel,
+  .action-menu,
+  .banner {
+    display: none !important;
+  }
+
+  .app-shell,
+  .app-work,
+  .app-stage,
+  .ledger,
+  .ledger.is-split,
+  .ledger-main {
+    display: block;
+    height: auto;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .print-page {
+    max-width: none;
+    padding: 0;
   }
 }

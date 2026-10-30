@@ -1,7 +1,10 @@
 from decimal import Decimal
+from io import BytesIO
 
 import pytest
 from django.urls import reverse
+from openpyxl import load_workbook
+from pypdf import PdfReader
 
 from inventario.models import Item, ItemCategoria, Marca, TipoItem, UnidadMedida
 
@@ -52,6 +55,10 @@ def test_listado_marca_la_primera_fila(ingresada):
     selected = next(part for part in content.split("<tr") if 'aria-selected="true"' in part)
     assert f'data-id="{alfa.pk}"' in selected
     assert "Nueva marca" in content
+    assert 'aria-label="Imprimir y exportar"' in content
+    assert "Imprimir" in content
+    assert "Excel" in content
+    assert "PDF" in content
     assert 'href="/"' in content
     assert "Volver" in content
     assert 'class="sheet-col-acciones"' in content
@@ -69,9 +76,7 @@ def test_listado_marca_la_fila_pedida(ingresada):
     response = ingresada.get(f"/inventario/marcas/?marca={beta.pk}")
 
     selected = next(
-        part
-        for part in response.content.decode().split("<tr")
-        if 'aria-selected="true"' in part
+        part for part in response.content.decode().split("<tr") if 'aria-selected="true"' in part
     )
     assert f'data-id="{beta.pk}"' in selected
     assert 'class="detail-panel"' in response.content.decode()
@@ -239,3 +244,121 @@ def test_alta_desde_el_listado_conserva_el_error(ingresada):
     assert "Escribí la descripción." in content
     assert 'class="detail-panel"' in content
     assert Marca.objects.count() == 0
+
+
+def _serie(cantidad=26):
+    for numero in range(1, cantidad + 1):
+        Marca.objects.create(descripcion=f"Serie {numero:02d}")
+    Marca.objects.create(descripcion="Fuera")
+
+
+@pytest.mark.django_db
+def test_listado_pagina_de_a_10(ingresada):
+    _serie()
+
+    primera = ingresada.get("/inventario/marcas/?q=Serie")
+    contenido = primera.content.decode()
+
+    assert primera.status_code == 200
+    assert "Serie 01" in contenido
+    assert "Serie 10" in contenido
+    assert "Serie 11" not in contenido
+    assert "Fuera" not in contenido
+    assert "Página 1 de 3" in contenido
+    assert "26 registros" in contenido
+    assert "q=Serie" in contenido
+    assert "page=2" in contenido
+
+    ultima = ingresada.get("/inventario/marcas/?q=Serie&page=3")
+    pagina = ultima.content.decode()
+
+    assert "Serie 26" in pagina
+    assert "Serie 01" not in pagina
+    assert "Página 3 de 3" in pagina
+
+
+@pytest.mark.django_db
+def test_abrir_marca_cae_en_su_pagina(ingresada):
+    _serie()
+    marca = Marca.objects.get(descripcion="Serie 26")
+
+    response = ingresada.get(f"/inventario/marcas/?marca={marca.pk}")
+
+    assert response.status_code == 302
+    assert f"marca={marca.pk}" in response.url
+    assert "page=3" in response.url
+
+    pagina = ingresada.get(response.url)
+    seleccionado = next(
+        part for part in pagina.content.decode().split("<tr") if 'aria-selected="true"' in part
+    )
+    assert f'data-id="{marca.pk}"' in seleccionado
+    assert "Serie 26" in pagina.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/inventario/marcas/imprimir/",
+        "/inventario/marcas/exportar.xlsx",
+        "/inventario/marcas/exportar.pdf",
+    ],
+)
+def test_salida_pide_ingreso(client, path):
+    response = client.get(path)
+
+    assert response.status_code == 302
+    assert response.url.startswith("/login/")
+
+
+@pytest.mark.django_db
+def test_exporta_el_filtro_completo_en_excel(ingresada):
+    _serie()
+
+    response = ingresada.get("/inventario/marcas/exportar.xlsx?q=Serie&page=1")
+
+    assert response.status_code == 200
+    assert "spreadsheet" in response["Content-Type"]
+    assert 'filename="marcas.xlsx"' in response["Content-Disposition"]
+    libro = load_workbook(BytesIO(response.content))
+    filas = list(libro.active.values)
+    descripciones = [fila[0] for fila in filas]
+    assert descripciones[0] == "Descripción"
+    assert "Serie 01" in descripciones
+    assert "Serie 26" in descripciones
+    assert "Fuera" not in descripciones
+    assert len(filas) == 27
+
+
+@pytest.mark.django_db
+def test_exporta_el_filtro_completo_en_pdf(ingresada):
+    _serie()
+
+    response = ingresada.get("/inventario/marcas/exportar.pdf?q=Serie&page=1")
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF")
+    assert 'filename="marcas.pdf"' in response["Content-Disposition"]
+    texto = "\n".join(
+        page.extract_text() or "" for page in PdfReader(BytesIO(response.content)).pages
+    )
+    assert "Serie 01" in texto
+    assert "Serie 26" in texto
+    assert "Fuera" not in texto
+
+
+@pytest.mark.django_db
+def test_imprimir_incluye_el_filtro_completo(ingresada):
+    _serie()
+
+    response = ingresada.get("/inventario/marcas/imprimir/?q=Serie&page=1")
+
+    assert response.status_code == 200
+    contenido = response.content.decode()
+    assert "Serie 01" in contenido
+    assert "Serie 26" in contenido
+    assert "Fuera" not in contenido
+    assert "window.print" in contenido
+    assert "26 registros" in contenido

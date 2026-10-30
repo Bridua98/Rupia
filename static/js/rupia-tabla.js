@@ -200,24 +200,35 @@
     });
   }
 
+  function fichaFields(root) {
+    return Array.prototype.slice.call(root.querySelectorAll("input, textarea, select")).filter(function (field) {
+      return field.type !== "hidden" && field.type !== "submit" && field.type !== "button";
+    });
+  }
+
+  function fieldDirty(field) {
+    if (field.type === "checkbox" || field.type === "radio") {
+      return field.checked !== field.defaultChecked;
+    }
+    return field.value.trim() !== String(field.defaultValue || "").trim();
+  }
+
   function initFicha(root) {
-    var input = root.querySelector("[name='descripcion']");
-    var navError = document.getElementById("marca-nav-error");
-    var actions = document.getElementById("marca-actions");
-    var confirmBox = document.getElementById("marca-confirm");
-    var deleteBtn = document.getElementById("marca-delete");
-    var cancelBtn = document.getElementById("marca-delete-cancel");
+    var fields = fichaFields(root);
+    var navError = root.querySelector("[data-nav-error]");
+    var actions = root.querySelector("[data-ficha-actions]");
+    var confirmBox = root.querySelector("[data-ficha-confirm]");
+    var deleteBtn = root.querySelector("[data-delete-open]");
+    var cancelBtn = root.querySelector("[data-delete-cancel]");
 
     function dirty() {
-      return input.value.trim() !== input.defaultValue.trim();
+      return fields.some(fieldDirty);
     }
 
     function showNavError(on) {
       if (!navError) return;
       navError.hidden = !on;
-      navError.textContent = on
-        ? "Guardá o volvé al listado antes de pasar a otra marca."
-        : "";
+      navError.textContent = on ? navError.getAttribute("data-nav-message") || "" : "";
     }
 
     function go(url) {
@@ -230,8 +241,10 @@
       return true;
     }
 
-    input.addEventListener("input", function () {
-      showNavError(false);
+    fields.forEach(function (field) {
+      field.addEventListener("input", function () {
+        showNavError(false);
+      });
     });
 
     root.querySelectorAll("[data-record-nav]").forEach(function (link) {
@@ -269,7 +282,7 @@
       }
       var sideways = event.key === "ArrowLeft" || event.key === "ArrowRight";
       if (!sideways) return;
-      var typing = event.target === input;
+      var typing = fields.indexOf(event.target) !== -1;
       if (typing && !event.altKey) return;
       var url = event.key === "ArrowLeft"
         ? root.getAttribute("data-prev")

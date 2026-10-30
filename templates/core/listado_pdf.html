@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <style>
+    body { font-family: Helvetica, sans-serif; }
+    body { font-size: 11pt; color: #1a2421; }
+    h1 { font-size: 18pt; margin: 0 0 6px; }
+    p { margin: 0 0 4px; color: #3d4a45; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+    th, td { border: 1px solid #c8bfb2; padding: 5px 7px; text-align: left; }
+    th { background: #efe6d6; font-size: 9pt; }
+  </style>
+</head>
+<body>
+  <h1>{{ title }}</h1>
+  {% if query %}<p>Búsqueda: {{ query }}</p>{% endif %}
+  <p>{{ record_count }} registro{{ record_count|pluralize }} · {{ generated_at }}</p>
+  <table>
+    <thead>
+      <tr>
+        {% for header in headers %}
+          <th>{{ header }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          {% for cell in row %}
+            <td>{{ cell }}</td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

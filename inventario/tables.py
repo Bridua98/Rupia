@@ -1,8 +1,7 @@
 from urllib.parse import urlencode
 
-from django.urls import reverse
-
 import django_tables2 as tables
+from django.urls import reverse
 
 from core.tables import ActionMenuColumn
 from inventario.models import Marca
@@ -15,6 +14,9 @@ def marca_row_actions(record, table=None):
         q = request.GET.get("q", "").strip()
         if q:
             params["q"] = q
+        page = request.GET.get("page", "").strip()
+        if page:
+            params["page"] = page
     return [
         {
             "label": "Modificar",

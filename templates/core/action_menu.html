@@ -17,7 +17,10 @@
       {% for action in actions %}
         {% if action.href %}
           <li class="action-menu-item" role="none">
-            <a class="action-menu-link" role="menuitem" href="{{ action.href }}">{{ action.label }}</a>
+            <a class="action-menu-link" role="menuitem" href="{{ action.href }}">
+              {% include "core/icon.html" with name=action.icon|default:"pencil" %}
+              <span>{{ action.label }}</span>
+            </a>
           </li>
         {% elif action.delete_url %}
           <li class="action-menu-item action-menu-item-danger" role="none">
@@ -29,7 +32,8 @@
               data-confirm="{{ action.confirm_message }}"
               data-action="{{ action.delete_url }}"
             >
-              {{ action.label }}
+              {% include "core/icon.html" with name=action.icon|default:"trash" %}
+              <span>{{ action.label }}</span>
             </button>
           </li>
         {% endif %}
@@ -40,9 +44,13 @@
       <form method="post" class="action-menu-confirm-form" data-delete-form>
         {% csrf_token %}
         <div class="action-menu-confirm-actions">
-          <button type="submit" class="button button-danger button-compact">Eliminar</button>
+          <button type="submit" class="button button-danger button-compact">
+            {% include "core/icon.html" with name="trash" %}
+            <span>Eliminar</span>
+          </button>
           <button type="button" class="button button-ghost button-compact" data-delete-cancel>
-            Cancelar
+            {% include "core/icon.html" with name="x" %}
+            <span>Cancelar</span>
           </button>
         </div>
       </form>

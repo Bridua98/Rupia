@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} · Rupia{% endblock %}
+{% block body_class %}print-view{% endblock %}
+
+{% block content %}
+<article class="print-page">
+  <header class="print-toolbar">
+    <a class="back" href="{{ list_url }}">
+      {% include "core/icon.html" with name="back" %}
+      <span>Volver</span>
+    </a>
+    <button type="button" class="button" onclick="window.print()">
+      {% include "core/icon.html" with name="print" %}
+      <span>Imprimir</span>
+    </button>
+  </header>
+  <p class="eyebrow">Rupia</p>
+  <h1>{{ title }}</h1>
+  {% if query %}
+    <p class="print-query">Búsqueda: {{ query }}</p>
+  {% endif %}
+  <p class="record-count">{{ record_count }} registro{{ record_count|pluralize }} · {{ generated_at }}</p>
+  <table class="sheet print-table">
+    <thead>
+      <tr>
+        {% for header in headers %}
+          <th scope="col">{{ header }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          {% for cell in row %}
+            <td>{{ cell }}</td>
+          {% endfor %}
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="{{ headers|length }}">No hay registros.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</article>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.addEventListener("load", function () {
+    window.print();
+  });
+</script>
+{% endblock %}

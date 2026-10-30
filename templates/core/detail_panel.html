@@ -1,0 +1,37 @@
+<aside class="detail-panel" aria-label="{% if panel_object %}{{ panel_object }}{% else %}{{ create_label }}{% endif %}">
+  <header class="detail-head">
+    <div>
+      <p class="eyebrow">{{ eyebrow }}</p>
+      <h2>{% if panel_object %}{{ panel_object }}{% else %}{{ create_label }}{% endif %}</h2>
+    </div>
+    <a class="detail-close" href="{{ close_url }}" aria-label="Cerrar">{% include "core/icon.html" with name="x" %}</a>
+  </header>
+  <div
+    class="detail-body"
+    data-rupia="ficha"
+    data-list="{{ close_url }}"
+    data-prev=""
+    data-next=""
+  >
+    <form method="post" action="{{ panel_action }}" id="panel-form">
+      {% csrf_token %}
+      <input type="hidden" name="desde" value="listado">
+      {% if query %}
+        <input type="hidden" name="q" value="{{ query }}">
+      {% endif %}
+      {% include "core/form_fields.html" with form=panel_form %}
+    </form>
+  </div>
+  <footer class="detail-foot">
+    <button type="submit" class="button" form="panel-form" name="accion" value="guardar">
+      {% include "core/icon.html" with name="check" %}
+      <span>Guardar</span>
+    </button>
+    {% if ficha_url %}
+      <a class="button button-ghost" href="{{ ficha_url }}">
+        {% include "core/icon.html" with name="external" %}
+        <span>Abrir ficha</span>
+      </a>
+    {% endif %}
+  </footer>
+</aside>

@@ -1,5 +1,18 @@
+from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.exceptions import ValidationError
+
+
+class RupiaModelForm(forms.ModelForm):
+    """Formulario de mantenimiento: sin required nativo y con el campo flotante."""
+
+    use_required_attribute = False
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("placeholder", " ")
+            field.widget.attrs.setdefault("autocomplete", "off")
 
 
 class LoginForm(AuthenticationForm):

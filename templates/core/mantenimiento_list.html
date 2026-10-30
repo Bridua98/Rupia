@@ -7,7 +7,10 @@
 {% block work %}
 <div class="ledger{% if detail_open %} is-split{% endif %}" data-rupia="list">
   <div class="ledger-main">
-    <a class="back" href="{{ back_url }}">Volver</a>
+    <a class="back" href="{{ back_url }}">
+      {% include "core/icon.html" with name="back" %}
+      <span>Volver</span>
+    </a>
     <div class="stage-head">
       <div>
         <p class="eyebrow">{{ eyebrow }}</p>
@@ -16,10 +19,16 @@
           <p class="record-count">{{ record_count }} registro{{ record_count|pluralize }}</p>
         {% endif %}
       </div>
-      <a class="button" href="{{ create_url }}">{{ create_label }}</a>
+      <div class="stage-actions">
+        {% include "core/output_menu.html" %}
+        <a class="icon-action" href="{{ create_url }}" aria-label="{{ create_label }}">
+          {% include "core/icon.html" with name="plus" %}
+        </a>
+      </div>
     </div>
     {% if search_label %}
       <form class="list-search" method="get" action="{{ list_url }}">
+        <span class="list-search-icon">{% include "core/icon.html" with name="search" %}</span>
         <input
           type="search"
           name="q"
@@ -34,7 +43,11 @@
       <p class="hint">{{ list_hint }}</p>
     {% endif %}
   </div>
-  {% block detail %}{% endblock %}
+  {% block detail %}
+    {% if detail_open %}
+      {% include "core/detail_panel.html" %}
+    {% endif %}
+  {% endblock %}
 </div>
 {% endblock %}
 

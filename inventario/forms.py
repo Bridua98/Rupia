@@ -1,11 +1,10 @@
 from django import forms
 
+from core.forms import RupiaModelForm
 from inventario.models import Marca
 
 
-class MarcaForm(forms.ModelForm):
-    use_required_attribute = False
-
+class MarcaForm(RupiaModelForm):
     descripcion = forms.CharField(
         label="Descripción",
         max_length=200,

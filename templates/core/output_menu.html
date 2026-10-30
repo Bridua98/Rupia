@@ -1,0 +1,41 @@
+{% if print_url or export_xlsx_url or export_pdf_url %}
+<div class="action-menu" data-rupia="action-menu">
+  <button
+    type="button"
+    class="action-menu-trigger"
+    aria-haspopup="menu"
+    aria-expanded="false"
+    aria-label="Imprimir y exportar"
+  >
+    {% include "core/icon.html" with name="print" %}
+  </button>
+  <div class="action-menu-panel" role="menu" hidden>
+    <ul class="action-menu-list" data-action-panel="menu">
+      {% if print_url %}
+        <li class="action-menu-item" role="none">
+          <a class="action-menu-link" role="menuitem" href="{{ print_url }}">
+            {% include "core/icon.html" with name="print" %}
+            <span>Imprimir</span>
+          </a>
+        </li>
+      {% endif %}
+      {% if export_xlsx_url %}
+        <li class="action-menu-item" role="none">
+          <a class="action-menu-link" role="menuitem" href="{{ export_xlsx_url }}">
+            {% include "core/icon.html" with name="excel" %}
+            <span>Excel</span>
+          </a>
+        </li>
+      {% endif %}
+      {% if export_pdf_url %}
+        <li class="action-menu-item" role="none">
+          <a class="action-menu-link" role="menuitem" href="{{ export_pdf_url }}">
+            {% include "core/icon.html" with name="pdf" %}
+            <span>PDF</span>
+          </a>
+        </li>
+      {% endif %}
+    </ul>
+  </div>
+</div>
+{% endif %}
