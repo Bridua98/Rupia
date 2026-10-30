@@ -5,7 +5,7 @@
       <thead>
         <tr>
           {% for column in table.columns %}
-            <th scope="col">{{ column.header }}</th>
+            <th scope="col"{% if column.attrs.th.as_html %} {{ column.attrs.th.as_html }}{% endif %}>{{ column.header }}</th>
           {% endfor %}
         </tr>
       </thead>
@@ -14,7 +14,7 @@
       {% for row in table.paginated_rows %}
         <tr {{ row.attrs.as_html }}>
           {% for column, cell in row.items %}
-            <td>{{ cell }}</td>
+            <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ cell }}</td>
           {% endfor %}
         </tr>
       {% empty %}

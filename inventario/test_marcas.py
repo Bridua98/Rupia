@@ -54,6 +54,7 @@ def test_listado_marca_la_primera_fila(ingresada):
     assert "Nueva marca" in content
     assert 'href="/"' in content
     assert "Volver" in content
+    assert 'class="sheet-col-acciones"' in content
     assert 'aria-label="Acciones"' in content
     assert "Modificar" in content
     assert "2 registros" in content
