@@ -15,7 +15,9 @@
         {% for entry in menu %}
           <li>
             {% if entry.children %}
-              <span class="app-menu-group">{{ entry.label }}</span>
+              <span class="app-menu-group">
+                {% include "core/menu_label.html" with icon=entry.icon label=entry.label %}
+              </span>
               <ul class="app-menu-sublist">
                 {% for child in entry.children %}
                   <li>
@@ -23,18 +25,20 @@
                       class="app-menu-link{% if child.active %} is-active{% endif %}"
                       href="{{ child.href }}"
                       {% if child.active %}aria-current="page"{% endif %}
-                    >{{ child.label }}</a>
+                    >{% include "core/menu_label.html" with icon=child.icon label=child.label %}</a>
                   </li>
                 {% endfor %}
               </ul>
             {% elif entry.disabled %}
-              <span class="app-menu-link is-disabled" aria-disabled="true">{{ entry.label }}</span>
+              <span class="app-menu-link is-disabled" aria-disabled="true">
+                {% include "core/menu_label.html" with icon=entry.icon label=entry.label %}
+              </span>
             {% else %}
               <a
                 class="app-menu-link{% if entry.active %} is-active{% endif %}"
                 href="{{ entry.href }}"
                 {% if entry.active %}aria-current="page"{% endif %}
-              >{{ entry.label }}</a>
+              >{% include "core/menu_label.html" with icon=entry.icon label=entry.label %}</a>
             {% endif %}
           </li>
         {% endfor %}
@@ -45,7 +49,10 @@
       <span class="session-name">{{ user.get_username }}</span>
       <form method="post" action="{% url 'logout' %}">
         {% csrf_token %}
-        <button type="submit" class="text-button text-button-light">Salir</button>
+        <button type="submit" class="text-button text-button-light">
+          {% include "core/icon.html" with name="logout" %}
+          <span>Salir</span>
+        </button>
       </form>
     </div>
   </aside>

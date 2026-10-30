@@ -26,4 +26,27 @@
       {% endfor %}
     </tbody>
   </table>
+  {% if table.page and table.paginator.num_pages > 1 %}
+    <nav class="sheet-pager" aria-label="Paginación">
+      {% if table.page.has_previous %}
+        <a
+          class="step"
+          href="{% querystring_replace table.prefixed_page_field=table.page.previous_page_number %}"
+          aria-label="Página anterior"
+        >{% include "core/icon.html" with name="chevron-left" %}</a>
+      {% else %}
+        <button type="button" class="step" disabled aria-label="Página anterior">{% include "core/icon.html" with name="chevron-left" %}</button>
+      {% endif %}
+      <span>Página {{ table.page.number }} de {{ table.paginator.num_pages }}</span>
+      {% if table.page.has_next %}
+        <a
+          class="step"
+          href="{% querystring_replace table.prefixed_page_field=table.page.next_page_number %}"
+          aria-label="Página siguiente"
+        >{% include "core/icon.html" with name="chevron-right" %}</a>
+      {% else %}
+        <button type="button" class="step" disabled aria-label="Página siguiente">{% include "core/icon.html" with name="chevron-right" %}</button>
+      {% endif %}
+    </nav>
+  {% endif %}
 </div>

@@ -1,0 +1,89 @@
+{% extends "app.html" %}
+{% load static %}
+
+{% block title %}{% if object %}{{ object }}{% else %}{{ create_label }}{% endif %} · Rupia{% endblock %}
+
+{% block work %}
+<div
+  class="ficha"
+  data-rupia="ficha"
+  data-prev="{{ prev_url }}"
+  data-next="{{ next_url }}"
+  data-list="{{ list_url }}"
+>
+  <a class="back" href="{{ list_url }}">
+    {% include "core/icon.html" with name="back" %}
+    <span>Volver</span>
+  </a>
+  <p class="eyebrow">{{ eyebrow }}</p>
+  {% if object %}
+    <div class="title-row">
+      <h1>{{ object }}</h1>
+      <div class="pager">
+        {% if prev_url %}
+          <a class="step" href="{{ prev_url }}" data-record-nav aria-label="{{ record_noun|capfirst }} anterior">{% include "core/icon.html" with name="chevron-left" %}</a>
+        {% else %}
+          <button type="button" class="step" disabled aria-label="{{ record_noun|capfirst }} anterior">{% include "core/icon.html" with name="chevron-left" %}</button>
+        {% endif %}
+        <span>{{ position }} de {{ total }}</span>
+        {% if next_url %}
+          <a class="step" href="{{ next_url }}" data-record-nav aria-label="{{ record_noun|capfirst }} siguiente">{% include "core/icon.html" with name="chevron-right" %}</a>
+        {% else %}
+          <button type="button" class="step" disabled aria-label="{{ record_noun|capfirst }} siguiente">{% include "core/icon.html" with name="chevron-right" %}</button>
+        {% endif %}
+      </div>
+    </div>
+    <p class="hint">Fuera del campo, las flechas pasan a otra {{ record_noun }}.</p>
+    <p
+      class="field-error"
+      data-nav-error
+      data-nav-message="Guardá o volvé al listado antes de pasar a otra {{ record_noun }}."
+      hidden
+    ></p>
+  {% else %}
+    <h1>{{ create_label }}</h1>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    {% include "core/form_fields.html" %}
+    <div class="actions" data-ficha-actions>
+      <button type="submit" class="button" name="accion" value="guardar">
+        {% include "core/icon.html" with name="check" %}
+        <span>Guardar</span>
+      </button>
+      <button type="submit" class="button button-ghost" name="accion" value="seguir">
+        {% include "core/icon.html" with name="arrow-right" %}
+        <span>Guardar y seguir</span>
+      </button>
+      {% if object %}
+        <button type="button" class="text-button text-button-danger" data-delete-open>
+          {% include "core/icon.html" with name="trash" %}
+          <span>Eliminar</span>
+        </button>
+      {% endif %}
+    </div>
+  </form>
+
+  {% if object %}
+    <form method="post" action="{{ delete_url }}" data-ficha-confirm hidden>
+      {% csrf_token %}
+      <p>¿Eliminar {{ object }}?</p>
+      <div class="actions">
+        <button type="submit" class="button button-danger">
+          {% include "core/icon.html" with name="trash" %}
+          <span>Eliminar</span>
+        </button>
+        <button type="button" class="button button-ghost" data-delete-cancel>
+          {% include "core/icon.html" with name="x" %}
+          <span>Cancelar</span>
+        </button>
+      </div>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/rupia-tabla.js' %}"></script>
+{% endblock %}

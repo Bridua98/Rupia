@@ -49,6 +49,8 @@ django-simple-menu==2.1.4
     # via rupia
 django-tables2==3.0.1
     # via rupia
+et-xmlfile==2.0.0
+    # via openpyxl
 gunicorn==23.0.0
     # via rupia
 html5lib==1.1
@@ -65,6 +67,8 @@ numpy==2.2.6
     # via
     #   pandas
     #   rupia
+openpyxl==3.1.5
+    # via rupia
 packaging==26.3
     # via gunicorn
 pandas==2.3.3

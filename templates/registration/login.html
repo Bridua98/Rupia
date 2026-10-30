@@ -50,13 +50,20 @@
             data-toggle-password
             aria-controls="{{ form.password.id_for_label }}"
             aria-pressed="false"
-          >Mostrar</button>
+            aria-label="Mostrar"
+          >
+            <span data-reveal-icon="show">{% include "core/icon.html" with name="eye" %}</span>
+            <span data-reveal-icon="hide" hidden>{% include "core/icon.html" with name="eye-off" %}</span>
+          </button>
           {% for error in form.password.errors %}
             <p class="field-error">{{ error }}</p>
           {% endfor %}
         </div>
 
-        <button class="button" type="submit">Entrar</button>
+        <button class="button" type="submit">
+          {% include "core/icon.html" with name="login" %}
+          <span>Entrar</span>
+        </button>
       </form>
     </div>
   </section>
@@ -70,8 +77,10 @@
     button.addEventListener("click", function () {
       var showing = input.getAttribute("type") === "text";
       input.setAttribute("type", showing ? "password" : "text");
-      button.textContent = showing ? "Mostrar" : "Ocultar";
+      button.setAttribute("aria-label", showing ? "Mostrar" : "Ocultar");
       button.setAttribute("aria-pressed", showing ? "false" : "true");
+      button.querySelector("[data-reveal-icon='show']").hidden = !showing;
+      button.querySelector("[data-reveal-icon='hide']").hidden = showing;
       input.focus();
     });
   })();

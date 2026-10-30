@@ -1,12 +1,12 @@
-from django.template.loader import render_to_string
-
 import django_tables2 as tables
+from django.template.loader import render_to_string
 
 
 class ActionMenuColumn(tables.Column):
     """Columna con menú desplegable de acciones por fila."""
 
     empty_values = ()
+    exclude_from_export = True
 
     def __init__(self, get_actions, **extra):
         self.get_actions = get_actions
