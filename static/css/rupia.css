@@ -281,8 +281,38 @@ form {
   transition: background-color 9999s ease-out;
 }
 
-.field:has(.field-error) input {
+.field:has(.field-error) input,
+.field:has(.field-error) textarea {
   border-bottom-color: var(--danger);
+}
+
+.field textarea {
+  width: 100%;
+  min-height: 7.5rem;
+  padding: 0.7rem 0 0.45rem;
+  border: 0;
+  border-bottom: 1px solid rgba(26, 36, 33, 0.28);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 1.0625rem/1.4 var(--sans);
+  resize: vertical;
+}
+
+.field textarea::placeholder {
+  color: transparent;
+}
+
+.field textarea:focus {
+  outline: none;
+  border-bottom: 2px solid var(--forest);
+  margin-bottom: -1px;
+}
+
+.field textarea:focus + label,
+.field textarea:not(:placeholder-shown) + label {
+  color: var(--forest);
+  transform: translateY(-1.45rem) scale(0.72);
 }
 
 .field-error {
@@ -964,6 +994,10 @@ button.topbar-icon:hover {
   max-width: 28rem;
 }
 
+.ficha .field:has(textarea) {
+  max-width: 42rem;
+}
+
 .sheet-wrap {
   overflow-x: auto;
   overflow-y: visible;
@@ -1375,6 +1409,193 @@ button.topbar-icon:hover {
 
 .detail-panel .field {
   max-width: none;
+}
+
+.field:has(input[name="quitar_imagen"]) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.imagen-card {
+  position: relative;
+  margin-top: 1.5rem;
+  max-width: 16.5rem;
+}
+
+.imagen-label {
+  display: block;
+  margin-bottom: 0.55rem;
+  color: var(--gold);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.imagen-marco {
+  position: relative;
+  display: grid;
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+  border: 1px dashed rgba(20, 51, 43, 0.28);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff 0%, #f4faf6 100%);
+}
+
+.imagen-marco.tiene-foto {
+  border-style: solid;
+  border-color: rgba(20, 51, 43, 0.1);
+  background: #f7faf8;
+  box-shadow: 0 10px 24px rgba(20, 51, 43, 0.06);
+}
+
+.imagen-card.has-error .imagen-marco {
+  border-color: var(--danger);
+}
+
+.imagen-card:focus-within .imagen-marco {
+  outline: 2px solid #1f6b52;
+  outline-offset: 3px;
+}
+
+.imagen-previa {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+  cursor: zoom-in;
+}
+
+.imagen-previa[hidden],
+.imagen-vacio[hidden],
+.imagen-barra[hidden],
+.imagen-accion[hidden] {
+  display: none;
+}
+
+.imagen-vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--forest);
+  font-size: 0.98rem;
+  cursor: pointer;
+}
+
+.imagen-vacio .icon {
+  width: 1.7rem;
+  height: 1.7rem;
+  color: var(--accent);
+}
+
+.imagen-vacio small {
+  color: #7d8c86;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.imagen-barra {
+  position: absolute;
+  right: 0.55rem;
+  bottom: 0.55rem;
+  left: 0.55rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.imagen-accion {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  margin: 0;
+  padding: 0.38rem 0.62rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--forest);
+  font: 500 0.78rem/1 var(--sans);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(20, 51, 43, 0.14);
+}
+
+.imagen-accion .icon {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.imagen-accion:hover {
+  color: var(--accent);
+}
+
+.imagen-accion-quitar:hover {
+  color: var(--danger);
+}
+
+.imagen-card input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.imagen-visor {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 3.2rem 1.25rem 1.5rem;
+  background: rgba(16, 40, 33, 0.84);
+}
+
+.imagen-visor[hidden] {
+  display: none;
+}
+
+.imagen-visor img {
+  width: min(720px, 88vw);
+  height: min(78vh, 820px);
+  object-fit: contain;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.imagen-visor-cerrar {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--forest);
+  font: 400 1.5rem/1 var(--sans);
+  cursor: pointer;
+}
+
+.imagen-visor-cerrar:hover {
+  color: var(--accent);
+}
+
+body.is-visor {
+  overflow: hidden;
 }
 
 .detail-foot {

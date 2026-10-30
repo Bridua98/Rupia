@@ -6,6 +6,125 @@
     if (ficha) initFicha(ficha);
   }
 
+  function visorImagen() {
+    var node = document.querySelector("[data-imagen-visor]");
+    if (node) return node;
+    node = document.createElement("div");
+    node.className = "imagen-visor";
+    node.hidden = true;
+    node.setAttribute("data-imagen-visor", "");
+    node.innerHTML =
+      '<button type="button" class="imagen-visor-cerrar" data-imagen-cerrar aria-label="Cerrar">×</button>' +
+      '<img alt="Imagen del ítem" data-imagen-visor-img>';
+    document.body.appendChild(node);
+    node.addEventListener("click", function (event) {
+      if (event.target === node || event.target.closest("[data-imagen-cerrar]")) {
+        cerrarVisor();
+      }
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape" || node.hidden) return;
+      event.preventDefault();
+      event.stopPropagation();
+      cerrarVisor();
+    }, true);
+    return node;
+  }
+
+  function abrirVisor(src, alt, volver) {
+    var node = visorImagen();
+    var foto = node.querySelector("[data-imagen-visor-img]");
+    foto.src = src;
+    foto.alt = alt || "Imagen del ítem";
+    node.hidden = false;
+    document.body.classList.add("is-visor");
+    node.dataset.returnFocus = "";
+    node._volver = volver || null;
+    var cerrar = node.querySelector("[data-imagen-cerrar]");
+    if (cerrar) cerrar.focus();
+  }
+
+  function cerrarVisor() {
+    var node = document.querySelector("[data-imagen-visor]");
+    if (!node || node.hidden) return;
+    node.hidden = true;
+    document.body.classList.remove("is-visor");
+    var foto = node.querySelector("[data-imagen-visor-img]");
+    if (foto) foto.removeAttribute("src");
+    if (node._volver) node._volver.focus();
+  }
+
+  function initImagen(root) {
+    var card = root.querySelector("[data-imagen]");
+    if (!card) return;
+    var input = card.querySelector("[data-imagen-input]");
+    var preview = card.querySelector("[data-imagen-preview]");
+    var vacio = card.querySelector("[data-imagen-vacio]");
+    var barra = card.querySelector("[data-imagen-barra]");
+    var marco = card.querySelector(".imagen-marco");
+    var ver = card.querySelector("[data-imagen-ver]");
+    var cambiar = card.querySelector("[data-imagen-cambiar]");
+    var quitar = card.querySelector("[data-imagen-quitar]");
+    var check = root.querySelector("[name='quitar_imagen']");
+    if (!input || !preview) return;
+
+    function tieneFoto() {
+      return !preview.hidden && !!preview.getAttribute("src");
+    }
+
+    function mostrar(src, alt) {
+      preview.src = src;
+      preview.alt = alt || "Imagen seleccionada";
+      preview.hidden = false;
+      if (vacio) vacio.hidden = true;
+      if (barra) barra.hidden = false;
+      if (marco) marco.classList.add("tiene-foto");
+      if (quitar) quitar.hidden = false;
+    }
+
+    function vaciar() {
+      preview.hidden = true;
+      preview.removeAttribute("src");
+      if (vacio) vacio.hidden = false;
+      if (barra) barra.hidden = true;
+      if (marco) marco.classList.remove("tiene-foto");
+    }
+
+    if (check) quitar.hidden = !tieneFoto();
+    if (check && check.checked) vaciar();
+
+    input.addEventListener("change", function () {
+      var file = input.files && input.files[0];
+      if (!file) return;
+      if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
+      var url = URL.createObjectURL(file);
+      preview.dataset.objectUrl = url;
+      if (check) check.checked = false;
+      mostrar(url, "Imagen seleccionada");
+    });
+
+    function verFoto() {
+      if (!tieneFoto()) return;
+      abrirVisor(preview.src, preview.alt, ver);
+    }
+
+    if (ver) ver.addEventListener("click", verFoto);
+    if (cambiar) cambiar.addEventListener("click", function () { input.click(); });
+    preview.addEventListener("click", verFoto);
+
+    if (quitar) {
+      quitar.addEventListener("click", function () {
+        if (preview.dataset.objectUrl) {
+          URL.revokeObjectURL(preview.dataset.objectUrl);
+          delete preview.dataset.objectUrl;
+        }
+        input.value = "";
+        if (check) check.checked = true;
+        vaciar();
+      });
+    }
+  }
+
   function rows(root) {
     return Array.prototype.slice.call(root.querySelectorAll("tbody tr[data-href]"));
   }
@@ -216,6 +335,18 @@
   function initFicha(root) {
     var fields = fichaFields(root);
     var navError = root.querySelector("[data-nav-error]");
+    var barcode = root.querySelector("[name='codigo_barra']");
+
+    if (barcode) {
+      barcode.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter" || event.altKey || event.ctrlKey || event.metaKey) return;
+        event.preventDefault();
+        var descripcion = root.querySelector("[name='descripcion']");
+        if (descripcion) descripcion.focus();
+      });
+    }
+
+    initImagen(root);
     var actions = root.querySelector("[data-ficha-actions]");
     var confirmBox = root.querySelector("[data-ficha-confirm]");
     var deleteBtn = root.querySelector("[data-delete-open]");

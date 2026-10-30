@@ -232,11 +232,14 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
             form = self.form_class(instance=self.model.objects.get(pk=selected))
         else:
             return None
-        for field in form.fields.values():
-            if "autofocus" in field.widget.attrs:
-                field.widget.attrs = {
-                    key: value for key, value in field.widget.attrs.items() if key != "autofocus"
-                }
+        if not nueva:
+            for field in form.fields.values():
+                if "autofocus" in field.widget.attrs:
+                    field.widget.attrs = {
+                        key: value
+                        for key, value in field.widget.attrs.items()
+                        if key != "autofocus"
+                    }
         return form
 
     def get_context_data(self, **kwargs):

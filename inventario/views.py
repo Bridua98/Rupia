@@ -1,3 +1,7 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import FileResponse, Http404
+from django.views import View
+
 from core.mantenimiento import (
     MantenimientoCreateView,
     MantenimientoDeleteView,
@@ -5,6 +9,7 @@ from core.mantenimiento import (
     MantenimientoUpdateView,
 )
 from inventario.forms import CategoriaForm, ItemForm, MarcaForm, UnidadForm
+from inventario.imagenes import resolver_imagen
 from inventario.models import Item, ItemCategoria, Marca, UnidadMedida
 from inventario.tables import CategoriaTable, ItemTable, MarcaTable, UnidadTable
 
@@ -171,3 +176,11 @@ class ItemUpdateView(ItemMantenimiento, MantenimientoUpdateView):
 
 class ItemDeleteView(ItemMantenimiento, MantenimientoDeleteView):
     pass
+
+
+class ItemImagenView(LoginRequiredMixin, View):
+    def get(self, request, nombre):
+        destino = resolver_imagen(nombre)
+        if destino is None:
+            raise Http404
+        return FileResponse(destino.open("rb"))

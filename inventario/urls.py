@@ -8,6 +8,7 @@ from inventario.views import (
     CategoriaUpdateView,
     ItemCreateView,
     ItemDeleteView,
+    ItemImagenView,
     ItemListView,
     ItemUpdateView,
     MarcaCreateView,
@@ -99,6 +100,7 @@ urlpatterns = [
         name="item_export_pdf",
     ),
     path("items/nueva/", ItemCreateView.as_view(), name="item_create"),
+    path("items/imagen/<str:nombre>/", ItemImagenView.as_view(), name="item_imagen"),
     path("items/<int:pk>/", ItemUpdateView.as_view(), name="item_update"),
     path("items/<int:pk>/eliminar/", ItemDeleteView.as_view(), name="item_delete"),
 ]

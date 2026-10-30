@@ -1,7 +1,12 @@
+from pathlib import Path
+
 from django import forms
+from django.core.exceptions import ValidationError
+from django.urls import reverse
 
 from core.forms import RupiaModelForm
 from core.selectors import SelectorAlta, registrar
+from inventario.imagenes import EXTENSIONES, guardar_imagen, liberar_imagen, resolver_imagen
 from inventario.models import Item, ItemCategoria, Marca, TipoItem, UnidadMedida
 
 
@@ -112,6 +117,20 @@ registrar(
 )
 
 
+class ImagenInput(forms.FileInput):
+    is_imagen = True
+
+    def __init__(self, attrs=None, preview_url=""):
+        self.preview_url = preview_url
+        base = {
+            "accept": "image/jpeg,image/png,image/webp,image/gif",
+            "data-imagen-input": True,
+        }
+        if attrs:
+            base.update(attrs)
+        super().__init__(attrs=base)
+
+
 class ItemForm(RupiaModelForm):
     descripcion = forms.CharField(
         label="Descripción",
@@ -173,16 +192,84 @@ class ItemForm(RupiaModelForm):
         ),
     )
     activo = forms.BooleanField(label="Activo", required=False)
+    imagen_archivo = forms.ImageField(
+        label="Imagen",
+        required=False,
+        error_messages={"invalid_image": "Elegí un archivo de imagen."},
+        widget=ImagenInput(),
+    )
+    quitar_imagen = forms.BooleanField(label="Quitar imagen", required=False)
 
     class Meta:
         model = Item
         fields = [
+            "codigo_barra",
             "descripcion",
             "tipo",
             "marca",
             "categoria",
             "unidad_medida",
-            "codigo_barra",
             "precio",
             "activo",
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        nuevo = not getattr(self.instance, "pk", None)
+        if nuevo:
+            self.fields["descripcion"].widget = forms.Textarea(
+                attrs={
+                    "placeholder": " ",
+                    "autocomplete": "off",
+                    "maxlength": "300",
+                    "rows": "4",
+                }
+            )
+            self.fields["codigo_barra"].widget.attrs["autofocus"] = True
+        if not self.instance.imagen:
+            self.fields.pop("quitar_imagen", None)
+        else:
+            destino = resolver_imagen(self.instance.imagen)
+            if destino is not None:
+                self.fields["imagen_archivo"].widget.preview_url = reverse(
+                    "item_imagen",
+                    kwargs={"nombre": self.instance.imagen},
+                )
+        orden = [
+            "codigo_barra",
+            "descripcion",
+            "tipo",
+            "marca",
+            "categoria",
+            "unidad_medida",
+            "precio",
+            "activo",
+            "imagen_archivo",
+        ]
+        if "quitar_imagen" in self.fields:
+            orden.append("quitar_imagen")
+        self.order_fields(orden)
+
+    def clean_imagen_archivo(self):
+        archivo = self.cleaned_data.get("imagen_archivo")
+        if not archivo:
+            return archivo
+        suffix = Path(archivo.name).suffix.lower()
+        if suffix not in EXTENSIONES:
+            raise ValidationError("La imagen tiene que ser JPG, PNG, WEBP o GIF.")
+        return archivo
+
+    def save(self, commit=True):
+        anterior = self.instance.imagen if self.instance.pk else ""
+        instance = super().save(commit=False)
+        archivo = self.cleaned_data.get("imagen_archivo")
+        if archivo:
+            instance.imagen = guardar_imagen(archivo, excluir_pk=instance.pk)
+        elif self.cleaned_data.get("quitar_imagen"):
+            instance.imagen = None
+        if commit:
+            instance.save()
+            self.save_m2m()
+            if anterior and anterior != (instance.imagen or ""):
+                liberar_imagen(anterior, instance.pk)
+        return instance

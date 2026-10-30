@@ -7,5 +7,6 @@ node_modules/
 static/webpack_bundles/
 staticfiles/
 db.sqlite3
+imagenes/
 .env
 .DS_Store

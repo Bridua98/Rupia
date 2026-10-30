@@ -10,6 +10,41 @@
     {% for error in field.errors %}
       <p class="field-error">{{ error }}</p>
     {% endfor %}
+  {% elif field.field.widget.is_imagen %}
+    <div class="imagen-card{% if field.errors %} has-error{% endif %}" data-imagen>
+      <span class="imagen-label" id="{{ field.id_for_label }}-label">{{ field.label }}</span>
+      <div class="imagen-marco{% if field.field.widget.preview_url %} tiene-foto{% endif %}">
+        <img
+          class="imagen-previa"
+          data-imagen-preview
+          alt="{% if field.field.widget.preview_url %}Imagen del ítem{% endif %}"
+          {% if field.field.widget.preview_url %}src="{{ field.field.widget.preview_url }}"{% else %}hidden{% endif %}
+        >
+        <label class="imagen-vacio" for="{{ field.id_for_label }}" data-imagen-vacio{% if field.field.widget.preview_url %} hidden{% endif %}>
+          {% include "core/icon.html" with name="image" %}
+          <span>Elegir imagen</span>
+          <small>JPG, PNG, WEBP o GIF</small>
+        </label>
+        <div class="imagen-barra" data-imagen-barra{% if not field.field.widget.preview_url %} hidden{% endif %}>
+          <button type="button" class="imagen-accion" data-imagen-ver>
+            {% include "core/icon.html" with name="eye" %}
+            <span>Ver</span>
+          </button>
+          <button type="button" class="imagen-accion" data-imagen-cambiar>
+            {% include "core/icon.html" with name="pencil" %}
+            <span>Cambiar</span>
+          </button>
+          <button type="button" class="imagen-accion imagen-accion-quitar" data-imagen-quitar hidden>
+            {% include "core/icon.html" with name="trash" %}
+            <span>Quitar</span>
+          </button>
+        </div>
+      </div>
+      {{ field }}
+      {% for error in field.errors %}
+        <p class="field-error">{{ error }}</p>
+      {% endfor %}
+    </div>
   {% else %}
     <div class="field{% if field.errors %} has-error{% endif %}">
       {{ field }}

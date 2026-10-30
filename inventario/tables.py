@@ -157,7 +157,7 @@ class ItemTable(tables.Table):
     tipo = tables.Column(verbose_name="Tipo", accessor="get_tipo_display")
     marca = tables.Column(verbose_name="Marca")
     categoria = tables.Column(verbose_name="Categoría")
-    unidad_medida = tables.Column(verbose_name="Unidad")
+    unidad_medida = tables.Column(verbose_name="Unidad", accessor="unidad_medida__simbolo")
     acciones = ActionMenuColumn(
         item_row_actions,
         verbose_name="",

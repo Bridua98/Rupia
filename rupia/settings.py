@@ -113,6 +113,8 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+_imagenes = os.environ.get("RUPIA_IMAGENES_DIR", "").strip()
+RUPIA_IMAGENES_DIR = Path(_imagenes) if _imagenes else BASE_DIR / "imagenes"
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
