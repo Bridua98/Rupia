@@ -40,7 +40,10 @@ def main_menu(request):
         item("Personas", href="#", icon="users", disabled=True),
         group(
             "Inventario",
-            [item("Marcas", url_name="marca_list", icon="tag")],
+            [
+                item("Marcas", url_name="marca_list", icon="tag"),
+                item("Categorías", url_name="categoria_list", icon="tag"),
+            ],
             icon="box",
         ),
         item("Administración", url_name="admin:index", icon="settings", staff_only=True),
