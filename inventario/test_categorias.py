@@ -197,7 +197,7 @@ def test_elimina_categoria(ingresada):
 
 @pytest.mark.django_db
 def test_no_elimina_categoria_en_uso(ingresada):
-    unidad = UnidadMedida.objects.create(id=1, descripcion="Unidad", simbolo="UND")
+    unidad = UnidadMedida.objects.create(descripcion="Unidad", simbolo="UND")
     marca = Marca.objects.create(descripcion="Genérica")
     categoria = ItemCategoria.objects.create(descripcion="Alimentos")
     Item.objects.create(

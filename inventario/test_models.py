@@ -20,7 +20,7 @@ from inventario.models import (
 
 @pytest.fixture
 def item():
-    unidad = UnidadMedida.objects.create(id=1, descripcion="Unidad", simbolo="UND")
+    unidad = UnidadMedida.objects.create(descripcion="Unidad", simbolo="UND")
     marca = Marca.objects.create(descripcion="Genérica")
     categoria = ItemCategoria.objects.create(descripcion="Alimentos")
     return Item.objects.create(
