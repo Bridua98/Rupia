@@ -21,4 +21,5 @@ class ActionMenuColumn(tables.Column):
                 "record": record,
                 "actions": self.get_actions(record, table),
             },
+            request=getattr(table, "request", None),
         )
