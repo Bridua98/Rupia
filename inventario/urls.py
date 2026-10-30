@@ -6,14 +6,19 @@ from inventario.views import (
     CategoriaDeleteView,
     CategoriaListView,
     CategoriaUpdateView,
-    UnidadCreateView,
-    UnidadDeleteView,
-    UnidadListView,
-    UnidadUpdateView,
+    ItemCreateView,
+    ItemDeleteView,
+    ItemImagenView,
+    ItemListView,
+    ItemUpdateView,
     MarcaCreateView,
     MarcaDeleteView,
     MarcaListView,
     MarcaUpdateView,
+    UnidadCreateView,
+    UnidadDeleteView,
+    UnidadListView,
+    UnidadUpdateView,
 )
 
 urlpatterns = [
@@ -78,4 +83,24 @@ urlpatterns = [
     path("unidades/nueva/", UnidadCreateView.as_view(), name="unidad_create"),
     path("unidades/<int:pk>/", UnidadUpdateView.as_view(), name="unidad_update"),
     path("unidades/<int:pk>/eliminar/", UnidadDeleteView.as_view(), name="unidad_delete"),
+    path("items/", ItemListView.as_view(), name="item_list"),
+    path(
+        "items/imprimir/",
+        mantenimiento_salida(ItemListView, "print").as_view(),
+        name="item_print",
+    ),
+    path(
+        "items/exportar.xlsx",
+        mantenimiento_salida(ItemListView, "xlsx").as_view(),
+        name="item_export_xlsx",
+    ),
+    path(
+        "items/exportar.pdf",
+        mantenimiento_salida(ItemListView, "pdf").as_view(),
+        name="item_export_pdf",
+    ),
+    path("items/nueva/", ItemCreateView.as_view(), name="item_create"),
+    path("items/imagen/<str:nombre>/", ItemImagenView.as_view(), name="item_imagen"),
+    path("items/<int:pk>/", ItemUpdateView.as_view(), name="item_update"),
+    path("items/<int:pk>/eliminar/", ItemDeleteView.as_view(), name="item_delete"),
 ]

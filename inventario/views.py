@@ -1,12 +1,17 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import FileResponse, Http404
+from django.views import View
+
 from core.mantenimiento import (
     MantenimientoCreateView,
     MantenimientoDeleteView,
     MantenimientoListView,
     MantenimientoUpdateView,
 )
-from inventario.forms import CategoriaForm, MarcaForm, UnidadForm
-from inventario.models import ItemCategoria, Marca, UnidadMedida
-from inventario.tables import CategoriaTable, MarcaTable, UnidadTable
+from inventario.forms import CategoriaForm, ItemForm, MarcaForm, UnidadForm
+from inventario.imagenes import resolver_imagen
+from inventario.models import Item, ItemCategoria, Marca, UnidadMedida
+from inventario.tables import CategoriaTable, ItemTable, MarcaTable, UnidadTable
 
 
 class MarcaMantenimiento:
@@ -130,3 +135,52 @@ class UnidadUpdateView(UnidadMantenimiento, MantenimientoUpdateView):
 
 class UnidadDeleteView(UnidadMantenimiento, MantenimientoDeleteView):
     pass
+
+
+class ItemMantenimiento:
+    model = Item
+    form_class = ItemForm
+    table_class = ItemTable
+    page_title = "Ítems"
+    eyebrow = "Inventario"
+    title = "Ítems"
+    create_label = "Nuevo ítem"
+    list_hint = "Flechas para moverse. Enter abre el ítem al costado."
+    search_label = "Buscar por descripción"
+    search_placeholder = "Buscar por descripción..."
+    search_field = "descripcion"
+    selection_param = "item"
+    record_noun = "ítem"
+    order_by = ("descripcion", "pk")
+    list_url_name = "item_list"
+    create_url_name = "item_create"
+    update_url_name = "item_update"
+    delete_url_name = "item_delete"
+    print_url_name = "item_print"
+    export_xlsx_url_name = "item_export_xlsx"
+    export_pdf_url_name = "item_export_pdf"
+    export_basename = "items"
+
+
+class ItemListView(ItemMantenimiento, MantenimientoListView):
+    pass
+
+
+class ItemCreateView(ItemMantenimiento, MantenimientoCreateView):
+    list_view_class = ItemListView
+
+
+class ItemUpdateView(ItemMantenimiento, MantenimientoUpdateView):
+    list_view_class = ItemListView
+
+
+class ItemDeleteView(ItemMantenimiento, MantenimientoDeleteView):
+    pass
+
+
+class ItemImagenView(LoginRequiredMixin, View):
+    def get(self, request, nombre):
+        destino = resolver_imagen(nombre)
+        if destino is None:
+            raise Http404
+        return FileResponse(destino.open("rb"))

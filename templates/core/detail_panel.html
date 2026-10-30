@@ -13,7 +13,7 @@
     data-prev=""
     data-next=""
   >
-    <form method="post" action="{{ panel_action }}" id="panel-form">
+    <form method="post" action="{{ panel_action }}" id="panel-form"{% if panel_form.is_multipart %} enctype="multipart/form-data"{% endif %}>
       {% csrf_token %}
       <input type="hidden" name="desde" value="listado">
       {% if query %}

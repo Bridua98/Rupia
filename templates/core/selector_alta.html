@@ -1,0 +1,60 @@
+<div
+  class="field selector"
+  data-rupia="selector"
+  data-search-url="{{ widget.search_url }}"
+  data-create-url="{{ widget.create_url }}"
+  data-selected-label="{{ widget.selected_label }}"
+>
+  <div class="selector-buscar">
+    <input
+      type="hidden"
+      name="{{ widget.name }}"
+      value="{{ widget.value|default_if_none:'' }}"
+      data-selector-value
+    >
+    <input
+      type="search"
+      id="{{ widget.attrs.id }}_q"
+      class="selector-query"
+      placeholder=" "
+      value="{{ widget.selected_label }}"
+      autocomplete="off"
+      role="combobox"
+      aria-autocomplete="list"
+      aria-expanded="false"
+      aria-controls="{{ widget.attrs.id }}_results"
+      data-selector-query
+    >
+    <label for="{{ widget.attrs.id }}_q">{{ widget.field_label }}</label>
+    <ul
+      id="{{ widget.attrs.id }}_results"
+      class="selector-results"
+      role="listbox"
+      hidden
+      data-selector-results
+    ></ul>
+    <button
+      type="button"
+      class="selector-nueva"
+      data-selector-nueva
+      aria-label="{{ widget.create_label }}"
+    >
+      {% include "core/icon.html" with name="plus" %}
+    </button>
+  </div>
+  <div class="selector-alta" data-selector-alta hidden>
+    <p class="eyebrow">{{ widget.create_label }}</p>
+    <p class="field-error" data-selector-form-error hidden></p>
+    {% for field in widget.create_form.visible_fields %}
+      <div class="field">
+        {{ field }}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        <p class="field-error" data-error-for="{{ field.html_name }}" hidden></p>
+      </div>
+    {% endfor %}
+    <div class="selector-alta-actions">
+      <button type="button" class="button" data-selector-guardar>Guardar</button>
+      <button type="button" class="button button-ghost" data-selector-cancelar>Cancelar</button>
+    </div>
+  </div>
+</div>

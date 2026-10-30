@@ -110,6 +110,20 @@ def test_descripcion_vacia_no_graba(ingresada):
 
 
 @pytest.mark.django_db
+def test_no_repite_la_descripcion(ingresada):
+    ItemCategoria.objects.create(descripcion="Alimentos")
+
+    response = ingresada.post(
+        "/inventario/categorias/nueva/",
+        {"descripcion": "Alimentos", "accion": "guardar"},
+    )
+
+    assert response.status_code == 200
+    assert "Ya hay una categoría con esa descripción." in response.content.decode()
+    assert ItemCategoria.objects.count() == 1
+
+
+@pytest.mark.django_db
 def test_edicion_guarda_cambios(ingresada):
     categoria = ItemCategoria.objects.create(descripcion="Bebidas")
 
