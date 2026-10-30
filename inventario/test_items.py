@@ -520,6 +520,110 @@ def test_rechaza_una_extension_que_no_es_imagen(ingresada, carpeta_imagenes):
 
 
 @pytest.mark.django_db
+def test_busca_item_por_marca_vinculada(ingresada):
+    marca, categoria, unidad = _foraneos()
+    Item.objects.create(
+        marca=marca,
+        categoria=categoria,
+        unidad_medida=unidad,
+        descripcion="Arroz 1kg",
+        tipo=TipoItem.PRODUCTO,
+    )
+
+    response = ingresada.get("/inventario/items/?q=Gen")
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "Arroz 1kg" in content
+
+
+@pytest.mark.django_db
+def test_busca_item_por_codigo_de_barra(ingresada):
+    marca, categoria, unidad = _foraneos()
+    Item.objects.create(
+        marca=marca,
+        categoria=categoria,
+        unidad_medida=unidad,
+        descripcion="Arroz 1kg",
+        tipo=TipoItem.PRODUCTO,
+        codigo_barra="7790001112223",
+    )
+
+    response = ingresada.get("/inventario/items/?q=7790001112223")
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "Arroz 1kg" in content
+
+
+@pytest.mark.django_db
+def test_filtro_por_tipo_restringe_el_listado(ingresada):
+    marca, categoria, unidad = _foraneos()
+    Item.objects.create(
+        marca=marca,
+        categoria=categoria,
+        unidad_medida=unidad,
+        descripcion="Arroz 1kg",
+        tipo=TipoItem.PRODUCTO,
+    )
+    Item.objects.create(
+        marca=marca,
+        categoria=categoria,
+        unidad_medida=unidad,
+        descripcion="Flete mensual",
+        tipo=TipoItem.GASTO,
+    )
+
+    response = ingresada.get(f"/inventario/items/?tipo={TipoItem.PRODUCTO}&filtros=1")
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "Arroz 1kg" in content
+    assert "Flete mensual" not in content
+
+
+@pytest.mark.django_db
+def test_exportacion_respeta_el_filtro_de_tipo(ingresada):
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+
+    marca, categoria, unidad = _foraneos()
+    Item.objects.create(
+        marca=marca,
+        categoria=categoria,
+        unidad_medida=unidad,
+        descripcion="Arroz 1kg",
+        tipo=TipoItem.PRODUCTO,
+    )
+    Item.objects.create(
+        marca=marca,
+        categoria=categoria,
+        unidad_medida=unidad,
+        descripcion="Flete mensual",
+        tipo=TipoItem.GASTO,
+    )
+
+    response = ingresada.get(f"/inventario/items/exportar.xlsx?tipo={TipoItem.PRODUCTO}")
+
+    filas = list(load_workbook(BytesIO(response.content)).active.values)
+    descripciones = [fila[0] for fila in filas[1:]]
+    assert "Arroz 1kg" in descripciones
+    assert "Flete mensual" not in descripciones
+
+
+@pytest.mark.django_db
+def test_el_panel_nuevo_se_abre_como_lamina(ingresada):
+    response = ingresada.get("/inventario/items/?nueva=1")
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert 'class="ledger is-overlay"' in content
+    assert 'class="ledger-backdrop"' in content
+    assert 'data-filters-toggle' in content
+
+
+@pytest.mark.django_db
 def test_el_menu_muestra_items(ingresada):
     response = ingresada.get("/")
 

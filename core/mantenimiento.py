@@ -14,6 +14,16 @@ from django.views.generic import CreateView, UpdateView
 from django_tables2 import SingleTableView
 from xhtml2pdf import pisa
 
+from core.listado import (
+    apply_filters,
+    apply_search,
+    filter_options,
+    filter_specs_for,
+    filter_values,
+    listado_query_params,
+    search_fields_for,
+)
+
 
 def _skip_export(column):
     inner = getattr(column, "column", column)
@@ -93,10 +103,11 @@ class ListadoExportMixin:
         if not url_name:
             return ""
         base = reverse(url_name)
-        query = self.query()
-        if not query:
+        params = listado_query_params(self)
+        params.pop("page", None)
+        if not params:
             return base
-        return f"{base}?{urlencode({'q': query})}"
+        return f"{base}?{urlencode(params)}"
 
 
 def mantenimiento_salida(list_view_class, kind):
@@ -118,6 +129,8 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
     template_name = "core/mantenimiento_list.html"
     per_page = 10
     search_field = "descripcion"
+    search_fields = ()
+    filters = ()
     selection_param = "sel"
     search_label = ""
     search_placeholder = ""
@@ -140,18 +153,7 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
         return self.request.POST.get("q", "").strip()
 
     def list_query(self, **extra):
-        params = {}
-        query = self.query()
-        if query:
-            params["q"] = query
-        page = self.request.GET.get("page", "").strip()
-        if page:
-            params["page"] = page
-        for key, value in extra.items():
-            if value is None or value == "":
-                params.pop(key, None)
-            else:
-                params[key] = value
+        params = listado_query_params(self, extra)
         base = reverse(self.list_url_name)
         if not params:
             return base
@@ -159,10 +161,40 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
 
     def get_queryset(self):
         queryset = self.model.objects.order_by(*self.order_by)
-        query = self.query()
-        if query:
-            queryset = queryset.filter(**{f"{self.search_field}__icontains": query})
+        queryset = apply_search(queryset, self.query(), search_fields_for(self))
+        specs = filter_specs_for(self)
+        queryset = apply_filters(queryset, filter_values(self.request, specs), specs)
         return queryset
+
+    def _filter_context(self):
+        specs = filter_specs_for(self)
+        if not specs:
+            return {
+                "list_filters": [],
+                "filters_open": False,
+                "active_filter_count": 0,
+                "filter_values": {},
+            }
+        values = filter_values(self.request, specs)
+        rows = []
+        for spec in specs:
+            name = spec["name"]
+            rows.append(
+                {
+                    "name": name,
+                    "label": spec["label"],
+                    "kind": spec.get("kind", "choice"),
+                    "value": values.get(name, ""),
+                    "options": filter_options(spec),
+                }
+            )
+        active = sum(1 for row in rows if row["value"])
+        return {
+            "list_filters": rows,
+            "filters_open": active > 0 or self.request.GET.get("filtros") == "1",
+            "active_filter_count": active,
+            "filter_values": values,
+        }
 
     def creating(self):
         return self.force_nueva or self.request.GET.get("nueva") == "1"
@@ -281,6 +313,7 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
                 "export_pdf_url": self._salida_url(self.export_pdf_url_name),
             }
         )
+        context.update(self._filter_context())
         return context
 
     def get_table_kwargs(self):
@@ -307,6 +340,12 @@ class MantenimientoWriteMixin:
         query = self.request.POST.get("q", "").strip()
         if query:
             params["q"] = query
+        if self.request.POST.get("desde") == "listado":
+            for spec in filter_specs_for(self):
+                name = spec["name"]
+                value = self.request.POST.get(name, "").strip()
+                if value:
+                    params[name] = value
         return redirect(f"{reverse(self.list_url_name)}?{urlencode(params)}")
 
     def form_invalid(self, form):
