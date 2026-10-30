@@ -264,7 +264,7 @@ def test_listado_pagina_de_a_10(ingresada):
     assert "Serie 10" in contenido
     assert "Serie 11" not in contenido
     assert "Fuera" not in contenido
-    assert "Página 1 de 3" in contenido
+    assert "Mostrando 1 - 10 de 26" in contenido
     assert "26 registros" in contenido
     assert "q=Serie" in contenido
     assert "page=2" in contenido
@@ -274,7 +274,7 @@ def test_listado_pagina_de_a_10(ingresada):
 
     assert "Serie 26" in pagina
     assert "Serie 01" not in pagina
-    assert "Página 3 de 3" in pagina
+    assert "Mostrando 21 - 26 de 26" in pagina
 
 
 @pytest.mark.django_db

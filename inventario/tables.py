@@ -34,6 +34,7 @@ class MarcaTable(tables.Table):
     descripcion = tables.Column(verbose_name="Descripción")
     acciones = ActionMenuColumn(
         marca_row_actions,
+        verbose_name="",
         attrs={"th": {"class": "sheet-col-acciones"}, "td": {"class": "sheet-col-acciones"}},
     )
 
