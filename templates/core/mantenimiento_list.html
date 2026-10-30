@@ -47,12 +47,12 @@
         {% if list_filters %}
           <button
             type="button"
-            class="button button-ghost list-filters-toggle"
+            class="list-filters-toggle"
             data-filters-toggle
             aria-expanded="{% if filters_open %}true{% else %}false{% endif %}"
             aria-controls="list-filters"
           >
-            {% include "core/icon.html" with name="settings" %}
+            {% include "core/icon.html" with name="filter" %}
             <span>Filtros{% if active_filter_count %} ({{ active_filter_count }}){% endif %}</span>
           </button>
         {% endif %}
@@ -70,6 +70,7 @@
             <input type="hidden" name="q" value="{{ query }}">
           {% endif %}
           <input type="hidden" name="filtros" value="1">
+          <p class="list-filters-title">Refiná el listado</p>
           <div class="list-filters-grid">
             {% for row in list_filters %}
               <div class="list-filter">
@@ -90,8 +91,14 @@
             {% endfor %}
           </div>
           <div class="list-filters-actions">
-            <button type="submit" class="button">Aplicar</button>
-            <a class="button button-ghost" href="{{ list_url }}{% if query %}?q={{ query|urlencode }}{% endif %}">Limpiar filtros</a>
+            <button type="submit" class="button button-compact">
+              {% include "core/icon.html" with name="check" %}
+              <span>Aplicar</span>
+            </button>
+            <a class="button button-ghost button-compact" href="{{ list_url }}{% if query %}?q={{ query|urlencode }}{% endif %}">
+              {% include "core/icon.html" with name="x" %}
+              <span>Limpiar filtros</span>
+            </a>
           </div>
         </form>
       {% endif %}
