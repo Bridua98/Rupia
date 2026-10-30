@@ -4,9 +4,9 @@ from core.mantenimiento import (
     MantenimientoListView,
     MantenimientoUpdateView,
 )
-from inventario.forms import CategoriaForm, MarcaForm
-from inventario.models import ItemCategoria, Marca
-from inventario.tables import CategoriaTable, MarcaTable
+from inventario.forms import CategoriaForm, MarcaForm, UnidadForm
+from inventario.models import ItemCategoria, Marca, UnidadMedida
+from inventario.tables import CategoriaTable, MarcaTable, UnidadTable
 
 
 class MarcaMantenimiento:
@@ -88,4 +88,45 @@ class CategoriaUpdateView(CategoriaMantenimiento, MantenimientoUpdateView):
 
 
 class CategoriaDeleteView(CategoriaMantenimiento, MantenimientoDeleteView):
+    pass
+
+
+class UnidadMantenimiento:
+    model = UnidadMedida
+    form_class = UnidadForm
+    table_class = UnidadTable
+    page_title = "Unidades de medida"
+    eyebrow = "Inventario"
+    title = "Unidades de medida"
+    create_label = "Nueva unidad"
+    list_hint = "Flechas para moverse. Enter abre la unidad al costado."
+    search_label = "Buscar por descripción"
+    search_placeholder = "Buscar por descripción..."
+    search_field = "descripcion"
+    selection_param = "unidad"
+    record_noun = "unidad"
+    order_by = ("descripcion", "pk")
+    list_url_name = "unidad_list"
+    create_url_name = "unidad_create"
+    update_url_name = "unidad_update"
+    delete_url_name = "unidad_delete"
+    print_url_name = "unidad_print"
+    export_xlsx_url_name = "unidad_export_xlsx"
+    export_pdf_url_name = "unidad_export_pdf"
+    export_basename = "unidades"
+
+
+class UnidadListView(UnidadMantenimiento, MantenimientoListView):
+    pass
+
+
+class UnidadCreateView(UnidadMantenimiento, MantenimientoCreateView):
+    list_view_class = UnidadListView
+
+
+class UnidadUpdateView(UnidadMantenimiento, MantenimientoUpdateView):
+    list_view_class = UnidadListView
+
+
+class UnidadDeleteView(UnidadMantenimiento, MantenimientoDeleteView):
     pass

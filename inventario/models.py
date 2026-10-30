@@ -46,7 +46,7 @@ class ItemCategoria(models.Model):
 
 
 class UnidadMedida(models.Model):
-    id = models.IntegerField(primary_key=True, db_column="unidmedi_id")
+    id = models.AutoField(primary_key=True, db_column="unidmedi_id")
     descripcion = models.CharField(
         "descripción",
         max_length=100,
