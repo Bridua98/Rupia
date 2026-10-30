@@ -168,6 +168,17 @@ def test_ficha_muestra_vecinas(ingresada):
 
 
 @pytest.mark.django_db
+def test_el_menu_de_eliminar_incluye_el_token(ingresada):
+    Marca.objects.create(descripcion="Pulp")
+
+    response = ingresada.get("/inventario/marcas/")
+
+    content = response.content.decode()
+    form = content.split('data-delete-form', 1)[1].split("</form>", 1)[0]
+    assert 'name="csrfmiddlewaretoken"' in form
+
+
+@pytest.mark.django_db
 def test_elimina_marca(ingresada):
     marca = Marca.objects.create(descripcion="Pulp")
 

@@ -1025,43 +1025,19 @@ body.app {
   padding-left: 1rem;
 }
 
-.app-work:has(.ledger.is-split) {
-  height: 100dvh;
-  min-height: 0;
-  padding: 0;
-}
-
-.app-stage:has(.ledger.is-split) {
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  overflow: hidden;
-}
-
-.app-stage:has(.ledger.is-split) > .banner {
-  margin: 1rem 1.25rem 0;
-}
-
-.ledger.is-split {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
-
-.ledger.is-split .ledger-main {
-  flex: 1;
-  min-width: 0;
-  overflow: auto;
-  padding: clamp(1.5rem, 3vw, 2.4rem) clamp(1.25rem, 2.5vw, 2rem) 2rem;
-}
-
 .detail-panel {
+  position: fixed;
+  z-index: 20;
+  top: clamp(0.75rem, 2vw, 1.25rem);
+  right: clamp(0.75rem, 2vw, 1.25rem);
+  bottom: clamp(0.75rem, 2vw, 1.25rem);
   display: flex;
-  flex: 0 0 23.5rem;
   flex-direction: column;
+  width: 23.5rem;
   min-height: 0;
   border-left: 1px solid var(--line);
   background: #fbf7f1;
+  box-shadow: -16px 0 40px rgba(20, 51, 43, 0.08);
   animation: detail-in 220ms ease;
 }
 
@@ -1145,20 +1121,12 @@ body.app {
 }
 
 @media (max-width: 860px) {
-  .app-work:has(.ledger.is-split),
-  .app-stage:has(.ledger.is-split) {
-    height: auto;
-    overflow: auto;
-  }
-
-  .ledger.is-split {
-    flex-direction: column;
-  }
-
   .detail-panel {
-    flex-basis: auto;
-    width: 100%;
-    border-top: 1px solid var(--line);
-    border-left: 0;
+    top: auto;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+    max-height: min(32rem, 85dvh);
   }
 }
