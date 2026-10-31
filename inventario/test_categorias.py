@@ -94,7 +94,9 @@ def test_alta_vuelve_al_listado(ingresada):
 
     categoria = ItemCategoria.objects.get(descripcion="Alimentos")
     assert response.status_code == 302
-    assert response.url == f"/inventario/categorias/?categoria={categoria.pk}"
+    assert response.url == "/inventario/categorias/"
+    pagina = ingresada.get(response.url)
+    assert 'class="detail-panel"' not in pagina.content.decode()
 
 
 @pytest.mark.django_db
@@ -135,7 +137,9 @@ def test_edicion_guarda_cambios(ingresada):
     categoria.refresh_from_db()
     assert categoria.descripcion == "Bebidas sin alcohol"
     assert response.status_code == 302
-    assert response.url == f"/inventario/categorias/?categoria={categoria.pk}"
+    assert response.url == "/inventario/categorias/"
+    pagina = ingresada.get(response.url)
+    assert 'class="detail-panel"' not in pagina.content.decode()
 
 
 @pytest.mark.django_db

@@ -162,9 +162,10 @@ def test_alta_de_item_con_foraneos_existentes(ingresada):
     assert item.precio == Decimal("8500.000")
     assert item.activo is True
     assert response.status_code == 302
-    assert response.url == f"/inventario/items/?item={item.pk}"
+    assert response.url == "/inventario/items/"
     pagina = ingresada.get(response.url)
     contenido = pagina.content.decode()
+    assert 'class="detail-panel"' not in contenido
     assert pagina.status_code == 200
     assert "Arroz 1kg" in contenido
     assert "Producto" in contenido
@@ -218,7 +219,9 @@ def test_alta_usa_la_marca_creada_en_el_selector(ingresada):
     item = Item.objects.get(descripcion="Arroz 1kg")
     assert item.marca.descripcion == "Molinos"
     assert response.status_code == 302
-    assert response.url == f"/inventario/items/?item={item.pk}"
+    assert response.url == "/inventario/items/"
+    pagina = ingresada.get(response.url)
+    assert 'class="detail-panel"' not in pagina.content.decode()
 
 
 @pytest.mark.django_db
