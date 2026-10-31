@@ -14,6 +14,7 @@ from inventario.models import (
     ItemCategoria,
     ItemMovimiento,
     Marca,
+    TasaIva,
     TipoItem,
     TipoMovimiento,
     UnidadMedida,
@@ -51,6 +52,7 @@ def _datos(marca, categoria, unidad, **extra):
         "categoria": categoria.pk,
         "unidad_medida": unidad.pk,
         "precio": "8500",
+        "tasa_iva": TasaIva.DIEZ,
         "activo": "on",
         "accion": "guardar",
     }
@@ -167,6 +169,7 @@ def test_alta_de_item_con_foraneos_existentes(ingresada):
     assert item.unidad_medida_id == unidad.pk
     assert item.tipo == TipoItem.PRODUCTO
     assert item.precio == Decimal("8500.000")
+    assert item.tasa_iva == TasaIva.DIEZ
     assert item.activo is True
     assert response.status_code == 302
     assert response.url == "/inventario/items/"
@@ -178,6 +181,97 @@ def test_alta_de_item_con_foraneos_existentes(ingresada):
     assert "Arroz 1kg" in contenido
     assert "Producto" in contenido
     assert "Genérica" in contenido
+
+
+@pytest.mark.django_db
+def test_la_ficha_ofrece_las_tasas_de_iva(ingresada):
+    content = ingresada.get("/inventario/items/nueva/").content.decode()
+    tasa = _select(content, "tasa_iva")
+
+    assert tasa is not None
+    assert 'value="10" selected' in tasa
+    assert 'value="5"' in tasa
+    assert 'value="0"' in tasa
+    assert ">10%<" in tasa
+    assert ">5%<" in tasa
+    assert ">0%<" in tasa
+
+
+@pytest.mark.django_db
+def test_alta_guarda_la_tasa_de_iva_elegida(ingresada):
+    marca, categoria, unidad = _foraneos()
+
+    response = ingresada.post(
+        "/inventario/items/nueva/",
+        _datos(marca, categoria, unidad, tasa_iva=TasaIva.CINCO),
+    )
+
+    item = Item.objects.get(descripcion="Arroz 1kg")
+    assert item.tasa_iva == TasaIva.CINCO
+    assert response.status_code == 302
+    ficha = ingresada.get(f"/inventario/items/{item.pk}/").content.decode()
+    tasa = _select(ficha, "tasa_iva")
+    assert tasa is not None
+    assert 'value="5" selected' in tasa
+    listado = ingresada.get("/inventario/items/").content.decode()
+    assert ">5%<" in listado
+
+
+@pytest.mark.django_db
+def test_alta_guarda_la_tasa_iva_exenta(ingresada):
+    marca, categoria, unidad = _foraneos()
+
+    response = ingresada.post(
+        "/inventario/items/nueva/",
+        _datos(marca, categoria, unidad, tasa_iva=TasaIva.CERO),
+    )
+
+    item = Item.objects.get(descripcion="Arroz 1kg")
+    assert item.tasa_iva == TasaIva.CERO
+    assert response.status_code == 302
+
+
+@pytest.mark.django_db
+def test_tasa_iva_rechaza_un_valor_fuera_del_enum(ingresada):
+    marca, categoria, unidad = _foraneos()
+
+    response = ingresada.post(
+        "/inventario/items/nueva/",
+        _datos(marca, categoria, unidad, tasa_iva="15"),
+    )
+
+    assert response.status_code == 200
+    assert "Elegí una tasa de IVA válida." in response.content.decode()
+    assert Item.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_filtro_por_tasa_de_iva_restringe_el_listado(ingresada):
+    marca, categoria, unidad = _foraneos()
+    Item.objects.create(
+        marca=marca,
+        categoria=categoria,
+        unidad_medida=unidad,
+        descripcion="Arroz 1kg",
+        tipo=TipoItem.PRODUCTO,
+        tasa_iva=TasaIva.DIEZ,
+    )
+    Item.objects.create(
+        marca=marca,
+        categoria=categoria,
+        unidad_medida=unidad,
+        descripcion="Fideos",
+        tipo=TipoItem.PRODUCTO,
+        tasa_iva=TasaIva.CINCO,
+    )
+
+    response = ingresada.get(f"/inventario/items/?tasa_iva={TasaIva.CINCO}&filtros=1")
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "Fideos" in content
+    assert "Arroz 1kg" not in content
+    assert 'value="5" selected' in content
 
 
 @pytest.mark.django_db
@@ -392,6 +486,12 @@ def test_no_elimina_item_con_movimiento(ingresada):
 def _control(html, name):
     patron = rf'<(input|textarea)\b(?:(?!>).)*\bname="{name}"(?:(?!>).)*>'
     return re.search(patron, html)
+
+
+def _select(html, name):
+    patron = rf'<select\b(?:(?!>).)*\bname="{name}"(?:(?!>).)*>.*?</select>'
+    encontrado = re.search(patron, html, re.DOTALL)
+    return encontrado.group(0) if encontrado else None
 
 
 def _png(nombre="arroz.png"):

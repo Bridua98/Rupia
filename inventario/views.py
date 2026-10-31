@@ -10,7 +10,7 @@ from core.mantenimiento import (
 )
 from inventario.forms import CategoriaForm, ItemForm, MarcaForm, UnidadForm
 from inventario.imagenes import resolver_imagen
-from inventario.models import Item, ItemCategoria, Marca, TipoItem, UnidadMedida
+from inventario.models import Item, ItemCategoria, Marca, TasaIva, TipoItem, UnidadMedida
 from inventario.tables import CategoriaTable, ItemTable, MarcaTable, UnidadTable
 
 
@@ -160,6 +160,12 @@ class ItemMantenimiento:
     )
     filters = (
         {"name": "tipo", "label": "Tipo", "kind": "choice", "choices": TipoItem.choices},
+        {
+            "name": "tasa_iva",
+            "label": "Tasa IVA",
+            "kind": "choice",
+            "choices": [(str(valor), etiqueta) for valor, etiqueta in TasaIva.choices],
+        },
         {
             "name": "marca",
             "label": "Marca",
