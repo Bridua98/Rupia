@@ -252,6 +252,21 @@ def test_buscar_filtra_el_listado(ingresada):
 
 
 @pytest.mark.django_db
+def test_guardar_desde_el_listado_cierra_el_panel(ingresada):
+    response = ingresada.post(
+        "/inventario/marcas/nueva/",
+        {"descripcion": "Colón", "accion": "guardar", "desde": "listado", "q": "Col"},
+    )
+
+    assert response.status_code == 302
+    assert response.url == "/inventario/marcas/?q=Col"
+    pagina = ingresada.get(response.url)
+    contenido = pagina.content.decode()
+    assert 'class="detail-panel"' not in contenido
+    assert "Colón" in contenido
+
+
+@pytest.mark.django_db
 def test_alta_desde_el_listado_conserva_el_error(ingresada):
     response = ingresada.post(
         "/inventario/marcas/nueva/",

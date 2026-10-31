@@ -19,6 +19,20 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
+# BrowserSync publica la app en :3000 y el POST llega a Django en :8000.
+# Sin estos orígenes, el login desde http://localhost:3000 falla la verificación CSRF.
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS += [
+        origin
+        for origin in ("http://localhost:3000", "http://127.0.0.1:3000")
+        if origin not in CSRF_TRUSTED_ORIGINS
+    ]
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
