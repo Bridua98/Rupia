@@ -341,11 +341,8 @@ class MantenimientoWriteMixin:
         if query:
             params["q"] = query
         if self.request.POST.get("desde") == "listado":
-            for spec in filter_specs_for(self):
-                name = spec["name"]
-                value = self.request.POST.get(name, "").strip()
-                if value:
-                    params[name] = value
+            for name, value in filter_values(self.request, filter_specs_for(self)).items():
+                params[name] = value
         destino = reverse(self.list_url_name)
         if params:
             destino = f"{destino}?{urlencode(params)}"

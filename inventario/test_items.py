@@ -143,6 +143,13 @@ def test_ficha_ofrece_el_selector_con_alta(ingresada):
     assert "Nueva categoría" in content
     assert "Nueva unidad" in content
     assert 'value="PRODUCTO" selected' in content
+    activo = _control(content, "activo")
+    assert activo is not None
+    assert "checked" in activo.group(0)
+    assert 'class="moneda-simbolo"' in content
+    assert ">Gs.<" in content
+    assert 'data-moneda="guarani"' in content
+    assert 'src="/static/js/rupia-moneda.js"' in content
 
 
 @pytest.mark.django_db
@@ -166,10 +173,62 @@ def test_alta_de_item_con_foraneos_existentes(ingresada):
     pagina = ingresada.get(response.url)
     contenido = pagina.content.decode()
     assert 'class="detail-panel"' not in contenido
+    assert 'class="list-filters is-open"' not in contenido
     assert pagina.status_code == 200
     assert "Arroz 1kg" in contenido
     assert "Producto" in contenido
     assert "Genérica" in contenido
+
+
+@pytest.mark.django_db
+def test_alta_guarda_el_precio_con_mascara_de_guaranies(ingresada):
+    marca, categoria, unidad = _foraneos()
+
+    response = ingresada.post(
+        "/inventario/items/nueva/",
+        _datos(marca, categoria, unidad, precio="Gs. 1.250.000"),
+    )
+
+    item = Item.objects.get(descripcion="Arroz 1kg")
+    assert item.precio == Decimal("1250000.000")
+    assert response.status_code == 302
+
+    ficha = ingresada.get(f"/inventario/items/{item.pk}/").content.decode()
+    precio = _control(ficha, "precio")
+    assert precio is not None
+    assert 'value="1.250.000"' in precio.group(0)
+
+
+@pytest.mark.django_db
+def test_precio_rechaza_decimales(ingresada):
+    marca, categoria, unidad = _foraneos()
+
+    response = ingresada.post(
+        "/inventario/items/nueva/",
+        _datos(marca, categoria, unidad, precio="8.500,50"),
+    )
+
+    assert response.status_code == 200
+    assert "El guaraní no admite decimales." in response.content.decode()
+    assert Item.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_edicion_mantiene_activo_si_estaba_apagado(ingresada):
+    marca, categoria, unidad = _foraneos()
+    item = Item.objects.create(
+        marca=marca,
+        categoria=categoria,
+        unidad_medida=unidad,
+        descripcion="Arroz 1kg",
+        tipo=TipoItem.PRODUCTO,
+        activo=False,
+    )
+
+    html = ingresada.get(f"/inventario/items/{item.pk}/").content.decode()
+    activo = _control(html, "activo")
+    assert activo is not None
+    assert "checked" not in activo.group(0)
 
 
 @pytest.mark.django_db
@@ -222,6 +281,56 @@ def test_alta_usa_la_marca_creada_en_el_selector(ingresada):
     assert response.url == "/inventario/items/"
     pagina = ingresada.get(response.url)
     assert 'class="detail-panel"' not in pagina.content.decode()
+
+
+@pytest.mark.django_db
+def test_guardar_desde_el_listado_no_abre_el_panel_ni_filtra(ingresada):
+    marca, categoria, unidad = _foraneos()
+    Item.objects.create(
+        marca=marca,
+        categoria=categoria,
+        unidad_medida=unidad,
+        descripcion="Flete mensual",
+        tipo=TipoItem.GASTO,
+    )
+
+    response = ingresada.post(
+        "/inventario/items/nueva/",
+        _datos(marca, categoria, unidad, desde="listado", filtro_tipo=TipoItem.GASTO),
+    )
+
+    assert response.status_code == 302
+    assert response.url == f"/inventario/items/?tipo={TipoItem.GASTO}"
+    pagina = ingresada.get(response.url)
+    contenido = pagina.content.decode()
+    assert 'class="detail-panel"' not in contenido
+    assert "Flete mensual" in contenido
+    assert "Arroz 1kg" not in contenido
+
+
+@pytest.mark.django_db
+def test_modificar_desde_el_listado_no_abre_el_panel_ni_filtra(ingresada):
+    marca, categoria, unidad = _foraneos()
+    item = Item.objects.create(
+        marca=marca,
+        categoria=categoria,
+        unidad_medida=unidad,
+        descripcion="Arroz 1kg",
+        tipo=TipoItem.PRODUCTO,
+    )
+
+    response = ingresada.post(
+        f"/inventario/items/{item.pk}/",
+        _datos(marca, categoria, unidad, desde="listado"),
+    )
+
+    assert response.status_code == 302
+    assert response.url == "/inventario/items/"
+    pagina = ingresada.get(response.url)
+    contenido = pagina.content.decode()
+    assert 'class="detail-panel"' not in contenido
+    assert 'class="list-filters is-open"' not in contenido
+    assert "Arroz 1kg" in contenido
 
 
 @pytest.mark.django_db

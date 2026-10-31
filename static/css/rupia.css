@@ -1957,6 +1957,26 @@ body.is-visor {
   font-size: 1rem;
 }
 
+.field-moneda .moneda-simbolo {
+  position: absolute;
+  left: 0;
+  top: 2.15rem;
+  color: var(--ink);
+  font: 600 1.0625rem/1 var(--sans);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.field-moneda:focus-within .moneda-simbolo,
+.field-moneda:has(input:not(:placeholder-shown)) .moneda-simbolo {
+  opacity: 1;
+}
+
+.field-moneda:focus-within input,
+.field-moneda:has(input:not(:placeholder-shown)) input {
+  padding-left: 2.7rem;
+}
+
 .selector input[type="hidden"] {
   display: none;
 }

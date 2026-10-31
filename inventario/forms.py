@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.urls import reverse
 
 from core.forms import RupiaModelForm
+from core.moneda import MonedaField
 from core.selectors import SelectorAlta, registrar
 from inventario.imagenes import EXTENSIONES, guardar_imagen, liberar_imagen, resolver_imagen
 from inventario.models import Item, ItemCategoria, Marca, TipoItem, UnidadMedida
@@ -177,21 +178,8 @@ class ItemForm(RupiaModelForm):
             }
         ),
     )
-    precio = forms.DecimalField(
-        label="Precio",
-        max_digits=15,
-        decimal_places=3,
-        required=False,
-        localize=True,
-        widget=forms.TextInput(
-            attrs={
-                "placeholder": " ",
-                "autocomplete": "off",
-                "inputmode": "decimal",
-            }
-        ),
-    )
-    activo = forms.BooleanField(label="Activo", required=False)
+    precio = MonedaField(label="Precio", required=False)
+    activo = forms.BooleanField(label="Activo", required=False, initial=True)
     imagen_archivo = forms.ImageField(
         label="Imagen",
         required=False,

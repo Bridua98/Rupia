@@ -96,7 +96,9 @@ def test_alta_vuelve_al_listado(ingresada):
     assert response.status_code == 302
     assert response.url == "/inventario/categorias/"
     pagina = ingresada.get(response.url)
-    assert 'class="detail-panel"' not in pagina.content.decode()
+    contenido = pagina.content.decode()
+    assert 'class="detail-panel"' not in contenido
+    assert categoria.descripcion in contenido
 
 
 @pytest.mark.django_db
