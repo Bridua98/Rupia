@@ -94,7 +94,10 @@ def test_alta_vuelve_al_listado(ingresada):
 
     marca = Marca.objects.get(descripcion="Colón")
     assert response.status_code == 302
-    assert response.url == f"/inventario/marcas/?marca={marca.pk}"
+    assert response.url == "/inventario/marcas/"
+    pagina = ingresada.get(response.url)
+    assert 'class="detail-panel"' not in pagina.content.decode()
+    assert marca.descripcion in pagina.content.decode()
 
 
 @pytest.mark.django_db
@@ -135,7 +138,9 @@ def test_edicion_guarda_cambios(ingresada):
     marca.refresh_from_db()
     assert marca.descripcion == "Colón Norte"
     assert response.status_code == 302
-    assert response.url == f"/inventario/marcas/?marca={marca.pk}"
+    assert response.url == "/inventario/marcas/"
+    pagina = ingresada.get(response.url)
+    assert 'class="detail-panel"' not in pagina.content.decode()
 
 
 @pytest.mark.django_db

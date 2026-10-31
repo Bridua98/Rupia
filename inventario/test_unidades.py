@@ -93,7 +93,9 @@ def test_alta_vuelve_al_listado(ingresada):
     assert unidad.simbolo == "kg"
     assert unidad.pk is not None
     assert response.status_code == 302
-    assert response.url == f"/inventario/unidades/?unidad={unidad.pk}"
+    assert response.url == "/inventario/unidades/"
+    pagina = ingresada.get(response.url)
+    assert 'class="detail-panel"' not in pagina.content.decode()
 
 
 @pytest.mark.django_db
@@ -153,7 +155,9 @@ def test_edicion_guarda_cambios(ingresada):
     assert unidad.descripcion == "Litro neto"
     assert unidad.simbolo == "l"
     assert response.status_code == 302
-    assert response.url == f"/inventario/unidades/?unidad={unidad.pk}"
+    assert response.url == "/inventario/unidades/"
+    pagina = ingresada.get(response.url)
+    assert 'class="detail-panel"' not in pagina.content.decode()
 
 
 @pytest.mark.django_db

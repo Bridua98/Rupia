@@ -18,7 +18,7 @@ def filter_values(request, specs):
         name = spec["name"]
         value = request.GET.get(name, "").strip()
         if not value and request.method == "POST":
-            value = request.POST.get(name, "").strip()
+            value = request.POST.get(f"filtro_{name}", "").strip()
         if value:
             values[name] = value
     return values
