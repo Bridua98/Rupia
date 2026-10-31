@@ -158,6 +158,7 @@ class ItemTable(tables.Table):
     marca = tables.Column(verbose_name="Marca")
     categoria = tables.Column(verbose_name="Categoría")
     unidad_medida = tables.Column(verbose_name="Unidad", accessor="unidad_medida__simbolo")
+    tasa_iva = tables.Column(verbose_name="Tasa IVA", accessor="get_tasa_iva_display")
     acciones = ActionMenuColumn(
         item_row_actions,
         verbose_name="",
@@ -166,7 +167,15 @@ class ItemTable(tables.Table):
 
     class Meta:
         model = Item
-        fields = ("descripcion", "tipo", "marca", "categoria", "unidad_medida", "acciones")
+        fields = (
+            "descripcion",
+            "tipo",
+            "marca",
+            "categoria",
+            "unidad_medida",
+            "tasa_iva",
+            "acciones",
+        )
         orderable = False
         template_name = "django_tables2/rupia.html"
         empty_text = "Todavía no hay ítems."

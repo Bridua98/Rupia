@@ -12,6 +12,7 @@ from inventario.models import (
     ItemCategoria,
     ItemMovimiento,
     Marca,
+    TasaIva,
     TipoItem,
     TipoMovimiento,
     UnidadMedida,
@@ -42,12 +43,21 @@ def test_item_guarda_relaciones(item):
     assert item.unidad_medida.simbolo == "UND"
     assert item.activo is True
     assert item.precio == Decimal("8500.000")
+    assert item.tasa_iva == TasaIva.DIEZ
+    assert item.get_tasa_iva_display() == "10%"
     assert str(item) == "Arroz 1kg"
 
 
 @pytest.mark.django_db
 def test_item_rechaza_tipo_desconocido(item):
     item.tipo = "OTRO"
+    with pytest.raises(ValidationError):
+        item.full_clean()
+
+
+@pytest.mark.django_db
+def test_item_rechaza_tasa_iva_desconocida(item):
+    item.tasa_iva = 15
     with pytest.raises(ValidationError):
         item.full_clean()
 

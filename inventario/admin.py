@@ -31,8 +31,8 @@ class UnidadMedidaAdmin(admin.ModelAdmin):
 
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
-    list_display = ("descripcion", "tipo", "marca", "categoria", "precio", "activo")
-    list_filter = ("tipo", "activo", "marca", "categoria")
+    list_display = ("descripcion", "tipo", "marca", "categoria", "precio", "tasa_iva", "activo")
+    list_filter = ("tipo", "tasa_iva", "activo", "marca", "categoria")
     search_fields = ("descripcion", "codigo_barra")
     autocomplete_fields = ("marca", "categoria", "unidad_medida")
 

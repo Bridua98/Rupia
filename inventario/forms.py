@@ -8,7 +8,7 @@ from core.forms import RupiaModelForm
 from core.moneda import MonedaField
 from core.selectors import SelectorAlta, registrar
 from inventario.imagenes import EXTENSIONES, guardar_imagen, liberar_imagen, resolver_imagen
-from inventario.models import Item, ItemCategoria, Marca, TipoItem, UnidadMedida
+from inventario.models import Item, ItemCategoria, Marca, TasaIva, TipoItem, UnidadMedida
 
 
 class MarcaForm(RupiaModelForm):
@@ -179,6 +179,17 @@ class ItemForm(RupiaModelForm):
         ),
     )
     precio = MonedaField(label="Precio", required=False)
+    tasa_iva = forms.TypedChoiceField(
+        label="Tasa IVA",
+        choices=TasaIva.choices,
+        coerce=int,
+        initial=TasaIva.DIEZ,
+        widget=forms.Select(),
+        error_messages={
+            "required": "Elegí la tasa de IVA.",
+            "invalid_choice": "Elegí una tasa de IVA válida.",
+        },
+    )
     activo = forms.BooleanField(label="Activo", required=False, initial=True)
     imagen_archivo = forms.ImageField(
         label="Imagen",
@@ -198,6 +209,7 @@ class ItemForm(RupiaModelForm):
             "categoria",
             "unidad_medida",
             "precio",
+            "tasa_iva",
             "activo",
         ]
 
@@ -231,6 +243,7 @@ class ItemForm(RupiaModelForm):
             "categoria",
             "unidad_medida",
             "precio",
+            "tasa_iva",
             "activo",
             "imagen_archivo",
         ]

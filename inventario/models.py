@@ -6,6 +6,12 @@ class TipoItem(models.TextChoices):
     GASTO = "GASTO", "Gasto"
 
 
+class TasaIva(models.IntegerChoices):
+    DIEZ = 10, "10%"
+    CINCO = 5, "5%"
+    CERO = 0, "0%"
+
+
 class TipoMovimiento(models.TextChoices):
     COMPRA = "CM", "Compra"
     VENTA = "VT", "Venta"
@@ -121,6 +127,12 @@ class Item(models.Model):
         null=True,
         blank=True,
         db_column="item_precio",
+    )
+    tasa_iva = models.PositiveSmallIntegerField(
+        "tasa IVA",
+        choices=TasaIva.choices,
+        default=TasaIva.DIEZ,
+        db_column="item_tasa_iva",
     )
     ultimo_costo = models.DecimalField(
         "último costo",
