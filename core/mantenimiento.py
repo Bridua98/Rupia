@@ -336,7 +336,7 @@ class MantenimientoWriteMixin:
         self.object = form.save()
         if self.request.POST.get("accion") == "seguir":
             return redirect(self.create_url_name)
-        params = {self.selection_param: self.object.pk}
+        params = {}
         query = self.request.POST.get("q", "").strip()
         if query:
             params["q"] = query
@@ -346,7 +346,10 @@ class MantenimientoWriteMixin:
                 value = self.request.POST.get(name, "").strip()
                 if value:
                     params[name] = value
-        return redirect(f"{reverse(self.list_url_name)}?{urlencode(params)}")
+        destino = reverse(self.list_url_name)
+        if params:
+            destino = f"{destino}?{urlencode(params)}"
+        return redirect(destino)
 
     def form_invalid(self, form):
         if self.request.POST.get("desde") != "listado":

@@ -94,7 +94,10 @@ def test_alta_vuelve_al_listado(ingresada):
 
     marca = Marca.objects.get(descripcion="Colón")
     assert response.status_code == 302
-    assert response.url == f"/inventario/marcas/?marca={marca.pk}"
+    assert response.url == "/inventario/marcas/"
+    pagina = ingresada.get(response.url)
+    assert 'class="detail-panel"' not in pagina.content.decode()
+    assert marca.descripcion in pagina.content.decode()
 
 
 @pytest.mark.django_db
@@ -135,7 +138,9 @@ def test_edicion_guarda_cambios(ingresada):
     marca.refresh_from_db()
     assert marca.descripcion == "Colón Norte"
     assert response.status_code == 302
-    assert response.url == f"/inventario/marcas/?marca={marca.pk}"
+    assert response.url == "/inventario/marcas/"
+    pagina = ingresada.get(response.url)
+    assert 'class="detail-panel"' not in pagina.content.decode()
 
 
 @pytest.mark.django_db
@@ -244,6 +249,21 @@ def test_buscar_filtra_el_listado(ingresada):
     assert "Alfa" in content
     assert "Beta" not in content
     assert "1 registro" in content
+
+
+@pytest.mark.django_db
+def test_guardar_desde_el_listado_cierra_el_panel(ingresada):
+    response = ingresada.post(
+        "/inventario/marcas/nueva/",
+        {"descripcion": "Colón", "accion": "guardar", "desde": "listado", "q": "Col"},
+    )
+
+    assert response.status_code == 302
+    assert response.url == "/inventario/marcas/?q=Col"
+    pagina = ingresada.get(response.url)
+    contenido = pagina.content.decode()
+    assert 'class="detail-panel"' not in contenido
+    assert "Colón" in contenido
 
 
 @pytest.mark.django_db
