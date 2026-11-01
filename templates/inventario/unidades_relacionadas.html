@@ -1,0 +1,99 @@
+<section class="unidades-rel" data-unidades-rel>
+  {{ unidades_formset.management_form }}
+  {% for error in unidades_formset.non_form_errors %}
+    <p class="field-error">{{ error }}</p>
+  {% endfor %}
+  <div class="sheet-wrap">
+    <table class="sheet sheet-form">
+      <caption class="sr-only">Unidades relacionadas</caption>
+      <thead>
+        <tr>
+          <th>Unidad</th>
+          <th>Relación</th>
+          <th>Valor</th>
+          <th class="sheet-col-acciones"><span class="sr-only">Quitar</span></th>
+        </tr>
+      </thead>
+      <tbody data-unidades-filas>
+        {% for form in unidades_formset %}
+          <tr class="{% if form.errors %}has-error{% endif %}" data-unidades-fila>
+            <td>
+              {% for hidden in form.hidden_fields %}
+                {{ hidden }}
+              {% endfor %}
+              {{ form.unidad_medida }}
+              {% for error in form.unidad_medida.errors %}
+                <p class="field-error">{{ error }}</p>
+              {% endfor %}
+            </td>
+            <td>
+              <div class="field{% if form.relacion.errors %} has-error{% endif %}">
+                {{ form.relacion }}
+                <label class="sr-only" for="{{ form.relacion.id_for_label }}">{{ form.relacion.label }}</label>
+                {% for error in form.relacion.errors %}
+                  <p class="field-error">{{ error }}</p>
+                {% endfor %}
+              </div>
+            </td>
+            <td>
+              <div class="field{% if form.valor.errors %} has-error{% endif %}">
+                {{ form.valor }}
+                <label class="sr-only" for="{{ form.valor.id_for_label }}">{{ form.valor.label }}</label>
+                {% for error in form.valor.errors %}
+                  <p class="field-error">{{ error }}</p>
+                {% endfor %}
+              </div>
+            </td>
+            <td class="sheet-col-acciones">
+              {% if form.DELETE %}
+                {{ form.DELETE }}
+                <button type="button" class="text-button text-button-danger" data-unidades-quitar aria-label="Quitar">
+                  {% include "core/icon.html" with name="trash" %}
+                </button>
+              {% endif %}
+              {% for error in form.non_field_errors %}
+                <p class="field-error">{{ error }}</p>
+              {% endfor %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <template data-unidades-vacia>
+    <tr data-unidades-fila>
+      <td>
+        {% for hidden in unidades_formset.empty_form.hidden_fields %}
+          {{ hidden }}
+        {% endfor %}
+        {{ unidades_formset.empty_form.unidad_medida }}
+      </td>
+      <td>
+        <div class="field">
+          {{ unidades_formset.empty_form.relacion }}
+          <label class="sr-only" for="{{ unidades_formset.empty_form.relacion.id_for_label }}">
+            {{ unidades_formset.empty_form.relacion.label }}
+          </label>
+        </div>
+      </td>
+      <td>
+        <div class="field">
+          {{ unidades_formset.empty_form.valor }}
+          <label class="sr-only" for="{{ unidades_formset.empty_form.valor.id_for_label }}">
+            {{ unidades_formset.empty_form.valor.label }}
+          </label>
+        </div>
+      </td>
+      <td class="sheet-col-acciones">
+        {{ unidades_formset.empty_form.DELETE }}
+        <button type="button" class="text-button text-button-danger" data-unidades-quitar aria-label="Quitar">
+          {% include "core/icon.html" with name="trash" %}
+        </button>
+      </td>
+    </tr>
+  </template>
+  <button type="button" class="text-button unidades-rel-agregar" data-unidades-agregar>
+    {% include "core/icon.html" with name="plus" %}
+    <span>Agregar unidad</span>
+  </button>
+</section>

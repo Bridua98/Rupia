@@ -1,0 +1,39 @@
+{% for hidden in form.hidden_fields %}
+  {{ hidden }}
+{% endfor %}
+{% for error in form.non_field_errors %}
+  <p class="field-error">{{ error }}</p>
+{% endfor %}
+
+<div class="rupia-tabs" data-rupia="tabs">
+  <div class="rupia-tabs-bar" role="tablist" aria-label="Secciones del ítem">
+    {% include "core/tab.html" with tabs="item" name="datos" label="Datos" icon="file" selected=True %}
+    {% include "core/tab.html" with tabs="item" name="unidades" label="Unidades" icon="scale" %}
+  </div>
+
+  <div
+    class="rupia-tabs-panel"
+    id="tab-panel-item-datos"
+    data-tab-panel="datos"
+    role="tabpanel"
+    aria-labelledby="tab-item-datos"
+  >
+    {% for field in form.visible_fields %}
+      {% include "core/form_field.html" with field=field %}
+    {% endfor %}
+  </div>
+
+  <div
+    class="rupia-tabs-panel"
+    id="tab-panel-item-unidades"
+    data-tab-panel="unidades"
+    role="tabpanel"
+    aria-labelledby="tab-item-unidades"
+    hidden
+  >
+    <p class="hint">
+      Relacioná otras unidades con la unidad de medida del ítem. El stock se descuenta siempre en esa unidad base.
+    </p>
+    {% include "inventario/unidades_relacionadas.html" %}
+  </div>
+</div>

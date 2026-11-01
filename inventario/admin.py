@@ -7,6 +7,7 @@ from inventario.models import (
     ItemCategoria,
     ItemMovimiento,
     ItemPrecioHistorial,
+    ItemUnidad,
     Marca,
     UnidadMedida,
 )
@@ -30,6 +31,12 @@ class UnidadMedidaAdmin(admin.ModelAdmin):
     search_fields = ("descripcion", "simbolo")
 
 
+class ItemUnidadInline(admin.TabularInline):
+    model = ItemUnidad
+    extra = 0
+    autocomplete_fields = ("unidad_medida",)
+
+
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
     list_display = (
@@ -45,6 +52,7 @@ class ItemAdmin(admin.ModelAdmin):
     list_filter = ("tipo", "tasa_iva", "activo", "precio_segun_costo", "marca", "categoria")
     search_fields = ("descripcion", "codigo_barra")
     autocomplete_fields = ("marca", "categoria", "unidad_medida")
+    inlines = [ItemUnidadInline]
 
 
 @admin.register(ItemMovimiento)

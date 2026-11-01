@@ -3,13 +3,24 @@ from pathlib import Path
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.forms import inlineformset_factory
 from django.urls import reverse
 
+from core.cantidad import CantidadField
 from core.forms import RupiaModelForm
 from core.moneda import MonedaField
 from core.selectors import SelectorAlta, registrar
 from inventario.imagenes import EXTENSIONES, guardar_imagen, liberar_imagen, resolver_imagen
-from inventario.models import Item, ItemCategoria, Marca, TasaIva, TipoItem, UnidadMedida
+from inventario.models import (
+    Item,
+    ItemCategoria,
+    ItemUnidad,
+    Marca,
+    RelacionUnidad,
+    TasaIva,
+    TipoItem,
+    UnidadMedida,
+)
 from inventario.precios import registrar_cambio_ficha
 
 
@@ -337,3 +348,103 @@ class PrecioAjusteForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["porcentaje"].widget.attrs.setdefault("id", "id_porcentaje")
+
+
+class ItemUnidadForm(RupiaModelForm):
+    unidad_medida = SelectorAlta(
+        clave="unidad",
+        label="Unidad",
+        required_message="Elegí una unidad.",
+        required=False,
+    )
+    relacion = forms.ChoiceField(
+        label="Relación",
+        choices=[("", "Relación"), *RelacionUnidad.choices],
+        required=False,
+        widget=forms.Select(),
+        error_messages={"invalid_choice": "Elegí si es menor o mayor."},
+    )
+    valor = CantidadField(
+        label="Valor",
+        required=False,
+        max_digits=15,
+        decimal_places=3,
+        min_value=Decimal("0.001"),
+        error_messages={
+            "invalid": "Escribí el valor.",
+            "min_value": "El valor tiene que ser mayor a 0.",
+        },
+    )
+
+    class Meta:
+        model = ItemUnidad
+        fields = ["unidad_medida", "relacion", "valor"]
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("DELETE"):
+            return cleaned
+        unidad = cleaned.get("unidad_medida")
+        relacion = cleaned.get("relacion")
+        valor = cleaned.get("valor")
+        if not unidad and not relacion and valor is None:
+            return cleaned
+        if not unidad:
+            self.add_error("unidad_medida", "Elegí una unidad.")
+        if not relacion:
+            self.add_error("relacion", "Elegí si es menor o mayor.")
+        if valor is None:
+            self.add_error("valor", "Escribí el valor.")
+        return cleaned
+
+
+class ItemUnidadFormSetBase(forms.BaseInlineFormSet):
+    def __init__(self, *args, unidad_base=None, **kwargs):
+        self.unidad_base = unidad_base
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        vistas = set()
+        base_id = None
+        if self.unidad_base is not None:
+            base_id = getattr(self.unidad_base, "pk", self.unidad_base)
+        elif getattr(self.instance, "unidad_medida_id", None):
+            base_id = self.instance.unidad_medida_id
+        for form in self.forms:
+            if not hasattr(form, "cleaned_data"):
+                continue
+            cleaned = form.cleaned_data
+            if not cleaned or cleaned.get("DELETE"):
+                continue
+            unidad = cleaned.get("unidad_medida")
+            if unidad is None:
+                continue
+            if base_id and unidad.pk == base_id:
+                form.add_error("unidad_medida", "Esa es la unidad del ítem.")
+            if unidad.pk in vistas:
+                form.add_error("unidad_medida", "Ya está relacionada.")
+            vistas.add(unidad.pk)
+
+
+ItemUnidadFormSet = inlineformset_factory(
+    Item,
+    ItemUnidad,
+    form=ItemUnidadForm,
+    formset=ItemUnidadFormSetBase,
+    extra=1,
+    can_delete=True,
+    min_num=0,
+    validate_min=False,
+)
+
+
+def unidades_formset(*, item=None, data=None, unidad_base=None):
+    return ItemUnidadFormSet(
+        data=data,
+        instance=item if item is not None else Item(),
+        prefix="unidades",
+        unidad_base=unidad_base,
+    )

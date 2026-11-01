@@ -4,6 +4,8 @@
   }
 
   function init(root) {
+    if (root.getAttribute("data-selector-ready")) return;
+    root.setAttribute("data-selector-ready", "1");
     var query = root.querySelector("[data-selector-query]");
     var value = root.querySelector("[data-selector-value]");
     var list = root.querySelector("[data-selector-results]");
@@ -11,6 +13,12 @@
     var formError = root.querySelector("[data-selector-form-error]");
     var timer = null;
     var active = -1;
+
+    if (root.closest(".sheet-form")) {
+      if (!query.getAttribute("placeholder") || query.getAttribute("placeholder") === " ") {
+        query.setAttribute("placeholder", "Buscar…");
+      }
+    }
 
     alta.querySelectorAll("input, select, textarea").forEach(function (input) {
       input.disabled = true;
@@ -22,10 +30,16 @@
       active = -1;
     }
 
+    function marcarSeleccion() {
+      var tiene = Boolean(value.value) || Boolean(query.value.trim());
+      root.classList.toggle("is-filled", tiene);
+    }
+
     function choose(row) {
       value.value = row.id;
       query.value = row.label;
       root.setAttribute("data-selected-label", row.label);
+      marcarSeleccion();
       closeList();
     }
 
@@ -81,6 +95,7 @@
         value.value = "";
         root.setAttribute("data-selected-label", "");
       }
+      marcarSeleccion();
       clearTimeout(timer);
       timer = setTimeout(search, 180);
     });
@@ -105,8 +120,16 @@
       }
     });
     query.addEventListener("blur", function () {
-      setTimeout(closeList, 120);
+      setTimeout(function () {
+        closeList();
+        if (value.value && !query.value.trim()) {
+          query.value = root.getAttribute("data-selected-label") || "";
+        }
+        marcarSeleccion();
+      }, 120);
     });
+
+    marcarSeleccion();
 
     function clearAltaErrors() {
       formError.hidden = true;
@@ -189,6 +212,8 @@
         });
     });
   }
+
+  window.rupiaInitSelector = init;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);

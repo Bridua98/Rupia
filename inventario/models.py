@@ -25,6 +25,11 @@ class OrigenPrecio(models.TextChoices):
     MASIVO = "MASIVO", "Masivo"
 
 
+class RelacionUnidad(models.TextChoices):
+    MENOR = "MENOR", "Menor"
+    MAYOR = "MAYOR", "Mayor"
+
+
 class Marca(models.Model):
     id = models.AutoField(primary_key=True, db_column="marc_id")
     descripcion = models.CharField(
@@ -392,3 +397,48 @@ class ItemPrecioHistorial(models.Model):
 
     def __str__(self):
         return f"{self.item} ({self.fecha})"
+
+
+class ItemUnidad(models.Model):
+    id = models.AutoField(primary_key=True, db_column="itemunid_id")
+    item = models.ForeignKey(
+        Item,
+        on_delete=models.RESTRICT,
+        db_column="itemunid_item_id",
+        related_name="unidades",
+        verbose_name="ítem",
+    )
+    unidad_medida = models.ForeignKey(
+        UnidadMedida,
+        on_delete=models.RESTRICT,
+        db_column="itemunid_unidmedi_id",
+        related_name="items_relacionados",
+        verbose_name="unidad de medida",
+    )
+    relacion = models.CharField(
+        "relación",
+        max_length=5,
+        choices=RelacionUnidad.choices,
+        db_column="itemunid_relacion",
+    )
+    valor = models.DecimalField(
+        "valor",
+        max_digits=15,
+        decimal_places=3,
+        db_column="itemunid_valor",
+    )
+
+    class Meta:
+        db_table = "items_unidades"
+        verbose_name = "unidad relacionada"
+        verbose_name_plural = "unidades relacionadas"
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["item", "unidad_medida"],
+                name="items_unidades_item_unidad",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.item} · {self.unidad_medida}"
