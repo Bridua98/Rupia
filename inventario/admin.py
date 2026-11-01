@@ -6,6 +6,7 @@ from inventario.models import (
     Item,
     ItemCategoria,
     ItemMovimiento,
+    ItemPrecioHistorial,
     Marca,
     UnidadMedida,
 )
@@ -31,8 +32,17 @@ class UnidadMedidaAdmin(admin.ModelAdmin):
 
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
-    list_display = ("descripcion", "tipo", "marca", "categoria", "precio", "tasa_iva", "activo")
-    list_filter = ("tipo", "tasa_iva", "activo", "marca", "categoria")
+    list_display = (
+        "descripcion",
+        "tipo",
+        "marca",
+        "categoria",
+        "precio",
+        "precio_segun_costo",
+        "tasa_iva",
+        "activo",
+    )
+    list_filter = ("tipo", "tasa_iva", "activo", "precio_segun_costo", "marca", "categoria")
     search_fields = ("descripcion", "codigo_barra")
     autocomplete_fields = ("marca", "categoria", "unidad_medida")
 
@@ -62,3 +72,37 @@ class AjusteStockAdmin(admin.ModelAdmin):
 class AjusteStockDetalleAdmin(admin.ModelAdmin):
     list_display = ("id", "ajuste", "item", "cantidad_anterior", "cantidad_nueva", "cantidad")
     autocomplete_fields = ("ajuste", "item", "unidad_medida")
+
+
+@admin.register(ItemPrecioHistorial)
+class ItemPrecioHistorialAdmin(admin.ModelAdmin):
+    list_display = (
+        "fecha",
+        "usuario",
+        "item",
+        "precio_anterior",
+        "precio_nuevo",
+        "porcentaje",
+        "origen",
+    )
+    list_filter = ("origen", "segun_costo")
+    search_fields = ("item__descripcion", "usuario__username")
+    autocomplete_fields = ("item", "usuario")
+    readonly_fields = (
+        "item",
+        "precio_anterior",
+        "precio_nuevo",
+        "ultimo_costo",
+        "porcentaje",
+        "segun_costo",
+        "origen",
+        "usuario",
+        "fecha",
+        "lote",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

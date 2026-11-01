@@ -21,10 +21,12 @@
       </div>
       <div class="stage-actions">
         {% include "core/output_menu.html" %}
-        <a class="button button-create" href="{{ create_url }}">
-          {% include "core/icon.html" with name="plus" %}
-          <span>{{ create_label }}</span>
-        </a>
+        {% if show_create %}
+          <a class="button button-create" href="{{ create_url }}">
+            {% include "core/icon.html" with name="plus" %}
+            <span>{{ create_label }}</span>
+          </a>
+        {% endif %}
       </div>
     </div>
     {% if search_label %}

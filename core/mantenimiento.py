@@ -141,6 +141,7 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
     panel_form_override = None
     force_nueva = False
     selected_override = None
+    show_create = True
 
     def get_table_pagination(self, table):
         if not self.per_page:
@@ -291,6 +292,7 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
                 "list_url": reverse(self.list_url_name),
                 "create_url": self.list_query(nueva=1),
                 "create_label": self.create_label,
+                "show_create": self.show_create,
                 "record_count": self.get_queryset().count(),
                 "list_hint": self.list_hint,
                 "query": self.query(),
@@ -302,7 +304,11 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
                 "panel_action": (
                     reverse(self.update_url_name, args=[panel_object.pk])
                     if panel_object
-                    else reverse(self.create_url_name)
+                    else (
+                        reverse(self.create_url_name)
+                        if getattr(self, "create_url_name", "")
+                        else ""
+                    )
                 ),
                 "close_url": self.list_query(),
                 "ficha_url": (

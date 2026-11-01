@@ -1,3 +1,4 @@
+from decimal import Decimal
 from pathlib import Path
 
 from django import forms
@@ -9,6 +10,7 @@ from core.moneda import MonedaField
 from core.selectors import SelectorAlta, registrar
 from inventario.imagenes import EXTENSIONES, guardar_imagen, liberar_imagen, resolver_imagen
 from inventario.models import Item, ItemCategoria, Marca, TasaIva, TipoItem, UnidadMedida
+from inventario.precios import registrar_cambio_ficha
 
 
 class MarcaForm(RupiaModelForm):
@@ -179,6 +181,11 @@ class ItemForm(RupiaModelForm):
         ),
     )
     precio = MonedaField(label="Precio", required=False)
+    precio_segun_costo = forms.BooleanField(
+        label="Modificar precio según último costo",
+        required=False,
+        initial=False,
+    )
     tasa_iva = forms.TypedChoiceField(
         label="Tasa IVA",
         choices=TasaIva.choices,
@@ -209,11 +216,13 @@ class ItemForm(RupiaModelForm):
             "categoria",
             "unidad_medida",
             "precio",
+            "precio_segun_costo",
             "tasa_iva",
             "activo",
         ]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, usuario=None, **kwargs):
+        self.usuario = usuario
         super().__init__(*args, **kwargs)
         nuevo = not getattr(self.instance, "pk", None)
         if nuevo:
@@ -243,6 +252,7 @@ class ItemForm(RupiaModelForm):
             "categoria",
             "unidad_medida",
             "precio",
+            "precio_segun_costo",
             "tasa_iva",
             "activo",
             "imagen_archivo",
@@ -261,7 +271,13 @@ class ItemForm(RupiaModelForm):
         return archivo
 
     def save(self, commit=True):
-        anterior = self.instance.imagen if self.instance.pk else ""
+        existia = bool(self.instance.pk)
+        precio_anterior = None
+        if existia:
+            precio_anterior = (
+                Item.objects.filter(pk=self.instance.pk).values_list("precio", flat=True).first()
+            )
+        anterior = self.instance.imagen if existia else ""
         instance = super().save(commit=False)
         archivo = self.cleaned_data.get("imagen_archivo")
         if archivo:
@@ -271,6 +287,53 @@ class ItemForm(RupiaModelForm):
         if commit:
             instance.save()
             self.save_m2m()
+            registrar_cambio_ficha(instance, precio_anterior, self.usuario)
             if anterior and anterior != (instance.imagen or ""):
                 liberar_imagen(anterior, instance.pk)
         return instance
+
+
+class PorcentajeField(forms.DecimalField):
+    def to_python(self, value):
+        if isinstance(value, str):
+            value = value.strip().replace("%", "").replace(",", ".")
+        return super().to_python(value)
+
+    def prepare_value(self, value):
+        preparado = super().prepare_value(value)
+        if preparado in (None, ""):
+            return ""
+        texto = str(preparado)
+        if texto.endswith(".00"):
+            texto = texto[:-3]
+        elif texto.endswith("0") and "." in texto:
+            texto = texto[:-1]
+        return texto.replace(".", ",")
+
+
+class PrecioAjusteForm(forms.Form):
+    use_required_attribute = False
+    porcentaje = PorcentajeField(
+        label="Porcentaje",
+        max_digits=6,
+        decimal_places=2,
+        min_value=Decimal("-99.99"),
+        error_messages={
+            "required": "Escribí el porcentaje.",
+            "invalid": "Escribí un porcentaje.",
+            "min_value": "El porcentaje tiene que ser mayor a -100.",
+            "max_digits": "El porcentaje admite hasta 4 enteros y 2 decimales.",
+        },
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "0",
+                "inputmode": "decimal",
+                "autocomplete": "off",
+            }
+        ),
+    )
+    todos_filtrados = forms.BooleanField(label="Todos los filtrados", required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["porcentaje"].widget.attrs.setdefault("id", "id_porcentaje")

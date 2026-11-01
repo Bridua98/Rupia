@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -17,6 +18,11 @@ class TipoMovimiento(models.TextChoices):
     VENTA = "VT", "Venta"
     AJUSTE_POSITIVO = "A+", "Ajuste positivo"
     AJUSTE_NEGATIVO = "A-", "Ajuste negativo"
+
+
+class OrigenPrecio(models.TextChoices):
+    FICHA = "FICHA", "Ficha"
+    MASIVO = "MASIVO", "Masivo"
 
 
 class Marca(models.Model):
@@ -141,6 +147,11 @@ class Item(models.Model):
         null=True,
         blank=True,
         db_column="item_ultimo_costo",
+    )
+    precio_segun_costo = models.BooleanField(
+        "precio según último costo",
+        default=False,
+        db_column="item_precio_segun_costo",
     )
     imagen = models.CharField(
         "imagen",
@@ -304,3 +315,80 @@ class AjusteStockDetalle(models.Model):
 
     def __str__(self):
         return f"{self.item} ({self.cantidad})"
+
+
+class ItemPrecioHistorial(models.Model):
+    id = models.AutoField(primary_key=True, db_column="itprehist_id")
+    item = models.ForeignKey(
+        Item,
+        on_delete=models.RESTRICT,
+        db_column="itprehist_item_id",
+        related_name="precios_historial",
+        verbose_name="ítem",
+    )
+    precio_anterior = models.DecimalField(
+        "precio anterior",
+        max_digits=15,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        db_column="itprehist_precio_anterior",
+    )
+    precio_nuevo = models.DecimalField(
+        "precio nuevo",
+        max_digits=15,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        db_column="itprehist_precio_nuevo",
+    )
+    ultimo_costo = models.DecimalField(
+        "último costo",
+        max_digits=15,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        db_column="itprehist_ultimo_costo",
+    )
+    porcentaje = models.DecimalField(
+        "porcentaje",
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        db_column="itprehist_porcentaje",
+    )
+    segun_costo = models.BooleanField(
+        "según costo",
+        db_column="itprehist_segun_costo",
+    )
+    origen = models.CharField(
+        "origen",
+        max_length=6,
+        choices=OrigenPrecio.choices,
+        db_column="itprehist_origen",
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.RESTRICT,
+        db_column="itprehist_usuario_id",
+        related_name="precios_historial",
+        verbose_name="usuario",
+    )
+    fecha = models.DateTimeField("fecha", db_column="itprehist_fecha")
+    lote = models.CharField(
+        "lote",
+        max_length=32,
+        null=True,
+        blank=True,
+        db_column="itprehist_lote",
+    )
+
+    class Meta:
+        db_table = "items_precios_historial"
+        verbose_name = "historial de precio"
+        verbose_name_plural = "historial de precios"
+        ordering = ["-fecha", "-id"]
+
+    def __str__(self):
+        return f"{self.item} ({self.fecha})"

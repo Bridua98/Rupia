@@ -1,0 +1,180 @@
+{% extends "app.html" %}
+{% load static %}
+{% load django_tables2 %}
+
+{% block title %}{{ page_title }} · Rupia{% endblock %}
+
+{% block work %}
+<div class="ledger" data-rupia="list">
+  <div class="ledger-main">
+    <a class="back" href="{{ back_url }}">
+      {% include "core/icon.html" with name="back" %}
+      <span>Volver</span>
+    </a>
+    <div class="stage-head">
+      <div>
+        <p class="eyebrow">{{ eyebrow }}</p>
+        <h1>{{ title }}</h1>
+        {% if record_count is not None %}
+          <p class="record-count">{{ record_count }} registro{{ record_count|pluralize }}</p>
+        {% endif %}
+      </div>
+      <div class="stage-actions">
+        <a class="button button-ghost" href="{{ historial_url }}">
+          {% include "core/icon.html" with name="eye" %}
+          <span>Historial</span>
+        </a>
+      </div>
+    </div>
+    {% if search_label %}
+      <div class="list-toolbar">
+        <form class="list-search" method="get" action="{{ list_url }}">
+          <span class="list-search-icon">{% include "core/icon.html" with name="search" %}</span>
+          <input
+            type="search"
+            name="q"
+            value="{{ query }}"
+            placeholder="{{ search_placeholder }}"
+            aria-label="{{ search_label }}"
+          >
+          {% for row in list_filters %}
+            {% if row.value %}
+              <input type="hidden" name="{{ row.name }}" value="{{ row.value }}">
+            {% endif %}
+          {% endfor %}
+        </form>
+        {% if list_filters %}
+          <button
+            type="button"
+            class="list-filters-toggle"
+            data-filters-toggle
+            aria-expanded="{% if filters_open %}true{% else %}false{% endif %}"
+            aria-controls="list-filters"
+          >
+            {% include "core/icon.html" with name="filter" %}
+            <span>Filtros{% if active_filter_count %} ({{ active_filter_count }}){% endif %}</span>
+          </button>
+        {% endif %}
+      </div>
+      {% if list_filters %}
+        <form
+          id="list-filters"
+          class="list-filters{% if filters_open %} is-open{% endif %}"
+          method="get"
+          action="{{ list_url }}"
+          data-filters-panel
+          {% if not filters_open %}hidden{% endif %}
+        >
+          {% if query %}
+            <input type="hidden" name="q" value="{{ query }}">
+          {% endif %}
+          <input type="hidden" name="filtros" value="1">
+          <p class="list-filters-title">Refiná el listado</p>
+          <div class="list-filters-grid">
+            {% for row in list_filters %}
+              <div class="list-filter">
+                <label for="filter-{{ row.name }}">{{ row.label }}</label>
+                <select id="filter-{{ row.name }}" name="{{ row.name }}">
+                  <option value="">Cualquiera</option>
+                  {% if row.kind == "fk" %}
+                    {% for option in row.options %}
+                      <option value="{{ option.pk }}"{% if row.value == option.pk|stringformat:"d" %} selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                  {% else %}
+                    {% for value, label in row.options %}
+                      <option value="{{ value }}"{% if row.value == value %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  {% endif %}
+                </select>
+              </div>
+            {% endfor %}
+          </div>
+          <div class="list-filters-actions">
+            <button type="submit" class="button button-compact">
+              {% include "core/icon.html" with name="check" %}
+              <span>Aplicar</span>
+            </button>
+            <a class="button button-ghost button-compact" href="{{ list_url }}{% if query %}?q={{ query|urlencode }}{% endif %}">
+              {% include "core/icon.html" with name="x" %}
+              <span>Limpiar filtros</span>
+            </a>
+          </div>
+        </form>
+      {% endif %}
+    {% endif %}
+
+    <form method="post" data-precios-form data-total="{{ record_count }}">
+      {% csrf_token %}
+      <section class="precios-panel" aria-labelledby="precios-ajuste-titulo">
+        <p class="precios-panel-title" id="precios-ajuste-titulo">Ajuste de precios</p>
+        <div class="precios-panel-grid">
+          <div class="precios-porcentaje{% if ajuste_form.porcentaje.errors %} has-error{% endif %}">
+            <label for="{{ ajuste_form.porcentaje.id_for_label }}">{{ ajuste_form.porcentaje.label }}</label>
+            <div class="precios-stepper">
+              <button type="button" class="precios-paso" data-precios-paso="-1" aria-label="Bajar 1 por ciento">
+                {% include "core/icon.html" with name="minus" %}
+              </button>
+              {{ ajuste_form.porcentaje }}
+              <span class="precios-porcentaje-sufijo">%</span>
+              <button type="button" class="precios-paso" data-precios-paso="1" aria-label="Subir 1 por ciento">
+                {% include "core/icon.html" with name="plus" %}
+              </button>
+            </div>
+          </div>
+          <label class="precios-todos">
+            {{ ajuste_form.todos_filtrados }}
+            <span>
+              <strong>{{ ajuste_form.todos_filtrados.label }}</strong>
+              <small>Incluye los {{ record_count }} ítem{{ record_count|pluralize }} filtrados, no solo esta página.</small>
+            </span>
+          </label>
+          <div class="precios-resumen">
+            <p class="precios-cuenta" data-precios-cuenta>Ningún ítem elegido</p>
+            <p class="precios-efecto" data-precios-efecto></p>
+          </div>
+          <div class="precios-acciones" data-precios-acciones>
+            <button type="submit" class="button button-ghost button-compact" name="accion" value="calcular">
+              <span>Vista previa</span>
+            </button>
+            <button
+              type="submit"
+              class="button button-compact"
+              name="accion"
+              value="aplicar"
+              data-precios-aplicar
+            >
+              {% include "core/icon.html" with name="check" %}
+              <span>Aplicar precios</span>
+            </button>
+          </div>
+        </div>
+        <div class="precios-confirm" data-precios-confirm hidden>
+          <p data-precios-confirm-text></p>
+          <div class="precios-acciones">
+            <button type="button" class="button button-ghost button-compact" data-precios-confirm-cancel>
+              <span>Cancelar</span>
+            </button>
+            <button type="submit" class="button button-compact" name="accion" value="aplicar">
+              {% include "core/icon.html" with name="check" %}
+              <span>Confirmar</span>
+            </button>
+          </div>
+        </div>
+        {% for error in ajuste_form.porcentaje.errors %}
+          <p class="field-error">{{ error }}</p>
+        {% endfor %}
+        {% for error in ajuste_form.non_field_errors %}
+          <p class="field-error">{{ error }}</p>
+        {% endfor %}
+        <p class="precios-ayuda">{{ list_hint }}</p>
+      </section>
+      {% render_table table %}
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/rupia-tabla.js' %}"></script>
+<script src="{% static 'js/rupia-precios.js' %}"></script>
+{% endblock %}
