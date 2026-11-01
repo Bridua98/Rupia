@@ -1,6 +1,9 @@
+from urllib.parse import urlencode
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.http import FileResponse, Http404
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -20,7 +23,14 @@ from core.mantenimiento import (
     MantenimientoListView,
     MantenimientoUpdateView,
 )
-from inventario.forms import CategoriaForm, ItemForm, MarcaForm, PrecioAjusteForm, UnidadForm
+from inventario.forms import (
+    CategoriaForm,
+    ItemForm,
+    MarcaForm,
+    PrecioAjusteForm,
+    UnidadForm,
+    unidades_formset,
+)
 from inventario.imagenes import resolver_imagen
 from inventario.models import (
     Item,
@@ -234,9 +244,82 @@ class ItemWriteMixin:
         kwargs["usuario"] = self.request.user
         return kwargs
 
+    def _unidades_formset(self, form, data=None):
+        unidad_base = None
+        if getattr(form, "is_bound", False) and form.is_valid():
+            unidad_base = form.cleaned_data.get("unidad_medida")
+        elif getattr(form.instance, "unidad_medida_id", None):
+            unidad_base = form.instance.unidad_medida
+        return unidades_formset(item=form.instance, data=data, unidad_base=unidad_base)
+
+    def form_valid(self, form):
+        formset = None
+        if "unidades-TOTAL_FORMS" in self.request.POST:
+            formset = self._unidades_formset(form, data=self.request.POST)
+            self.unidades_formset = formset
+            if not formset.is_valid():
+                return self.form_invalid(form)
+        with transaction.atomic():
+            self.object = form.save()
+            if formset is not None:
+                formset.instance = self.object
+                formset.save()
+        if self.request.POST.get("accion") == "seguir":
+            return redirect(self.create_url_name)
+        params = {}
+        query = self.request.POST.get("q", "").strip()
+        if query:
+            params["q"] = query
+        if self.request.POST.get("desde") == "listado":
+            for name, value in filter_values(self.request, filter_specs_for(self)).items():
+                params[name] = value
+        destino = reverse(self.list_url_name)
+        if params:
+            destino = f"{destino}?{urlencode(params)}"
+        return redirect(destino)
+
+    def form_invalid(self, form):
+        if not hasattr(self, "unidades_formset"):
+            data = self.request.POST if "unidades-TOTAL_FORMS" in self.request.POST else None
+            self.unidades_formset = self._unidades_formset(form, data=data)
+        if self.request.POST.get("desde") != "listado":
+            return super().form_invalid(form)
+        listado = self.list_view_class()
+        listado.setup(self.request)
+        listado.panel_form_override = form
+        listado.unidades_formset_override = self.unidades_formset
+        listado.force_nueva = not getattr(form.instance, "pk", None)
+        if getattr(form.instance, "pk", None):
+            listado.selected_override = form.instance.pk
+        return listado.get(self.request)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["unidades_formset"] = getattr(self, "unidades_formset", None) or unidades_formset(
+            item=context.get("object") or getattr(self, "object", None),
+            unidad_base=getattr(
+                context.get("object") or getattr(self, "object", None),
+                "unidad_medida",
+                None,
+            ),
+        )
+        return context
+
 
 class ItemListView(ItemMantenimiento, MantenimientoListView):
-    pass
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        panel_form = context.get("panel_form")
+        if panel_form is not None:
+            context["unidades_formset"] = getattr(
+                self, "unidades_formset_override", None
+            ) or unidades_formset(
+                item=panel_form.instance,
+                unidad_base=(
+                    panel_form.instance.unidad_medida if panel_form.instance.pk else None
+                ),
+            )
+        return context
 
 
 class ItemCreateView(ItemMantenimiento, ItemWriteMixin, MantenimientoCreateView):

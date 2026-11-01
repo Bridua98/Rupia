@@ -151,4 +151,19 @@ CREATE TABLE IF NOT EXISTS `items_precios_historial` (
     REFERENCES `items` (`item_id`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `items_unidades` (
+  `itemunid_id` int NOT NULL AUTO_INCREMENT,
+  `itemunid_item_id` int NOT NULL,
+  `itemunid_unidmedi_id` int NOT NULL,
+  `itemunid_relacion` varchar(5) NOT NULL,
+  `itemunid_valor` decimal(15,3) NOT NULL,
+  PRIMARY KEY (`itemunid_id`),
+  UNIQUE KEY `items_unidades_item_unidad` (`itemunid_item_id`, `itemunid_unidmedi_id`),
+  KEY `items_unidades_unidmedi_id` (`itemunid_unidmedi_id`),
+  CONSTRAINT `items_unidades_item_id_fk` FOREIGN KEY (`itemunid_item_id`)
+    REFERENCES `items` (`item_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `items_unidades_unidmedi_id_fk` FOREIGN KEY (`itemunid_unidmedi_id`)
+    REFERENCES `unidades_medidas` (`unidmedi_id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

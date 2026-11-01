@@ -1,0 +1,14 @@
+<button
+  type="button"
+  class="rupia-tab"
+  role="tab"
+  id="tab-{{ tabs }}-{{ name }}"
+  data-tab="{{ name }}"
+  aria-controls="tab-panel-{{ tabs }}-{{ name }}"
+  aria-selected="{% if selected %}true{% else %}false{% endif %}"
+  {% if not selected %}tabindex="-1"{% endif %}
+>
+  {% include "core/icon.html" with name=icon %}
+  <span>{{ label }}</span>
+  <span class="rupia-tab-badge" data-tab-badge="{{ name }}" hidden></span>
+</button>

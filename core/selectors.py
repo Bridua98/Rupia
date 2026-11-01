@@ -63,11 +63,12 @@ class SelectorWidget(forms.Widget):
 class SelectorAlta(forms.ModelChoiceField):
     """Foráneo con búsqueda y alta del registro relacionado."""
 
-    def __init__(self, *, clave, label, required_message):
+    def __init__(self, *, clave, label, required_message, required=True):
         spec = _spec(clave)
         super().__init__(
             queryset=spec["queryset"](),
             label=label,
+            required=required,
             empty_label=None,
             error_messages={"required": required_message},
             widget=SelectorWidget(
