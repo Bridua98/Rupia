@@ -2,9 +2,13 @@ from urllib.parse import urlencode
 
 import django_tables2 as tables
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
+from core.moneda import formatear_guaranies
 from core.tables import ActionMenuColumn
-from inventario.models import Item, ItemCategoria, Marca, UnidadMedida
+from inventario.models import Item, ItemCategoria, ItemPrecioHistorial, Marca, UnidadMedida
 
 
 def marca_row_actions(record, table=None):
@@ -180,3 +184,143 @@ class ItemTable(tables.Table):
         template_name = "django_tables2/rupia.html"
         empty_text = "Todavía no hay ítems."
         attrs = {"class": "sheet"}
+
+
+def texto_moneda(valor):
+    if valor is None:
+        return "—"
+    return formatear_guaranies(valor)
+
+
+class PrecioTable(tables.Table):
+    seleccionar = tables.Column(
+        verbose_name=mark_safe(
+            '<input type="checkbox" data-precios-todos-pagina aria-label="Seleccionar la página">'
+        ),
+        empty_values=(),
+        orderable=False,
+        attrs={"th": {"class": "sheet-col-check"}, "td": {"class": "sheet-col-check"}},
+    )
+    descripcion = tables.Column(verbose_name="Descripción")
+    ultimo_costo = tables.Column(
+        verbose_name="Último costo",
+        attrs={"th": {"class": "sheet-col-moneda"}, "td": {"class": "sheet-col-moneda"}},
+    )
+    precio = tables.Column(
+        verbose_name="Precio",
+        attrs={"th": {"class": "sheet-col-moneda"}, "td": {"class": "sheet-col-moneda"}},
+    )
+    precio_segun_costo = tables.Column(verbose_name="Base")
+    precio_nuevo = tables.Column(
+        verbose_name="Precio nuevo",
+        empty_values=(),
+        accessor="pk",
+        attrs={
+            "th": {"class": "sheet-col-moneda"},
+            "td": {"class": "sheet-col-moneda", "data-precios-nuevo": ""},
+        },
+    )
+
+    class Meta:
+        model = Item
+        fields = (
+            "seleccionar",
+            "descripcion",
+            "ultimo_costo",
+            "precio",
+            "precio_segun_costo",
+            "precio_nuevo",
+        )
+        orderable = False
+        template_name = "django_tables2/rupia.html"
+        empty_text = "Todavía no hay ítems."
+        attrs = {"class": "sheet"}
+
+    def render_seleccionar(self, record):
+        checked = " checked" if getattr(record, "seleccionado", False) else ""
+        return mark_safe(f'<input type="checkbox" name="item" value="{record.pk}"{checked}>')
+
+    def render_ultimo_costo(self, value):
+        return texto_moneda(value)
+
+    def render_precio(self, value):
+        return texto_moneda(value)
+
+    def render_precio_segun_costo(self, value):
+        if value:
+            return mark_safe('<span class="precios-base is-costo">Último costo</span>')
+        return mark_safe('<span class="precios-base is-precio">Precio actual</span>')
+
+    def render_precio_nuevo(self, record):
+        calculado = getattr(record, "precio_preview", None)
+        if calculado is None:
+            return mark_safe('<span class="precios-nuevo is-vacio">—</span>')
+        if calculado.omitido and calculado.precio_nuevo is None:
+            return format_html(
+                '<span class="precios-nuevo is-omitido">{}</span>',
+                calculado.omitido,
+            )
+        extra = " is-igual"
+        if not calculado.omitido and record.precio is not None:
+            if calculado.precio_nuevo > record.precio:
+                extra = " is-up"
+            elif calculado.precio_nuevo < record.precio:
+                extra = " is-down"
+        elif not calculado.omitido:
+            extra = " is-up"
+        texto = texto_moneda(calculado.precio_nuevo)
+        if calculado.omitido:
+            return format_html(
+                '<span class="precios-nuevo{}">{}</span> <span class="precios-omitido">{}</span>',
+                extra,
+                texto,
+                calculado.omitido,
+            )
+        return format_html('<span class="precios-nuevo{}">{}</span>', extra, texto)
+
+
+class PrecioHistorialTable(tables.Table):
+    fecha = tables.Column(verbose_name="Fecha")
+    usuario = tables.Column(verbose_name="Usuario", accessor="usuario__username")
+    item = tables.Column(verbose_name="Ítem")
+    precio_anterior = tables.Column(verbose_name="Anterior")
+    precio_nuevo = tables.Column(verbose_name="Nuevo")
+    porcentaje = tables.Column(verbose_name="%")
+    segun_costo = tables.Column(verbose_name="Según costo")
+    origen = tables.Column(verbose_name="Origen", accessor="get_origen_display")
+
+    class Meta:
+        model = ItemPrecioHistorial
+        fields = (
+            "fecha",
+            "usuario",
+            "item",
+            "precio_anterior",
+            "precio_nuevo",
+            "porcentaje",
+            "segun_costo",
+            "origen",
+        )
+        orderable = False
+        template_name = "django_tables2/rupia.html"
+        empty_text = "Todavía no hay cambios de precio."
+        attrs = {"class": "sheet"}
+
+    def render_fecha(self, value):
+        return timezone.localtime(value).strftime("%d/%m/%Y %H:%M")
+
+    def render_precio_anterior(self, value):
+        return texto_moneda(value)
+
+    def render_precio_nuevo(self, value):
+        return texto_moneda(value)
+
+    def render_porcentaje(self, value):
+        if value is None:
+            return "—"
+        if value == value.to_integral():
+            return str(int(value))
+        return format(value, "f").rstrip("0").replace(".", ",")
+
+    def render_segun_costo(self, value):
+        return "Sí" if value else "No"

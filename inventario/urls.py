@@ -15,6 +15,8 @@ from inventario.views import (
     MarcaDeleteView,
     MarcaListView,
     MarcaUpdateView,
+    PrecioHistorialListView,
+    PrecioListView,
     UnidadCreateView,
     UnidadDeleteView,
     UnidadListView,
@@ -103,4 +105,21 @@ urlpatterns = [
     path("items/imagen/<str:nombre>/", ItemImagenView.as_view(), name="item_imagen"),
     path("items/<int:pk>/", ItemUpdateView.as_view(), name="item_update"),
     path("items/<int:pk>/eliminar/", ItemDeleteView.as_view(), name="item_delete"),
+    path("precios/", PrecioListView.as_view(), name="precio_list"),
+    path("precios/historial/", PrecioHistorialListView.as_view(), name="precio_historial"),
+    path(
+        "precios/historial/imprimir/",
+        mantenimiento_salida(PrecioHistorialListView, "print").as_view(),
+        name="precio_historial_print",
+    ),
+    path(
+        "precios/historial/exportar.xlsx",
+        mantenimiento_salida(PrecioHistorialListView, "xlsx").as_view(),
+        name="precio_historial_export_xlsx",
+    ),
+    path(
+        "precios/historial/exportar.pdf",
+        mantenimiento_salida(PrecioHistorialListView, "pdf").as_view(),
+        name="precio_historial_export_pdf",
+    ),
 ]

@@ -43,6 +43,7 @@ def test_item_guarda_relaciones(item):
     assert item.unidad_medida.simbolo == "UND"
     assert item.activo is True
     assert item.precio == Decimal("8500.000")
+    assert item.precio_segun_costo is False
     assert item.tasa_iva == TasaIva.DIEZ
     assert item.get_tasa_iva_display() == "10%"
     assert str(item) == "Arroz 1kg"

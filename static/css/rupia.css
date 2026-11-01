@@ -2085,3 +2085,313 @@ body.is-visor {
     padding: 0;
   }
 }
+
+.precios-panel {
+  margin: 0 0 0.85rem;
+  padding: 1.05rem 1.15rem 1.1rem;
+  border: 1px solid #e3ebe6;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fff 0%, #f9fcfa 100%);
+  box-shadow: 0 1px 2px rgba(20, 51, 43, 0.04);
+}
+
+.precios-panel-title {
+  margin: 0 0 0.85rem;
+  color: var(--gold);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.precios-panel-grid {
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) minmax(14rem, 1fr) auto;
+  grid-template-areas:
+    "porcentaje todos acciones"
+    "resumen resumen acciones";
+  gap: 0.85rem 1.25rem;
+  align-items: start;
+}
+
+.precios-porcentaje {
+  grid-area: porcentaje;
+}
+
+.precios-porcentaje label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #5c675f;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.precios-stepper {
+  display: flex;
+  align-items: center;
+  height: 2.85rem;
+  padding: 0 0.35rem;
+  border: 1px solid #e1eae5;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(20, 51, 43, 0.03);
+}
+
+.precios-porcentaje.has-error .precios-stepper {
+  border-color: #d7a39a;
+  box-shadow: 0 0 0 3px rgba(140, 51, 44, 0.1);
+}
+
+.precios-paso {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--forest);
+  cursor: pointer;
+}
+
+.precios-paso:hover {
+  background: #eef5f1;
+}
+
+.precios-paso:focus-visible {
+  outline: 2px solid #1f6b52;
+  outline-offset: 1px;
+}
+
+.precios-porcentaje input {
+  width: 4.5rem;
+  min-width: 0;
+  padding: 0 0.15rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 600 1.15rem/1.2 var(--sans);
+  text-align: center;
+}
+
+.precios-porcentaje input:focus {
+  outline: none;
+}
+
+.precios-porcentaje-sufijo {
+  width: 1.2rem;
+  color: var(--ink-soft);
+  font: 600 1.05rem/1 var(--sans);
+}
+
+.precios-todos {
+  grid-area: todos;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin-top: 1.45rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.precios-todos input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0.15rem 0 0;
+  flex: 0 0 auto;
+  accent-color: var(--forest);
+}
+
+.precios-todos strong {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.precios-todos small {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.precios-resumen {
+  grid-area: resumen;
+  min-height: 2.4rem;
+}
+
+.precios-cuenta,
+.precios-efecto {
+  margin: 0;
+}
+
+.precios-cuenta {
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.precios-efecto {
+  margin-top: 0.15rem;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.precios-efecto.is-up {
+  color: var(--accent);
+}
+
+.precios-efecto.is-down {
+  color: var(--gold);
+}
+
+.precios-acciones {
+  grid-area: acciones;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.55rem;
+  align-self: end;
+}
+
+.precios-acciones[hidden] {
+  display: none;
+}
+
+.precios-acciones .button {
+  margin-top: 0;
+}
+
+.precios-confirm {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-top: 0.95rem;
+  padding-top: 0.95rem;
+  border-top: 1px solid #eef3f0;
+}
+
+.precios-confirm:not([hidden]) {
+  display: flex;
+}
+
+.precios-confirm p {
+  margin: 0;
+  color: var(--forest);
+  font-weight: 600;
+}
+
+.precios-ayuda {
+  margin: 0.9rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.precios-panel .field-error {
+  margin-top: 0.7rem;
+}
+
+.sheet-col-check {
+  width: 2.4rem;
+  text-align: center;
+}
+
+.sheet td.sheet-col-check input,
+.sheet th.sheet-col-check input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: var(--forest);
+}
+
+.sheet-col-moneda {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet th.sheet-col-moneda {
+  text-align: right;
+}
+
+.sheet tbody tr:has(input[name="item"]:checked) {
+  background: #f3faf6;
+}
+
+.precios-base {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.precios-base.is-precio {
+  background: #eef3f0;
+  color: #4d5c56;
+}
+
+.precios-base.is-costo {
+  background: #e8f3ec;
+  color: #1f6b52;
+}
+
+.precios-nuevo {
+  font-weight: 650;
+}
+
+.precios-nuevo.is-vacio {
+  color: #b0bbb6;
+  font-weight: 400;
+}
+
+.precios-nuevo.is-up {
+  color: var(--accent);
+}
+
+.precios-nuevo.is-down {
+  color: var(--gold);
+}
+
+.precios-nuevo.is-igual,
+.precios-nuevo.is-omitido,
+.precios-omitido {
+  color: var(--gold);
+  font-weight: 500;
+}
+
+.precios-omitido {
+  font-size: 0.82rem;
+}
+
+@media (max-width: 860px) {
+  .precios-panel-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "porcentaje"
+      "todos"
+      "resumen"
+      "acciones";
+  }
+
+  .precios-todos {
+    margin-top: 0;
+  }
+
+  .precios-acciones {
+    justify-content: stretch;
+  }
+
+  .precios-acciones .button {
+    flex: 1 1 auto;
+  }
+}
