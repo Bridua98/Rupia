@@ -39,6 +39,13 @@ def main_menu(request):
         item("Inicio", url_name="home", icon="home"),
         item("Personas", href="#", icon="users", disabled=True),
         group(
+            "Caja",
+            [
+                item("Cuentas", url_name="cuenta_list", icon="wallet"),
+            ],
+            icon="wallet",
+        ),
+        group(
             "Inventario",
             [
                 item("Marcas", url_name="marca_list", icon="tag"),

@@ -1957,6 +1957,10 @@ body.is-visor {
   font-size: 1rem;
 }
 
+.field[hidden] {
+  display: none !important;
+}
+
 .field-moneda .moneda-simbolo {
   position: absolute;
   left: 0;
