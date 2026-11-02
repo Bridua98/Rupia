@@ -5,6 +5,7 @@ rupia/
 ├── rupia/                     # settings, urls, API Ninja, wsgi/asgi
 ├── inventario/                # ítems, movimientos y ajustes de stock
 ├── personas/                  # clientes, proveedores y empleados
+├── cuentas/                   # cajas y cuentas de efectivo
 ├── core/                      # base compartida
 │   ├── models.py
 │   ├── views.py

@@ -1,4 +1,4 @@
--- Rupia — esquema de negocio (personas + inventario)
+-- Rupia — esquema de negocio (personas + inventario + cuentas)
 -- Usar con MySQL Workbench 8.0 CE (modelador EER), no con Workbench 26.x.
 --
 -- Workbench 8.0 (sin servidor MySQL):
@@ -13,6 +13,18 @@ CREATE DATABASE IF NOT EXISTS `rupia`
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
 USE `rupia`;
+
+CREATE TABLE IF NOT EXISTS `cuentas` (
+  `cuen_id` int NOT NULL AUTO_INCREMENT,
+  `cuen_descripcion` varchar(200) NOT NULL,
+  `cuen_nombre_corto` varchar(20) NOT NULL,
+  `cuen_es_banco` tinyint(1) NOT NULL DEFAULT 0,
+  `cuen_es_tarjeta` tinyint(1) NOT NULL DEFAULT 0,
+  `cuen_numero` varchar(45) DEFAULT NULL,
+  PRIMARY KEY (`cuen_id`),
+  UNIQUE KEY `cuen_descripcion` (`cuen_descripcion`),
+  UNIQUE KEY `cuen_nombre_corto` (`cuen_nombre_corto`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `personas` (
   `pers_id` int NOT NULL AUTO_INCREMENT,
