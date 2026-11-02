@@ -22,6 +22,7 @@ from inventario.models import (
     UnidadMedida,
 )
 from inventario.precios import registrar_cambio_ficha
+from negocio.forms import UnidadNegocioForm  # noqa: F401
 
 
 class MarcaForm(RupiaModelForm):
@@ -168,6 +169,12 @@ class ItemForm(RupiaModelForm):
         initial=TipoItem.PRODUCTO,
         widget=forms.Select(),
     )
+    unidad_negocio = SelectorAlta(
+        clave="unidad_negocio",
+        label="Unidad de negocio",
+        required_message="Elegí una unidad de negocio.",
+        required=False,
+    )
     marca = SelectorAlta(clave="marca", label="Marca", required_message="Elegí una marca.")
     categoria = SelectorAlta(
         clave="categoria",
@@ -223,6 +230,7 @@ class ItemForm(RupiaModelForm):
             "codigo_barra",
             "descripcion",
             "tipo",
+            "unidad_negocio",
             "marca",
             "categoria",
             "unidad_medida",
@@ -259,6 +267,7 @@ class ItemForm(RupiaModelForm):
             "codigo_barra",
             "descripcion",
             "tipo",
+            "unidad_negocio",
             "marca",
             "categoria",
             "unidad_medida",

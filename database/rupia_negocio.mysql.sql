@@ -1,4 +1,4 @@
--- Rupia — esquema de negocio (personas + inventario + cuentas)
+-- Rupia — esquema de negocio (personas + inventario + cuentas + unidades de negocio)
 -- Usar con MySQL Workbench 8.0 CE (modelador EER), no con Workbench 26.x.
 --
 -- Workbench 8.0 (sin servidor MySQL):
@@ -24,6 +24,15 @@ CREATE TABLE IF NOT EXISTS `cuentas` (
   PRIMARY KEY (`cuen_id`),
   UNIQUE KEY `cuen_descripcion` (`cuen_descripcion`),
   UNIQUE KEY `cuen_nombre_corto` (`cuen_nombre_corto`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `unidades_negocio` (
+  `unidnego_id` int NOT NULL AUTO_INCREMENT,
+  `unidnego_descripcion` varchar(200) NOT NULL,
+  `unidnego_abreviado` varchar(20) NOT NULL,
+  PRIMARY KEY (`unidnego_id`),
+  UNIQUE KEY `unidnego_descripcion` (`unidnego_descripcion`),
+  UNIQUE KEY `unidnego_abreviado` (`unidnego_abreviado`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `personas` (
@@ -71,6 +80,7 @@ CREATE TABLE IF NOT EXISTS `items` (
   `item_marc_id` int NOT NULL,
   `item_itemcate_id` int NOT NULL,
   `item_unidmedi_id` int NOT NULL,
+  `item_unidnego_id` int DEFAULT NULL,
   `item_codigo_barra` varchar(300) DEFAULT NULL,
   `item_descripcion` varchar(300) NOT NULL,
   `item_tipo` varchar(8) NOT NULL,
@@ -85,12 +95,15 @@ CREATE TABLE IF NOT EXISTS `items` (
   KEY `items_item_marc_id` (`item_marc_id`),
   KEY `items_item_itemcate_id` (`item_itemcate_id`),
   KEY `items_item_unidmedi_id` (`item_unidmedi_id`),
+  KEY `items_item_unidnego_id` (`item_unidnego_id`),
   CONSTRAINT `items_item_marc_id_fk` FOREIGN KEY (`item_marc_id`)
     REFERENCES `marcas` (`marc_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `items_item_itemcate_id_fk` FOREIGN KEY (`item_itemcate_id`)
     REFERENCES `items_categorias` (`itemcate_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `items_item_unidmedi_id_fk` FOREIGN KEY (`item_unidmedi_id`)
-    REFERENCES `unidades_medidas` (`unidmedi_id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+    REFERENCES `unidades_medidas` (`unidmedi_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `items_item_unidnego_id_fk` FOREIGN KEY (`item_unidnego_id`)
+    REFERENCES `unidades_negocio` (`unidnego_id`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `ajustes_stock` (

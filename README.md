@@ -6,6 +6,7 @@ rupia/
 ├── inventario/                # ítems, movimientos y ajustes de stock
 ├── personas/                  # clientes, proveedores y empleados
 ├── cuentas/                   # cajas y cuentas de efectivo
+├── negocio/                   # unidades de negocio
 ├── core/                      # base compartida
 │   ├── models.py
 │   ├── views.py

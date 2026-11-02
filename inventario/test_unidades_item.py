@@ -13,6 +13,7 @@ from inventario.models import (
     UnidadMedida,
 )
 from inventario.unidades import convertir_a_base
+from negocio.models import UnidadNegocio
 
 
 @pytest.fixture
@@ -80,6 +81,12 @@ def _datos(marca, categoria, unidad, **extra):
         "unidades-MIN_NUM_FORMS": "0",
         "unidades-MAX_NUM_FORMS": "1000",
     }
+    if extra.get("tipo", TipoItem.PRODUCTO) == TipoItem.PRODUCTO and "unidad_negocio" not in extra:
+        unidad_negocio, _ = UnidadNegocio.objects.get_or_create(
+            abreviado="DEP",
+            defaults={"descripcion": "Depósito central"},
+        )
+        extra["unidad_negocio"] = unidad_negocio.pk
     datos.update(extra)
     return datos
 

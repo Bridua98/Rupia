@@ -51,6 +51,7 @@ from inventario.tables import (
     PrecioTable,
     UnidadTable,
 )
+from negocio.models import UnidadNegocio
 
 
 class MarcaMantenimiento:
@@ -196,6 +197,8 @@ class ItemMantenimiento:
         "categoria__descripcion",
         "unidad_medida__descripcion",
         "unidad_medida__simbolo",
+        "unidad_negocio__descripcion",
+        "unidad_negocio__abreviado",
     )
     filters = (
         {"name": "tipo", "label": "Tipo", "kind": "choice", "choices": TipoItem.choices},
@@ -222,6 +225,12 @@ class ItemMantenimiento:
             "label": "Unidad",
             "kind": "fk",
             "queryset": lambda: UnidadMedida.objects.order_by("descripcion"),
+        },
+        {
+            "name": "unidad_negocio",
+            "label": "Unidad de negocio",
+            "kind": "fk",
+            "queryset": lambda: UnidadNegocio.objects.order_by("descripcion"),
         },
         {"name": "activo", "label": "Activo", "kind": "bool"},
     )
@@ -315,9 +324,7 @@ class ItemListView(ItemMantenimiento, MantenimientoListView):
                 self, "unidades_formset_override", None
             ) or unidades_formset(
                 item=panel_form.instance,
-                unidad_base=(
-                    panel_form.instance.unidad_medida if panel_form.instance.pk else None
-                ),
+                unidad_base=(panel_form.instance.unidad_medida if panel_form.instance.pk else None),
             )
         return context
 
@@ -375,8 +382,7 @@ class PrecioListView(LoginRequiredMixin, SingleTableView):
         {"name": "activo", "label": "Activo", "kind": "bool"},
     )
     list_hint = (
-        "El porcentaje se aplica sobre el precio, o sobre el último costo "
-        "si el ítem está marcado."
+        "El porcentaje se aplica sobre el precio, o sobre el último costo si el ítem está marcado."
     )
 
     def query(self):
@@ -411,9 +417,7 @@ class PrecioListView(LoginRequiredMixin, SingleTableView):
 
     def post(self, request, *args, **kwargs):
         self.ajuste_form = PrecioAjusteForm(request.POST)
-        self.seleccionados = {
-            int(pk) for pk in request.POST.getlist("item") if str(pk).isdigit()
-        }
+        self.seleccionados = {int(pk) for pk in request.POST.getlist("item") if str(pk).isdigit()}
         self.todos_filtrados = bool(request.POST.get("todos_filtrados"))
         if not self.ajuste_form.is_valid():
             return super().get(request, *args, **kwargs)
