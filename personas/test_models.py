@@ -1,7 +1,8 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from personas.models import Genero, Persona, TipoDocumento
 
@@ -36,7 +37,67 @@ def test_persona_rechaza_genero_desconocido():
         razon_social="Ana Gómez",
         genero="OTRO",
         direccion="Centro",
+        es_cliente=True,
     )
 
     with pytest.raises(ValidationError):
         persona.full_clean()
+
+
+@pytest.mark.django_db
+def test_persona_rechaza_documento_repetido():
+    Persona.objects.create(
+        tipo_documento=TipoDocumento.CEDULA,
+        documento="1234567",
+        razon_social="Ana Gómez",
+        genero=Genero.FEMENINO,
+        direccion="Centro",
+        es_cliente=True,
+    )
+    repetida = Persona(
+        tipo_documento=TipoDocumento.CEDULA,
+        documento="1234567",
+        razon_social="Ana Gómez Dos",
+        genero=Genero.FEMENINO,
+        direccion="Centro",
+        es_cliente=True,
+    )
+
+    with pytest.raises(ValidationError) as error:
+        repetida.full_clean()
+
+    assert "Ya hay una persona con ese documento." in str(error.value)
+
+
+@pytest.mark.django_db
+def test_persona_exige_al_menos_un_rol():
+    persona = Persona(
+        tipo_documento=TipoDocumento.CEDULA,
+        documento="7654321",
+        razon_social="Sin Rol",
+        genero=Genero.SIN_DEFINIR,
+        direccion="Centro",
+    )
+
+    with pytest.raises(ValidationError) as error:
+        persona.full_clean()
+
+    assert "Marcá al menos un rol" in str(error.value)
+
+
+@pytest.mark.django_db
+def test_persona_rechaza_fecha_de_nacimiento_futura():
+    persona = Persona(
+        tipo_documento=TipoDocumento.CEDULA,
+        documento="7654321",
+        razon_social="Futura",
+        fecha_nacimiento=timezone.localdate() + timedelta(days=1),
+        genero=Genero.SIN_DEFINIR,
+        direccion="Centro",
+        es_cliente=True,
+    )
+
+    with pytest.raises(ValidationError) as error:
+        persona.full_clean()
+
+    assert "La fecha de nacimiento no puede ser futura." in str(error.value)
