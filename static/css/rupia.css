@@ -281,6 +281,11 @@ form {
   transition: background-color 9999s ease-out;
 }
 
+.field:has(input[type="date"]) label {
+  color: var(--forest);
+  transform: translateY(-1.45rem) scale(0.72);
+}
+
 .field:has(.field-error) input,
 .field:has(.field-error) textarea {
   border-bottom-color: var(--danger);
@@ -1024,6 +1029,11 @@ button.topbar-icon:hover {
   padding: 0.58rem 0.8rem;
   border-bottom: 1px solid #eef3f0;
   color: #1c2b26;
+}
+
+.persona-rol {
+  display: block;
+  line-height: 1.35;
 }
 
 .sheet tr[data-href] {
