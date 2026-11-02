@@ -17,6 +17,7 @@ from inventario.models import (
     TipoMovimiento,
     UnidadMedida,
 )
+from negocio.models import UnidadNegocio
 
 
 @pytest.fixture
@@ -47,6 +48,29 @@ def test_item_guarda_relaciones(item):
     assert item.tasa_iva == TasaIva.DIEZ
     assert item.get_tasa_iva_display() == "10%"
     assert str(item) == "Arroz 1kg"
+
+
+@pytest.mark.django_db
+def test_producto_exige_unidad_de_negocio(item):
+    with pytest.raises(ValidationError) as error:
+        item.full_clean()
+
+    assert "unidad_negocio" in error.value.message_dict
+
+
+@pytest.mark.django_db
+def test_producto_acepta_unidad_de_negocio(item):
+    item.unidad_negocio = UnidadNegocio.objects.create(
+        descripcion="Depósito central",
+        abreviado="DEP",
+    )
+    item.full_clean()
+
+
+@pytest.mark.django_db
+def test_gasto_no_exige_unidad_de_negocio(item):
+    item.tipo = TipoItem.GASTO
+    item.full_clean()
 
 
 @pytest.mark.django_db

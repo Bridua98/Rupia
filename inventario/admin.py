@@ -42,6 +42,7 @@ class ItemAdmin(admin.ModelAdmin):
     list_display = (
         "descripcion",
         "tipo",
+        "unidad_negocio",
         "marca",
         "categoria",
         "precio",
@@ -49,9 +50,17 @@ class ItemAdmin(admin.ModelAdmin):
         "tasa_iva",
         "activo",
     )
-    list_filter = ("tipo", "tasa_iva", "activo", "precio_segun_costo", "marca", "categoria")
+    list_filter = (
+        "tipo",
+        "tasa_iva",
+        "activo",
+        "precio_segun_costo",
+        "marca",
+        "categoria",
+        "unidad_negocio",
+    )
     search_fields = ("descripcion", "codigo_barra")
-    autocomplete_fields = ("marca", "categoria", "unidad_medida")
+    autocomplete_fields = ("marca", "categoria", "unidad_medida", "unidad_negocio")
     inlines = [ItemUnidadInline]
 
 

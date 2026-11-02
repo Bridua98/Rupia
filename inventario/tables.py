@@ -159,6 +159,10 @@ def item_row_actions(record, table=None):
 class ItemTable(tables.Table):
     descripcion = tables.Column(verbose_name="Descripción")
     tipo = tables.Column(verbose_name="Tipo", accessor="get_tipo_display")
+    unidad_negocio = tables.Column(
+        verbose_name="Negocio",
+        accessor="unidad_negocio__abreviado",
+    )
     marca = tables.Column(verbose_name="Marca")
     categoria = tables.Column(verbose_name="Categoría")
     unidad_medida = tables.Column(verbose_name="Unidad", accessor="unidad_medida__simbolo")
@@ -174,6 +178,7 @@ class ItemTable(tables.Table):
         fields = (
             "descripcion",
             "tipo",
+            "unidad_negocio",
             "marca",
             "categoria",
             "unidad_medida",
@@ -184,6 +189,9 @@ class ItemTable(tables.Table):
         template_name = "django_tables2/rupia.html"
         empty_text = "Todavía no hay ítems."
         attrs = {"class": "sheet"}
+
+    def render_unidad_negocio(self, value):
+        return value or "—"
 
 
 def texto_moneda(valor):

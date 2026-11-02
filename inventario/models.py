@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -116,6 +117,15 @@ class Item(models.Model):
         related_name="items",
         verbose_name="unidad de medida",
     )
+    unidad_negocio = models.ForeignKey(
+        "negocio.UnidadNegocio",
+        on_delete=models.RESTRICT,
+        db_column="item_unidnego_id",
+        related_name="items",
+        verbose_name="unidad de negocio",
+        null=True,
+        blank=True,
+    )
     codigo_barra = models.CharField(
         "código de barra",
         max_length=300,
@@ -174,6 +184,11 @@ class Item(models.Model):
 
     def __str__(self):
         return self.descripcion
+
+    def clean(self):
+        super().clean()
+        if self.tipo == TipoItem.PRODUCTO and not self.unidad_negocio_id:
+            raise ValidationError({"unidad_negocio": "Elegí una unidad de negocio."})
 
 
 class ItemMovimiento(models.Model):

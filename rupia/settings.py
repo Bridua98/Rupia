@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "django_htmx",
     "simple_menu",
     "core",
+    "negocio",
     "inventario",
     "personas",
     "cuentas",

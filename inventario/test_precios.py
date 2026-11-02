@@ -12,6 +12,7 @@ from inventario.models import (
     UnidadMedida,
 )
 from inventario.precios import aplicar_ajuste, calcular_precio_nuevo
+from negocio.models import UnidadNegocio
 
 
 @pytest.fixture
@@ -63,6 +64,12 @@ def _datos_item(marca, categoria, unidad, **extra):
         "activo": "on",
         "accion": "guardar",
     }
+    if extra.get("tipo", TipoItem.PRODUCTO) == TipoItem.PRODUCTO and "unidad_negocio" not in extra:
+        unidad_negocio, _ = UnidadNegocio.objects.get_or_create(
+            abreviado="DEP",
+            defaults={"descripcion": "Depósito central"},
+        )
+        extra["unidad_negocio"] = unidad_negocio.pk
     datos.update(extra)
     return datos
 

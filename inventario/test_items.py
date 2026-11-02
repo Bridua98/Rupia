@@ -20,6 +20,7 @@ from inventario.models import (
     UnidadMedida,
 )
 from inventario.views import ItemImagenView
+from negocio.models import UnidadNegocio
 
 
 @pytest.fixture
@@ -35,6 +36,14 @@ def usuario(django_user_model):
 def ingresada(client, usuario):
     client.force_login(usuario)
     return client
+
+
+def _unidad_negocio():
+    unidad, _ = UnidadNegocio.objects.get_or_create(
+        abreviado="DEP",
+        defaults={"descripcion": "Depósito central"},
+    )
+    return unidad
 
 
 def _foraneos():
@@ -56,6 +65,8 @@ def _datos(marca, categoria, unidad, **extra):
         "activo": "on",
         "accion": "guardar",
     }
+    if extra.get("tipo", TipoItem.PRODUCTO) == TipoItem.PRODUCTO and "unidad_negocio" not in extra:
+        extra["unidad_negocio"] = _unidad_negocio().pk
     datos.update(extra)
     return datos
 
@@ -144,6 +155,8 @@ def test_ficha_ofrece_el_selector_con_alta(ingresada):
     assert 'name="marca-descripcion"' in content
     assert "Nueva categoría" in content
     assert "Nueva unidad" in content
+    assert "Nueva unidad de negocio" in content
+    assert 'data-search-url="/selector/unidad_negocio/"' in content
     assert 'value="PRODUCTO" selected' in content
     activo = _control(content, "activo")
     assert activo is not None
@@ -167,6 +180,7 @@ def test_alta_de_item_con_foraneos_existentes(ingresada):
     assert item.marca_id == marca.pk
     assert item.categoria_id == categoria.pk
     assert item.unidad_medida_id == unidad.pk
+    assert item.unidad_negocio_id == _unidad_negocio().pk
     assert item.tipo == TipoItem.PRODUCTO
     assert item.precio == Decimal("8500.000")
     assert item.tasa_iva == TasaIva.DIEZ
@@ -179,8 +193,45 @@ def test_alta_de_item_con_foraneos_existentes(ingresada):
     assert 'class="list-filters is-open"' not in contenido
     assert pagina.status_code == 200
     assert "Arroz 1kg" in contenido
+    assert "DEP" in contenido
     assert "Producto" in contenido
     assert "Genérica" in contenido
+
+
+@pytest.mark.django_db
+def test_producto_exige_unidad_de_negocio(ingresada):
+    marca, categoria, unidad = _foraneos()
+
+    response = ingresada.post(
+        "/inventario/items/nueva/",
+        _datos(marca, categoria, unidad, unidad_negocio=""),
+    )
+
+    assert response.status_code == 200
+    assert "Elegí una unidad de negocio." in response.content.decode()
+    assert Item.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_gasto_no_exige_unidad_de_negocio(ingresada):
+    marca, categoria, unidad = _foraneos()
+
+    response = ingresada.post(
+        "/inventario/items/nueva/",
+        _datos(
+            marca,
+            categoria,
+            unidad,
+            descripcion="Flete mensual",
+            tipo=TipoItem.GASTO,
+            unidad_negocio="",
+        ),
+    )
+
+    item = Item.objects.get(descripcion="Flete mensual")
+    assert response.status_code == 302
+    assert item.tipo == TipoItem.GASTO
+    assert item.unidad_negocio_id is None
 
 
 @pytest.mark.django_db
@@ -832,7 +883,7 @@ def test_el_panel_nuevo_se_abre_como_lamina(ingresada):
     assert response.status_code == 200
     assert 'class="ledger is-overlay"' in content
     assert 'class="ledger-backdrop"' in content
-    assert 'data-filters-toggle' in content
+    assert "data-filters-toggle" in content
 
 
 @pytest.mark.django_db
