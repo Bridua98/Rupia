@@ -410,3 +410,24 @@ class ReporteProductosAgrupadoTable(tables.Table):
 
     def render_subtotal(self, value):
         return texto_moneda(value)
+
+
+class ReporteStockTable(tables.Table):
+    descripcion = tables.Column(verbose_name="Producto")
+    marca = tables.Column(verbose_name="Marca")
+    categoria = tables.Column(verbose_name="Categoría")
+    unidad = tables.Column(verbose_name="Unidad")
+    stock = tables.Column(verbose_name="Stock")
+    aviso = tables.Column(verbose_name="Nota", empty_values=())
+
+    class Meta:
+        orderable = False
+        template_name = "django_tables2/rupia.html"
+        empty_text = "No hay productos para los filtros elegidos."
+        attrs = {"class": "sheet"}
+
+    def render_stock(self, value):
+        return formatear_cantidad(value)
+
+    def render_aviso(self, value):
+        return value or "—"
