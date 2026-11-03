@@ -1,0 +1,64 @@
+<aside class="detail-panel view-panel" aria-label="Ver {% if view_record %}{{ view_record }}{% endif %}">
+  <header class="detail-head">
+    <div>
+      <p class="eyebrow">{{ eyebrow }}</p>
+      <h2>{% if view_record %}{{ view_record }}{% endif %}</h2>
+    </div>
+    <a class="detail-close" href="{{ close_url }}" aria-label="Cerrar">{% include "core/icon.html" with name="x" %}</a>
+  </header>
+  <div class="detail-body view-panel-body">
+    <section class="view-panel-section" aria-labelledby="view-panel-datos">
+      <h3 class="view-panel-section-title" id="view-panel-datos">Datos del registro</h3>
+      <dl class="view-field-list">
+        {% for row in view_fields %}
+          <div class="view-field">
+            <dt>{{ row.label }}</dt>
+            <dd>{{ row.value }}</dd>
+          </div>
+        {% endfor %}
+      </dl>
+    </section>
+    {% for table in view_tables %}
+      <section class="view-panel-section" aria-labelledby="view-panel-{{ forloop.counter }}">
+        <h3 class="view-panel-section-title" id="view-panel-{{ forloop.counter }}">{{ table.title }}</h3>
+        {% if table.rows %}
+          <div class="sheet-wrap">
+            <table class="sheet">
+              <caption class="sr-only">{{ table.title }}</caption>
+              <thead>
+                <tr>
+                  {% for header in table.headers %}
+                    <th scope="col">{{ header }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in table.rows %}
+                  <tr>
+                    {% for cell in row %}
+                      <td>{{ cell }}</td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="hint view-panel-empty">Sin registros.</p>
+        {% endif %}
+      </section>
+    {% endfor %}
+  </div>
+  <footer class="detail-foot">
+    <a class="button button-ghost" href="{{ close_url }}">
+      {% include "core/icon.html" with name="x" %}
+      <span>Cerrar</span>
+    </a>
+    {% if edit_url %}
+      <a class="button" href="{{ edit_url }}">
+        {% include "core/icon.html" with name="pencil" %}
+        <span>Modificar</span>
+      </a>
+    {% endif %}
+  </footer>
+</aside>

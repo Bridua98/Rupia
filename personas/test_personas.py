@@ -5,7 +5,6 @@ from unittest.mock import patch
 from urllib.error import URLError
 
 import pytest
-from django.urls import reverse
 from django.utils import timezone
 from openpyxl import load_workbook
 
@@ -148,8 +147,7 @@ def test_listado_marca_la_fila_pedida(ingresada):
     assert response.status_code == 200
     assert f'data-id="{beta.pk}"' in selected
     assert 'class="detail-panel"' in content
-    assert "Abrir ficha" in content
-    assert f'href="/personas/{beta.pk}/"' in content
+    assert "Abrir ficha" not in content
     assert 'aria-label="Cerrar"' in content
 
 
@@ -247,13 +245,13 @@ def test_guardar_y_seguir_abre_otra_ficha(ingresada):
     )
 
     assert response.status_code == 302
-    assert response.url == reverse("persona_create")
+    assert response.url == "/personas/?nueva=1"
     assert Persona.objects.filter(documento="1234567").exists()
 
 
 @pytest.mark.django_db
 def test_formulario_usa_personal_y_fecha_nativa(ingresada):
-    response = ingresada.get("/personas/nueva/")
+    response = ingresada.get("/personas/?nueva=1")
 
     content = response.content.decode()
     assert response.status_code == 200
@@ -265,7 +263,7 @@ def test_formulario_usa_personal_y_fecha_nativa(ingresada):
 def test_edicion_muestra_la_fecha_de_nacimiento(ingresada):
     persona = crear_persona(fecha_nacimiento=date(1990, 1, 15))
 
-    response = ingresada.get(f"/personas/{persona.pk}/")
+    response = ingresada.get(f"/personas/?persona={persona.pk}")
 
     content = response.content.decode()
     assert response.status_code == 200
@@ -273,14 +271,17 @@ def test_edicion_muestra_la_fecha_de_nacimiento(ingresada):
 
 
 @pytest.mark.django_db
-def test_ficha_nueva_no_ofrece_eliminar(ingresada):
+def test_alta_abre_el_panel_del_listado(ingresada):
     response = ingresada.get("/personas/nueva/")
 
-    content = response.content.decode()
-    assert response.status_code == 200
+    assert response.status_code == 302
+    assert response.url == "/personas/?nueva=1"
+    pagina = ingresada.get(response.url)
+    content = pagina.content.decode()
+    assert pagina.status_code == 200
     assert "Nueva persona" in content
-    assert "Guardar y seguir" in content
-    assert "Eliminar" not in content
+    assert "Guardar" in content
+    assert "Abrir ficha" not in content
     assert "Persona anterior" not in content
 
 
@@ -587,7 +588,7 @@ def test_consulta_devuelve_la_ficha(consultar_mock, ingresada):
 
 @pytest.mark.django_db
 def test_formulario_publica_la_consulta(ingresada):
-    response = ingresada.get("/personas/nueva/")
+    response = ingresada.get("/personas/?nueva=1")
 
     content = response.content.decode()
     assert response.status_code == 200

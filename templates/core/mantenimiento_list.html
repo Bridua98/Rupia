@@ -122,7 +122,11 @@
   {% block detail %}
     {% if detail_open %}
       <a class="ledger-backdrop" href="{{ close_url }}" aria-label="Cerrar"></a>
-      {% include "core/detail_panel.html" %}
+      {% if view_open %}
+        {% include "core/view_panel.html" %}
+      {% else %}
+        {% include "core/detail_panel.html" %}
+      {% endif %}
     {% endif %}
   {% endblock %}
 </div>
