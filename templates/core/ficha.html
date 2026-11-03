@@ -5,62 +5,105 @@
 
 {% block work %}
 <div
-  class="ficha"
+  class="ficha{% if unidades_formset %} ficha-item{% endif %}"
   data-rupia="ficha"
   data-prev="{{ prev_url }}"
   data-next="{{ next_url }}"
   data-list="{{ list_url }}"
 >
-  <a class="back" href="{{ list_url }}">
-    {% include "core/icon.html" with name="back" %}
-    <span>Volver</span>
-  </a>
-  <p class="eyebrow">{{ eyebrow }}</p>
-  {% if object %}
-    <div class="title-row">
-      <h1>{{ object }}</h1>
-      <div class="pager">
-        {% if prev_url %}
-          <a class="step" href="{{ prev_url }}" data-record-nav aria-label="{{ record_noun|capfirst }} anterior">{% include "core/icon.html" with name="chevron-left" %}</a>
-        {% else %}
-          <button type="button" class="step" disabled aria-label="{{ record_noun|capfirst }} anterior">{% include "core/icon.html" with name="chevron-left" %}</button>
-        {% endif %}
-        <span>{{ position }} de {{ total }}</span>
-        {% if next_url %}
-          <a class="step" href="{{ next_url }}" data-record-nav aria-label="{{ record_noun|capfirst }} siguiente">{% include "core/icon.html" with name="chevron-right" %}</a>
-        {% else %}
-          <button type="button" class="step" disabled aria-label="{{ record_noun|capfirst }} siguiente">{% include "core/icon.html" with name="chevron-right" %}</button>
-        {% endif %}
-      </div>
+  <div class="ficha-head">
+    <div class="ficha-head-copy">
+      <a class="back" href="{{ list_url }}">
+        {% include "core/icon.html" with name="back" %}
+        <span>Volver</span>
+      </a>
+      <p class="eyebrow">{{ eyebrow }}</p>
+      {% if object %}
+        <h1>{{ object }}</h1>
+      {% elif unidades_formset %}
+        <h1>{{ title }}</h1>
+      {% else %}
+        <h1>{{ create_label }}</h1>
+      {% endif %}
+      {% if unidades_formset %}
+        <p class="hint ficha-lead">Completá la información del ítem</p>
+      {% elif object %}
+        <p class="hint">Fuera del campo, las flechas pasan a otra {{ record_noun }}.</p>
+      {% endif %}
     </div>
-    <p class="hint">Fuera del campo, las flechas pasan a otra {{ record_noun }}.</p>
+    <div class="ficha-head-tools">
+      {% if unidades_formset %}
+        <a class="button button-ghost button-compact" href="{{ list_url }}">
+          {% include "core/icon.html" with name="back" %}
+          <span>Volver a la lista</span>
+        </a>
+      {% endif %}
+      {% if object %}
+        <div class="pager">
+          {% if prev_url %}
+            <a class="step" href="{{ prev_url }}" data-record-nav aria-label="{{ record_noun|capfirst }} anterior">{% include "core/icon.html" with name="chevron-left" %}</a>
+          {% else %}
+            <button type="button" class="step" disabled aria-label="{{ record_noun|capfirst }} anterior">{% include "core/icon.html" with name="chevron-left" %}</button>
+          {% endif %}
+          <span>{{ position }} de {{ total }}</span>
+          {% if next_url %}
+            <a class="step" href="{{ next_url }}" data-record-nav aria-label="{{ record_noun|capfirst }} siguiente">{% include "core/icon.html" with name="chevron-right" %}</a>
+          {% else %}
+            <button type="button" class="step" disabled aria-label="{{ record_noun|capfirst }} siguiente">{% include "core/icon.html" with name="chevron-right" %}</button>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  {% if object %}
     <p
       class="field-error"
       data-nav-error
       data-nav-message="Guardá o volvé al listado antes de pasar a otra {{ record_noun }}."
       hidden
     ></p>
-  {% else %}
-    <h1>{{ create_label }}</h1>
   {% endif %}
 
   <form method="post"{% if form.is_multipart %} enctype="multipart/form-data"{% endif %}>
     {% csrf_token %}
     {% include "core/form_fields.html" %}
     <div class="actions" data-ficha-actions>
-      <button type="submit" class="button" name="accion" value="guardar">
-        {% include "core/icon.html" with name="check" %}
-        <span>Guardar</span>
-      </button>
-      <button type="submit" class="button button-ghost" name="accion" value="seguir">
-        {% include "core/icon.html" with name="arrow-right" %}
-        <span>Guardar y seguir</span>
-      </button>
-      {% if object %}
-        <button type="button" class="text-button text-button-danger" data-delete-open>
-          {% include "core/icon.html" with name="trash" %}
-          <span>Eliminar</span>
+      {% if unidades_formset %}
+        <a class="button button-ghost" href="{{ list_url }}">
+          {% include "core/icon.html" with name="x" %}
+          <span>Cancelar</span>
+        </a>
+        <div class="actions-end">
+          {% if object %}
+            <button type="button" class="text-button text-button-danger" data-delete-open>
+              {% include "core/icon.html" with name="trash" %}
+              <span>Eliminar</span>
+            </button>
+          {% endif %}
+          <button type="submit" class="button button-ghost" name="accion" value="seguir">
+            {% include "core/icon.html" with name="arrow-right" %}
+            <span>Guardar y seguir</span>
+          </button>
+          <button type="submit" class="button" name="accion" value="guardar">
+            {% include "core/icon.html" with name="save" %}
+            <span>Guardar ítem</span>
+          </button>
+        </div>
+      {% else %}
+        <button type="submit" class="button" name="accion" value="guardar">
+          {% include "core/icon.html" with name="check" %}
+          <span>Guardar</span>
         </button>
+        <button type="submit" class="button button-ghost" name="accion" value="seguir">
+          {% include "core/icon.html" with name="arrow-right" %}
+          <span>Guardar y seguir</span>
+        </button>
+        {% if object %}
+          <button type="button" class="text-button text-button-danger" data-delete-open>
+            {% include "core/icon.html" with name="trash" %}
+            <span>Eliminar</span>
+          </button>
+        {% endif %}
       {% endif %}
     </div>
   </form>

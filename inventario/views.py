@@ -263,7 +263,8 @@ class ItemWriteMixin:
 
     def form_valid(self, form):
         formset = None
-        if "unidades-TOTAL_FORMS" in self.request.POST:
+        es_gasto = form.cleaned_data.get("tipo") == TipoItem.GASTO
+        if not es_gasto and "unidades-TOTAL_FORMS" in self.request.POST:
             formset = self._unidades_formset(form, data=self.request.POST)
             self.unidades_formset = formset
             if not formset.is_valid():

@@ -5,7 +5,7 @@
   <p class="field-error">{{ error }}</p>
 {% endfor %}
 
-<div class="rupia-tabs" data-rupia="tabs">
+<div class="rupia-tabs item-form" data-rupia="tabs">
   <div class="rupia-tabs-bar" role="tablist" aria-label="Secciones del ítem">
     {% include "core/tab.html" with tabs="item" name="datos" label="Datos" icon="file" selected=True %}
     {% include "core/tab.html" with tabs="item" name="unidades" label="Unidades" icon="scale" %}
@@ -18,15 +18,62 @@
     role="tabpanel"
     aria-labelledby="tab-item-datos"
   >
-    {% for field in form.visible_fields %}
-      {% include "core/form_field.html" with field=field %}
-    {% endfor %}
+    <div class="item-form-layout">
+      <section class="item-form-card" aria-labelledby="item-form-title">
+        <header class="item-form-card-head">
+          {% include "core/icon.html" with name="file" %}
+          <h2 id="item-form-title">Formulario de ítem</h2>
+        </header>
+        <div class="item-form-grid">
+          {% include "core/form_field.html" with field=form.tipo %}
+          {% include "core/form_field.html" with field=form.unidad_negocio %}
+          {% include "core/form_field.html" with field=form.descripcion %}
+          <div data-item-solo-producto>
+            {% include "core/form_field.html" with field=form.codigo_barra %}
+          </div>
+          <div data-item-solo-producto>
+            {% include "core/form_field.html" with field=form.marca %}
+          </div>
+          <div data-item-solo-producto>
+            {% include "core/form_field.html" with field=form.categoria %}
+          </div>
+          <div data-item-solo-producto>
+            {% include "core/form_field.html" with field=form.unidad_medida %}
+          </div>
+          {% include "core/form_field.html" with field=form.tasa_iva %}
+          <div data-item-solo-producto>
+            {% include "core/form_field.html" with field=form.precio %}
+          </div>
+          <div data-item-solo-producto>
+            {% include "core/form_field.html" with field=form.precio_segun_costo %}
+          </div>
+          <div class="item-activo{% if form.activo.errors %} has-error{% endif %}">
+            {{ form.activo }}
+            <div class="item-activo-copy">
+              <label for="{{ form.activo.id_for_label }}">Ítem activo</label>
+              <p>El ítem estará disponible para su uso</p>
+              {% for error in form.activo.errors %}
+                <p class="field-error">{{ error }}</p>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="item-imagen-panel" data-item-solo-producto>
+        {% include "inventario/item_imagen.html" with field=form.imagen_archivo %}
+        {% if form.quitar_imagen %}
+          {% include "core/form_field.html" with field=form.quitar_imagen %}
+        {% endif %}
+      </aside>
+    </div>
   </div>
 
   <div
     class="rupia-tabs-panel"
     id="tab-panel-item-unidades"
     data-tab-panel="unidades"
+    data-item-solo-producto
     role="tabpanel"
     aria-labelledby="tab-item-unidades"
     hidden

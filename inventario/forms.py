@@ -10,6 +10,7 @@ from core.cantidad import CantidadField
 from core.forms import RupiaModelForm
 from core.moneda import MonedaField
 from core.selectors import SelectorAlta, registrar
+from inventario.defecto import asegurar_referenciales_defecto
 from inventario.imagenes import EXTENSIONES, guardar_imagen, liberar_imagen, resolver_imagen
 from inventario.models import (
     Item,
@@ -154,12 +155,13 @@ class ItemForm(RupiaModelForm):
             "required": "Escribí la descripción.",
             "unique": "Ya hay un ítem con esa descripción.",
         },
-        widget=forms.TextInput(
+        widget=forms.Textarea(
             attrs={
-                "placeholder": " ",
+                "placeholder": "Ej: Mouse inalámbrico",
                 "autocomplete": "off",
                 "autofocus": True,
                 "maxlength": "300",
+                "rows": "5",
             }
         ),
     )
@@ -192,7 +194,7 @@ class ItemForm(RupiaModelForm):
         required=False,
         widget=forms.TextInput(
             attrs={
-                "placeholder": " ",
+                "placeholder": "Ej: ITM-001",
                 "autocomplete": "off",
                 "maxlength": "300",
             }
@@ -245,15 +247,17 @@ class ItemForm(RupiaModelForm):
         super().__init__(*args, **kwargs)
         nuevo = not getattr(self.instance, "pk", None)
         if nuevo:
-            self.fields["descripcion"].widget = forms.Textarea(
-                attrs={
-                    "placeholder": " ",
-                    "autocomplete": "off",
-                    "maxlength": "300",
-                    "rows": "4",
-                }
-            )
-            self.fields["codigo_barra"].widget.attrs["autofocus"] = True
+            self.fields["descripcion"].widget.attrs.pop("autofocus", None)
+            self.fields["codigo_barra"].widget.attrs.pop("autofocus", None)
+            self.fields["tipo"].widget.attrs["autofocus"] = True
+        tipo = None
+        if self.is_bound:
+            tipo = self.data.get(self.add_prefix("tipo"))
+        elif getattr(self.instance, "tipo", None):
+            tipo = self.instance.tipo
+        if tipo == TipoItem.GASTO:
+            for nombre in ("marca", "categoria", "unidad_medida"):
+                self.fields[nombre].required = False
         if not self.instance.imagen:
             self.fields.pop("quitar_imagen", None)
         else:
@@ -264,10 +268,10 @@ class ItemForm(RupiaModelForm):
                     kwargs={"nombre": self.instance.imagen},
                 )
         orden = [
-            "codigo_barra",
-            "descripcion",
             "tipo",
             "unidad_negocio",
+            "descripcion",
+            "codigo_barra",
             "marca",
             "categoria",
             "unidad_medida",
@@ -281,14 +285,32 @@ class ItemForm(RupiaModelForm):
             orden.append("quitar_imagen")
         self.order_fields(orden)
 
+    def _es_gasto(self):
+        tipo = self.cleaned_data.get("tipo") or self.data.get(self.add_prefix("tipo"))
+        return tipo == TipoItem.GASTO
+
     def clean_imagen_archivo(self):
         archivo = self.cleaned_data.get("imagen_archivo")
-        if not archivo:
-            return archivo
+        if self._es_gasto() or not archivo:
+            return None
         suffix = Path(archivo.name).suffix.lower()
         if suffix not in EXTENSIONES:
             raise ValidationError("La imagen tiene que ser JPG, PNG, WEBP o GIF.")
         return archivo
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("tipo") != TipoItem.GASTO:
+            return cleaned
+        refs = asegurar_referenciales_defecto()
+        for nombre in ("marca", "categoria", "unidad_medida"):
+            if not cleaned.get(nombre):
+                cleaned[nombre] = refs[nombre]
+        cleaned["codigo_barra"] = None
+        cleaned["precio"] = None
+        cleaned["precio_segun_costo"] = False
+        cleaned["imagen_archivo"] = None
+        return cleaned
 
     def save(self, commit=True):
         existia = bool(self.instance.pk)
