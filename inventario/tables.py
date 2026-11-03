@@ -6,9 +6,17 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
+from core.cantidad import formatear_cantidad
 from core.moneda import formatear_guaranies
 from core.tables import ActionMenuColumn
-from inventario.models import Item, ItemCategoria, ItemPrecioHistorial, Marca, UnidadMedida
+from inventario.models import (
+    Item,
+    ItemCategoria,
+    ItemMovimiento,
+    ItemPrecioHistorial,
+    Marca,
+    UnidadMedida,
+)
 
 
 def marca_row_actions(record, table=None):
@@ -332,3 +340,73 @@ class PrecioHistorialTable(tables.Table):
 
     def render_segun_costo(self, value):
         return "Sí" if value else "No"
+
+
+class ReporteProductosDetalleTable(tables.Table):
+    fecha_movimiento = tables.Column(verbose_name="Fecha")
+    tipo = tables.Column(verbose_name="Tipo", accessor="get_tipo_display")
+    item = tables.Column(verbose_name="Ítem", accessor="item__descripcion")
+    categoria = tables.Column(verbose_name="Categoría", accessor="item__categoria__descripcion")
+    marca = tables.Column(verbose_name="Marca", accessor="item__marca__descripcion")
+    unidad = tables.Column(verbose_name="Unidad", accessor="unidad_medida__simbolo")
+    cantidad = tables.Column(verbose_name="Cantidad")
+    precio = tables.Column(verbose_name="Precio")
+    costo = tables.Column(verbose_name="Costo")
+    subtotal = tables.Column(verbose_name="Subtotal")
+
+    class Meta:
+        model = ItemMovimiento
+        fields = (
+            "fecha_movimiento",
+            "tipo",
+            "item",
+            "categoria",
+            "marca",
+            "unidad",
+            "cantidad",
+            "precio",
+            "costo",
+            "subtotal",
+        )
+        orderable = False
+        template_name = "django_tables2/rupia_totales.html"
+        empty_text = "No hay movimientos para los filtros elegidos."
+        attrs = {"class": "sheet"}
+
+    def render_fecha_movimiento(self, value):
+        return value.strftime("%d/%m/%Y")
+
+    def render_cantidad(self, value):
+        return formatear_cantidad(value)
+
+    def render_precio(self, value):
+        return texto_moneda(value)
+
+    def render_costo(self, value):
+        return texto_moneda(value)
+
+    def render_subtotal(self, value):
+        return texto_moneda(value)
+
+
+class ReporteProductosAgrupadoTable(tables.Table):
+    etiqueta = tables.Column(verbose_name="Nombre")
+    detalle = tables.Column(verbose_name="Detalle")
+    movimientos = tables.Column(verbose_name="Movimientos")
+    cantidad = tables.Column(verbose_name="Cantidad total")
+    subtotal = tables.Column(verbose_name="Subtotal")
+
+    class Meta:
+        orderable = False
+        template_name = "django_tables2/rupia_totales.html"
+        empty_text = "No hay movimientos para los filtros elegidos."
+        attrs = {"class": "sheet"}
+
+    def render_detalle(self, value):
+        return value or "—"
+
+    def render_cantidad(self, value):
+        return formatear_cantidad(value)
+
+    def render_subtotal(self, value):
+        return texto_moneda(value)

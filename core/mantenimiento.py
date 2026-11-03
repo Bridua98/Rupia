@@ -40,6 +40,8 @@ class ListadoExportMixin:
     export_pdf_url_name = ""
     export_basename = "listado"
 
+    export_totals = False
+
     def export_dataset(self):
         table = self.table_class(self.get_queryset().none())
         columns = [column for column in table.columns if not _skip_export(column)]
@@ -51,11 +53,21 @@ class ListadoExportMixin:
                 value = column.accessor.resolve(record)
                 row.append("" if value is None else value)
             rows.append(row)
+        if self.export_totals:
+            total_row = self.export_totals_row(columns)
+            if total_row is not None:
+                rows.append(total_row)
         return headers, rows
+
+    def export_totals_row(self, columns):
+        return None
+
+    def salida_extra_context(self):
+        return {}
 
     def _salida_context(self):
         headers, rows = self.export_dataset()
-        return {
+        context = {
             "title": self.title,
             "query": self.query(),
             "headers": headers,
@@ -64,6 +76,8 @@ class ListadoExportMixin:
             "list_url": self.list_query(),
             "generated_at": timezone.localtime().strftime("%d/%m/%Y %H:%M"),
         }
+        context.update(self.salida_extra_context())
+        return context
 
     def print_response(self):
         return render(self.request, "core/listado_print.html", self._salida_context())
@@ -147,6 +161,12 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
         if not self.per_page:
             return False
         return {"per_page": self.per_page}
+
+    def _listado_record_count(self):
+        queryset = self.get_queryset()
+        if isinstance(queryset, list):
+            return len(queryset)
+        return queryset.count()
 
     def query(self):
         if "q" in self.request.GET:
@@ -293,7 +313,7 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
                 "create_url": self.list_query(nueva=1),
                 "create_label": self.create_label,
                 "show_create": self.show_create,
-                "record_count": self.get_queryset().count(),
+                "record_count": self._listado_record_count(),
                 "list_hint": self.list_hint,
                 "query": self.query(),
                 "search_label": self.search_label,

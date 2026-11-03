@@ -45,6 +45,12 @@ def apply_filters(queryset, values, specs):
                 queryset = queryset.filter(**{name: True})
             elif value == "0":
                 queryset = queryset.filter(**{name: False})
+        elif kind == "date":
+            field = spec.get("field", name)
+            lookup = spec.get("lookup", "exact")
+            queryset = queryset.filter(**{f"{field}__{lookup}": value})
+        elif kind == "skip":
+            continue
         else:
             queryset = queryset.filter(**{name: value})
     return queryset
@@ -52,6 +58,8 @@ def apply_filters(queryset, values, specs):
 
 def filter_options(spec):
     kind = spec.get("kind", "choice")
+    if kind in ("choice", "skip"):
+        return list(spec.get("choices", ()))
     if kind == "fk":
         queryset = spec["queryset"]
         if callable(queryset):
