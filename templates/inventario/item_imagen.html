@@ -1,0 +1,51 @@
+<div class="imagen-card item-imagen{% if field.errors %} has-error{% endif %}" data-imagen>
+  <header class="item-imagen-head">
+    {% include "core/icon.html" with name="image" %}
+    <span id="{{ field.id_for_label }}-label">Imagen del ítem</span>
+  </header>
+  <div class="imagen-marco" data-imagen-drop>
+    <label class="imagen-vacio" for="{{ field.id_for_label }}" data-imagen-vacio>
+      {% include "core/icon.html" with name="image" %}
+      <span>Arrastrá una imagen acá</span>
+      <small>o</small>
+      <span class="imagen-elegir">
+        {% include "core/icon.html" with name="upload" %}
+        Seleccionar archivo
+      </span>
+      <small>JPG, PNG, WEBP o GIF</small>
+    </label>
+  </div>
+  <div
+    class="item-imagen-preview"
+    data-imagen-preview-wrap
+    {% if not field.field.widget.preview_url %}hidden{% endif %}
+  >
+    <p class="item-imagen-caption">Vista previa</p>
+    <div class="item-imagen-foto">
+      <img
+        class="imagen-previa"
+        data-imagen-preview
+        alt="{% if field.field.widget.preview_url %}Imagen del ítem{% endif %}"
+        {% if field.field.widget.preview_url %}src="{{ field.field.widget.preview_url }}"{% else %}hidden{% endif %}
+      >
+      <div class="imagen-barra" data-imagen-barra{% if not field.field.widget.preview_url %} hidden{% endif %}>
+        <button type="button" class="imagen-accion" data-imagen-ver>
+          {% include "core/icon.html" with name="eye" %}
+          <span>Ver</span>
+        </button>
+        <button type="button" class="imagen-accion" data-imagen-cambiar>
+          {% include "core/icon.html" with name="pencil" %}
+          <span>Cambiar</span>
+        </button>
+        <button type="button" class="imagen-accion imagen-accion-quitar" data-imagen-quitar hidden>
+          {% include "core/icon.html" with name="trash" %}
+          <span>Quitar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  {{ field }}
+  {% for error in field.errors %}
+    <p class="field-error">{{ error }}</p>
+  {% endfor %}
+</div>

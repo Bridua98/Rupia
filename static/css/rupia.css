@@ -2105,11 +2105,13 @@ body.is-visor {
 .selector-alta-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.6rem;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
 }
 
 .selector-alta-actions .button {
-  margin-top: 1.1rem;
+  margin-top: 0;
 }
 
 @media print {
@@ -2691,4 +2693,499 @@ body.is-visor {
 .persona-consulta-results li:hover,
 .persona-consulta-results li[aria-selected="true"] {
   background: rgba(20, 51, 43, 0.08);
+}
+
+.ficha-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+}
+
+.ficha-head-copy {
+  min-width: 0;
+  flex: 1 1 16rem;
+}
+
+.ficha-head-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.ficha-lead {
+  margin-top: 0.35rem;
+}
+
+.ficha-item form {
+  margin-top: 1rem;
+}
+
+.ficha-item .field,
+.ficha-item .field:has(textarea),
+.ficha-item .rupia-tabs-panel .field,
+.ficha-item .unidades-rel,
+.ficha-item .rupia-tabs-panel > .hint {
+  max-width: none;
+}
+
+.item-form-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16.5rem, 20rem);
+  gap: 1.15rem;
+  align-items: start;
+}
+
+.item-form-card,
+.item-imagen-panel {
+  min-width: 0;
+  padding: 1.05rem 1.15rem 1.25rem;
+  border: 1px solid #e3ebe6;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(20, 51, 43, 0.04);
+}
+
+.item-form-card-head,
+.item-imagen-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.35rem;
+  color: var(--forest);
+}
+
+.item-form-card-head h2,
+.item-imagen-head {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.item-form-card-head .icon,
+.item-imagen-head .icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  color: var(--accent);
+}
+
+.item-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.15rem 1rem;
+}
+
+.item-form-grid .field:has(textarea),
+.item-form-grid .item-activo,
+.item-form-grid [data-item-solo-producto]:has(input[name="precio_segun_costo"]),
+.item-form-grid .selector.is-alta,
+.item-form-grid [data-item-solo-producto]:has(.selector.is-alta) {
+  grid-column: 1 / -1;
+}
+
+.item-form.is-gasto .rupia-tabs-bar {
+  display: none;
+}
+
+.item-form.is-gasto .item-form-layout {
+  grid-template-columns: 1fr;
+}
+
+.item-form-card .field {
+  display: grid;
+  margin-top: 0.55rem;
+  padding-top: 0;
+}
+
+.item-form-card .field > input,
+.item-form-card .field > textarea,
+.item-form-card .field > select {
+  order: 2;
+}
+
+.item-form-card .field > label {
+  order: 1;
+}
+
+.item-form-card .field > .field-error {
+  order: 3;
+}
+
+.item-form-card .field label,
+.item-form-card .selector-buscar label {
+  position: static;
+  top: auto;
+  left: auto;
+  margin: 0 0 0.4rem;
+  color: var(--forest);
+  font-size: 0.8rem;
+  font-weight: 560;
+  letter-spacing: 0.01em;
+  transform: none;
+  pointer-events: none;
+}
+
+.item-form-card .field:has(#id_descripcion) > label::after {
+  content: " *";
+  color: var(--danger);
+}
+
+.item-form-card .field input:focus + label,
+.item-form-card .field input:not(:placeholder-shown) + label,
+.item-form-card .field input:-webkit-autofill + label,
+.item-form-card .field textarea:focus + label,
+.item-form-card .field textarea:not(:placeholder-shown) + label,
+.item-form-card .field select + label {
+  color: var(--forest);
+  transform: none;
+}
+
+.item-form-card .field input,
+.item-form-card .field textarea,
+.item-form-card .field select,
+.item-form-card .field .selector-query {
+  width: 100%;
+  min-height: 2.55rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid #d7e2dd;
+  border-radius: 10px;
+  background: #fbfdfc;
+  color: var(--ink);
+  font: 400 0.95rem/1.3 var(--sans);
+}
+
+.item-form-card .field textarea {
+  min-height: 8.75rem;
+  resize: vertical;
+}
+
+.item-form-card .field input::placeholder,
+.item-form-card .field textarea::placeholder {
+  color: #8b9892;
+}
+
+.item-form-card .field input:focus,
+.item-form-card .field textarea:focus,
+.item-form-card .field select:focus,
+.item-form-card .field .selector-query:focus {
+  outline: none;
+  margin-bottom: 0;
+  border: 1px solid #1f6b52;
+  box-shadow: 0 0 0 3px rgba(30, 138, 76, 0.12);
+  background: #fff;
+}
+
+.item-form-card .field:has(.field-error:not([hidden])) > input,
+.item-form-card .field:has(.field-error:not([hidden])) > textarea,
+.item-form-card .field:has(.field-error:not([hidden])) > select {
+  border-color: var(--danger);
+}
+
+.item-form-card .selector-buscar {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.item-form-card .selector-buscar label {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+.item-form-card .field .selector-query {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+  padding-right: 2.4rem;
+}
+
+.item-form-card .selector-nueva {
+  position: relative;
+  grid-column: 2;
+  grid-row: 2;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  margin-right: 0.3rem;
+  justify-self: end;
+}
+
+.item-form-card .selector-results {
+  top: calc(100% + 0.2rem);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.item-form-card .selector-alta {
+  margin-top: 0.35rem;
+  padding: 0.75rem 0.85rem 0.85rem;
+  border: 1px solid #e3ebe6;
+  border-radius: 12px;
+  background: #f7faf8;
+}
+
+.item-form-card .selector-alta .eyebrow {
+  margin: 0 0 0.15rem;
+  color: #6d8f82;
+  font-size: 0.7rem;
+}
+
+.item-form-card .selector-alta .field {
+  margin-top: 0.2rem;
+}
+
+.item-form-card .selector-alta .field input {
+  min-height: 2.2rem;
+  padding: 0.4rem 0.7rem;
+  background: #fff;
+}
+
+.item-form-card .selector-alta-actions {
+  margin-top: 0.5rem;
+}
+
+.item-form-card .selector-alta-actions .button {
+  min-height: 2rem;
+  padding: 0.32rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.item-form-card .field-moneda > label {
+  grid-row: 1;
+}
+
+.item-form-card .field-moneda > input,
+.item-form-card .field-moneda > .moneda-simbolo {
+  grid-row: 2;
+}
+
+.item-form-card .field-moneda .moneda-simbolo {
+  position: relative;
+  z-index: 1;
+  left: 0.85rem;
+  top: auto;
+  width: 0;
+  align-self: center;
+  opacity: 1;
+  color: #6d7c76;
+}
+
+.item-form-card .field-moneda input,
+.item-form-card .field-moneda:focus-within input,
+.item-form-card .field-moneda:has(input:not(:placeholder-shown)) input {
+  padding-left: 2.7rem;
+}
+
+.item-form-card .field:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding-top: 0.85rem;
+}
+
+.item-form-card .field:has(input[type="checkbox"]) > input,
+.item-form-card .field:has(input[type="checkbox"]) > label {
+  order: 0;
+}
+
+.item-form-card .field:has(input[type="checkbox"]) label {
+  margin: 0;
+  pointer-events: auto;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.item-activo {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 1rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid #e3ebe6;
+  border-radius: 12px;
+  background: #f7faf8;
+}
+
+.item-activo input[type="checkbox"] {
+  appearance: none;
+  width: 2.7rem;
+  height: 1.5rem;
+  margin: 0;
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  background: #c5d0cb;
+  box-shadow: inset 0 0 0 1px rgba(20, 51, 43, 0.08);
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.item-activo input[type="checkbox"]::after {
+  content: "";
+  display: block;
+  width: 1.18rem;
+  height: 1.18rem;
+  margin: 0.16rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(20, 51, 43, 0.18);
+  transition: transform 160ms ease;
+}
+
+.item-activo input[type="checkbox"]:checked {
+  background: var(--accent);
+}
+
+.item-activo input[type="checkbox"]:checked::after {
+  transform: translateX(1.2rem);
+}
+
+.item-activo input[type="checkbox"]:focus-visible {
+  outline: 2px solid #1f6b52;
+  outline-offset: 3px;
+}
+
+.item-activo-copy label {
+  display: block;
+  color: var(--forest);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.item-activo-copy p {
+  margin: 0.15rem 0 0;
+  color: #6d7c76;
+  font-size: 0.82rem;
+}
+
+.item-imagen {
+  max-width: none;
+  margin-top: 0;
+}
+
+.item-imagen .imagen-marco {
+  aspect-ratio: 5 / 4;
+  border-radius: 14px;
+  background: #f4f8f6;
+}
+
+.item-imagen .imagen-marco.is-drop {
+  border-color: var(--accent);
+  background: #eef8f2;
+}
+
+.item-imagen .imagen-vacio {
+  padding: 0.8rem 0.6rem;
+  text-align: center;
+}
+
+.item-imagen .imagen-vacio .icon {
+  width: 2.1rem;
+  height: 2.1rem;
+  color: #7d97aa;
+}
+
+.imagen-elegir {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+  padding: 0.42rem 0.8rem;
+  border: 1px solid #d7e2dd;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--forest);
+  font-size: 0.82rem;
+  font-weight: 560;
+}
+
+.imagen-elegir .icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  color: var(--accent);
+}
+
+.item-imagen-caption {
+  margin: 0.85rem 0 0.45rem;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.item-imagen-foto {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #e3ebe6;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.item-imagen-foto .imagen-previa {
+  display: block;
+  width: 100%;
+  height: 12rem;
+  object-fit: contain;
+}
+
+.item-imagen-foto .imagen-barra {
+  left: 0.4rem;
+  right: 0.4rem;
+  bottom: 0.4rem;
+}
+
+.ficha-item .actions[data-ficha-actions] {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-top: 1.15rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e3ebe6;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.actions-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.ficha-item .actions .button {
+  border-radius: 10px;
+  padding: 0.72rem 1.05rem;
+}
+
+.ficha-item .actions .button:not(.button-ghost) {
+  background: var(--accent);
+}
+
+.ficha-item .actions .button:not(.button-ghost):hover {
+  background: #18663d;
+}
+
+.detail-panel .item-form-layout {
+  grid-template-columns: 1fr;
+}
+
+.detail-panel .item-form-card,
+.detail-panel .item-imagen-panel {
+  box-shadow: none;
+}
+
+@media (max-width: 980px) {
+  .item-form-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .item-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
