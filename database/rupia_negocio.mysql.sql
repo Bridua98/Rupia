@@ -206,6 +206,7 @@ CREATE TABLE IF NOT EXISTS `puntos_expedicion` (
   `puntexpe_numero_desde` int unsigned NOT NULL,
   `puntexpe_numero_hasta` int unsigned NOT NULL,
   `puntexpe_numero_proximo` int unsigned NOT NULL,
+  `puntexpe_habilitado` tinyint(1) NOT NULL DEFAULT 1,
   `puntexpe_emisor_razon_social` varchar(300) NOT NULL,
   `puntexpe_emisor_ruc` varchar(45) NOT NULL,
   `puntexpe_emisor_direccion` varchar(300) NOT NULL,

@@ -123,8 +123,51 @@ def cancelar(venta):
     venta.delete()
 
 
-def punto_para(tipo) -> PuntoExpedicion | None:
+def punto_de(tipo) -> PuntoExpedicion | None:
     return PuntoExpedicion.objects.filter(tipo=tipo).first()
+
+
+def _estado_emision(punto, fecha=None):
+    fecha = fecha or timezone.localdate()
+    if punto is None:
+        return False, "No hay un timbrado registrado para ese comprobante.", "punto"
+    if not punto.habilitado:
+        return False, "El timbrado no está habilitado.", "habilitado"
+    if not (punto.vigencia_desde <= fecha <= punto.vigencia_hasta):
+        return False, "El timbrado no está vigente.", "timbrado"
+    if not (punto.numero_desde <= punto.numero_proximo <= punto.numero_hasta):
+        return False, "Se acabó el rango de números de ese comprobante.", "rango"
+    return True, "", ""
+
+
+def puede_emitir(punto, fecha=None) -> bool:
+    return _estado_emision(punto, fecha)[0]
+
+
+def motivo_emision(punto, fecha=None) -> str:
+    return _estado_emision(punto, fecha)[1]
+
+
+def exigir_emision(punto, fecha=None) -> PuntoExpedicion:
+    ok, mensaje, code = _estado_emision(punto, fecha)
+    if not ok:
+        raise ValidationError(mensaje, code=code)
+    return punto
+
+
+def punto_para(tipo) -> PuntoExpedicion | None:
+    punto = punto_de(tipo)
+    if not puede_emitir(punto):
+        return None
+    return punto
+
+
+def comprobantes_emitibles():
+    return [
+        (tipo, etiqueta)
+        for tipo, etiqueta in TipoComprobante.choices
+        if puede_emitir(punto_de(tipo))
+    ]
 
 
 def proximo_numero(tipo) -> str:
@@ -420,22 +463,13 @@ def confirmar(venta) -> Venta:
     with transaction.atomic():
         venta = Venta.objects.select_for_update().get(pk=venta.pk)
         _exige_borrador(venta)
-        punto = (
-            PuntoExpedicion.objects.select_for_update().filter(tipo=venta.tipo_comprobante).first()
-        )
-        if punto is None:
-            raise ValidationError(
-                "No hay un punto de expedición vigente para ese comprobante.",
-                code="punto",
-            )
         fecha = timezone.localdate()
-        if not (punto.vigencia_desde <= fecha <= punto.vigencia_hasta):
-            raise ValidationError("El timbrado no está vigente.", code="timbrado")
-        if not (punto.numero_desde <= punto.numero_proximo <= punto.numero_hasta):
-            raise ValidationError(
-                "Se acabó el rango de números de ese comprobante.",
-                code="rango",
-            )
+        punto = exigir_emision(
+            PuntoExpedicion.objects.select_for_update()
+            .filter(tipo=venta.tipo_comprobante)
+            .first(),
+            fecha,
+        )
         _validar_stock(venta)
         secuencial = punto.numero_proximo
         numero = formatear_numero_comprobante(punto.establecimiento, punto.codigo, secuencial)

@@ -8,6 +8,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 
 from core.cantidad import formatear_cantidad
+from core.mantenimiento import (
+    MantenimientoCreateView,
+    MantenimientoDeleteView,
+    MantenimientoListView,
+    MantenimientoUpdateView,
+)
 from core.moneda import SIMBOLO, formatear_guaranies, interpretar_guaranies
 from cuentas.models import Cuenta
 from inventario.models import Item, UnidadMedida
@@ -22,19 +28,32 @@ from ventas.cobro import (
     cambiar_cantidad,
     cambiar_unidad,
     cancelar,
+    comprobantes_emitibles,
     confirmar,
     cuentas_para_medio,
     importes_rapidos,
     lineas_vista,
     liquidar_iva,
+    motivo_emision,
     proximo_numero,
+    puede_emitir,
+    punto_de,
     punto_para,
     quitar_linea,
     subtotal_venta,
     total_venta,
     vuelto_venta,
 )
-from ventas.models import EstadoVenta, MedioPago, TipoComprobante, Venta, VentaDetalle
+from ventas.forms import TimbradoForm
+from ventas.models import (
+    EstadoVenta,
+    MedioPago,
+    PuntoExpedicion,
+    TipoComprobante,
+    Venta,
+    VentaDetalle,
+)
+from ventas.tables import TimbradoTable
 
 
 def _dinero(valor) -> str:
@@ -59,6 +78,57 @@ def _monto(valor, default=None):
             return Decimal(str(valor).replace(".", "").replace(",", "."))
         except (InvalidOperation, ValueError):
             return default
+
+
+class TimbradoMantenimiento:
+    model = PuntoExpedicion
+    form_class = TimbradoForm
+    table_class = TimbradoTable
+    page_title = "Timbrados"
+    eyebrow = "Caja"
+    title = "Timbrados"
+    create_label = "Nuevo timbrado"
+    list_hint = "Flechas para moverse. Enter abre el timbrado."
+    search_label = "Buscar"
+    search_placeholder = "Buscar por timbrado, RUC o razón social..."
+    search_field = "timbrado"
+    search_fields = ("timbrado", "emisor_ruc", "emisor_razon_social")
+    filters = (
+        {
+            "name": "tipo",
+            "label": "Comprobante",
+            "kind": "choice",
+            "choices": TipoComprobante.choices,
+        },
+        {"name": "habilitado", "label": "Habilitado", "kind": "bool"},
+    )
+    selection_param = "timbrado"
+    record_noun = "timbrado"
+    order_by = ("tipo", "pk")
+    list_url_name = "timbrado_list"
+    create_url_name = "timbrado_create"
+    update_url_name = "timbrado_update"
+    delete_url_name = "timbrado_delete"
+    print_url_name = "timbrado_print"
+    export_xlsx_url_name = "timbrado_export_xlsx"
+    export_pdf_url_name = "timbrado_export_pdf"
+    export_basename = "timbrados"
+
+
+class TimbradoListView(TimbradoMantenimiento, MantenimientoListView):
+    pass
+
+
+class TimbradoCreateView(TimbradoMantenimiento, MantenimientoCreateView):
+    list_view_class = TimbradoListView
+
+
+class TimbradoUpdateView(TimbradoMantenimiento, MantenimientoUpdateView):
+    list_view_class = TimbradoListView
+
+
+class TimbradoDeleteView(TimbradoMantenimiento, MantenimientoDeleteView):
+    pass
 
 
 class PuntoVentaView(LoginRequiredMixin, View):
@@ -110,7 +180,16 @@ class PuntoVentaView(LoginRequiredMixin, View):
         iva = liquidar_iva(venta)
         total = total_venta(venta)
         subtotal = subtotal_venta(venta)
-        punto = punto_para(venta.tipo_comprobante)
+        punto = punto_de(venta.tipo_comprobante)
+        emitibles = comprobantes_emitibles()
+        tipos_emitibles = {tipo for tipo, _etiqueta in emitibles}
+        if venta.tipo_comprobante not in tipos_emitibles:
+            comprobantes = [
+                (venta.tipo_comprobante, venta.get_tipo_comprobante_display()),
+                *emitibles,
+            ]
+        else:
+            comprobantes = emitibles
         return {
             "venta": venta,
             "lineas": lineas,
@@ -118,9 +197,11 @@ class PuntoVentaView(LoginRequiredMixin, View):
             "cajas": cajas(),
             "cuentas_cobro": cuentas_para_medio(venta.medio, venta.caja),
             "medios": MedioPago.choices,
-            "comprobantes": TipoComprobante.choices,
+            "comprobantes": comprobantes,
+            "puede_emitir": puede_emitir(punto),
+            "emision_motivo": motivo_emision(punto),
             "proximo_numero": proximo_numero(venta.tipo_comprobante),
-            "punto": punto,
+            "punto": punto_para(venta.tipo_comprobante),
             "subtotal": subtotal,
             "total": total,
             "vuelto": vuelto_venta(venta),

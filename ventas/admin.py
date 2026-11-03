@@ -12,6 +12,7 @@ class PuntoExpedicionAdmin(admin.ModelAdmin):
         "timbrado",
         "numero_proximo",
         "vigencia_hasta",
+        "habilitado",
     )
 
 

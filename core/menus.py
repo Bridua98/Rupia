@@ -43,6 +43,7 @@ def main_menu(request):
             "Caja",
             [
                 item("Cuentas", url_name="cuenta_list", icon="wallet"),
+                item("Timbrados", url_name="timbrado_list", icon="file"),
             ],
             icon="wallet",
         ),
