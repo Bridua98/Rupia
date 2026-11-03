@@ -54,6 +54,7 @@ def main_menu(request):
                 item("Unidades de negocio", url_name="unidad_negocio_list", icon="tag"),
                 item("Ítems", url_name="item_list", icon="box"),
                 item("Precios", url_name="precio_list", icon="tag"),
+                item("Reporte de productos", url_name="reporte_productos", icon="file"),
             ],
             icon="box",
         ),

@@ -1,0 +1,124 @@
+{% extends "core/mantenimiento_list.html" %}
+{% load django_tables2 %}
+
+{% block work %}
+<div class="ledger{% if detail_open %} is-overlay{% endif %}" data-rupia="list">
+  <div class="ledger-main">
+    <a class="back" href="{{ back_url }}">
+      {% include "core/icon.html" with name="back" %}
+      <span>Volver</span>
+    </a>
+    <div class="stage-head">
+      <div>
+        <p class="eyebrow">{{ eyebrow }}</p>
+        <h1>{{ title }}</h1>
+        {% if reporte_agrupado_label %}
+          <p class="reporte-modo">{{ reporte_agrupado_label }}</p>
+        {% endif %}
+        {% if record_count is not None %}
+          <p class="record-count">{{ record_count }} {{ record_noun }}{{ record_count|pluralize }}</p>
+        {% endif %}
+      </div>
+      <div class="stage-actions">
+        {% include "core/output_menu.html" %}
+      </div>
+    </div>
+    {% if reporte_resumen_filtros %}
+      <ul class="reporte-filtros-resumen" aria-label="Filtros activos">
+        {% for linea in reporte_resumen_filtros %}
+          <li>{{ linea }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% if search_label %}
+      <div class="list-toolbar">
+        <form class="list-search" method="get" action="{{ list_url }}">
+          <span class="list-search-icon">{% include "core/icon.html" with name="search" %}</span>
+          <input
+            type="search"
+            name="q"
+            value="{{ query }}"
+            placeholder="{{ search_placeholder }}"
+            aria-label="{{ search_label }}"
+          >
+          {% for row in list_filters %}
+            {% if row.value %}
+              <input type="hidden" name="{{ row.name }}" value="{{ row.value }}">
+            {% endif %}
+          {% endfor %}
+        </form>
+        {% if list_filters %}
+          <button
+            type="button"
+            class="list-filters-toggle"
+            data-filters-toggle
+            aria-expanded="{% if filters_open %}true{% else %}false{% endif %}"
+            aria-controls="list-filters"
+          >
+            {% include "core/icon.html" with name="filter" %}
+            <span>Filtros{% if active_filter_count %} ({{ active_filter_count }}){% endif %}</span>
+          </button>
+        {% endif %}
+      </div>
+      {% if list_filters %}
+        <form
+          id="list-filters"
+          class="list-filters{% if filters_open %} is-open{% endif %}"
+          method="get"
+          action="{{ list_url }}"
+          data-filters-panel
+          {% if not filters_open %}hidden{% endif %}
+        >
+          {% if query %}
+            <input type="hidden" name="q" value="{{ query }}">
+          {% endif %}
+          <input type="hidden" name="filtros" value="1">
+          <p class="list-filters-title">Refiná el reporte</p>
+          <div class="list-filters-grid">
+            {% for row in list_filters %}
+              <div class="list-filter">
+                <label for="filter-{{ row.name }}">{{ row.label }}</label>
+                {% if row.kind == "date" %}
+                  <input
+                    type="date"
+                    id="filter-{{ row.name }}"
+                    name="{{ row.name }}"
+                    value="{{ row.value }}"
+                  >
+                {% else %}
+                  <select id="filter-{{ row.name }}" name="{{ row.name }}">
+                    <option value="">Cualquiera</option>
+                    {% if row.kind == "fk" %}
+                      {% for option in row.options %}
+                        <option value="{{ option.pk }}"{% if row.value == option.pk|stringformat:"d" %} selected{% endif %}>{{ option }}</option>
+                      {% endfor %}
+                    {% else %}
+                      {% for value, label in row.options %}
+                        <option value="{{ value }}"{% if row.value == value %} selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    {% endif %}
+                  </select>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          <div class="list-filters-actions">
+            <button type="submit" class="button button-compact">
+              {% include "core/icon.html" with name="check" %}
+              <span>Aplicar</span>
+            </button>
+            <a class="button button-ghost button-compact" href="{{ list_url }}{% if query %}?q={{ query|urlencode }}{% endif %}">
+              {% include "core/icon.html" with name="x" %}
+              <span>Limpiar filtros</span>
+            </a>
+          </div>
+        </form>
+      {% endif %}
+    {% endif %}
+    {% render_table table %}
+    {% if list_hint %}
+      <p class="hint">{{ list_hint }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -16,6 +16,14 @@
 <body>
   <h1>{{ title }}</h1>
   {% if query %}<p>Búsqueda: {{ query }}</p>{% endif %}
+  {% if reporte_resumen_filtros %}
+    <ul class="reporte-filtros-resumen">
+      {% for linea in reporte_resumen_filtros %}
+        <li>{{ linea }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {% if reporte_agrupado_label %}<p><strong>{{ reporte_agrupado_label }}</strong></p>{% endif %}
   <p>{{ record_count }} registro{{ record_count|pluralize }} · {{ generated_at }}</p>
   <table>
     <thead>

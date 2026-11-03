@@ -1,6 +1,7 @@
 from django.urls import path
 
 from core.mantenimiento import mantenimiento_salida
+from inventario.reporte_productos import ReporteProductosListView
 from inventario.views import (
     CategoriaCreateView,
     CategoriaDeleteView,
@@ -121,5 +122,21 @@ urlpatterns = [
         "precios/historial/exportar.pdf",
         mantenimiento_salida(PrecioHistorialListView, "pdf").as_view(),
         name="precio_historial_export_pdf",
+    ),
+    path("reportes/productos/", ReporteProductosListView.as_view(), name="reporte_productos"),
+    path(
+        "reportes/productos/imprimir/",
+        mantenimiento_salida(ReporteProductosListView, "print").as_view(),
+        name="reporte_productos_print",
+    ),
+    path(
+        "reportes/productos/exportar.xlsx",
+        mantenimiento_salida(ReporteProductosListView, "xlsx").as_view(),
+        name="reporte_productos_export_xlsx",
+    ),
+    path(
+        "reportes/productos/exportar.pdf",
+        mantenimiento_salida(ReporteProductosListView, "pdf").as_view(),
+        name="reporte_productos_export_pdf",
     ),
 ]

@@ -20,6 +20,16 @@
   {% if query %}
     <p class="print-query">Búsqueda: {{ query }}</p>
   {% endif %}
+  {% if reporte_resumen_filtros %}
+    <ul class="reporte-filtros-resumen print-resumen">
+      {% for linea in reporte_resumen_filtros %}
+        <li>{{ linea }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {% if reporte_agrupado_label %}
+    <p class="reporte-modo">{{ reporte_agrupado_label }}</p>
+  {% endif %}
   <p class="record-count">{{ record_count }} registro{{ record_count|pluralize }} · {{ generated_at }}</p>
   <table class="sheet print-table">
     <thead>
