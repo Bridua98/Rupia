@@ -1,4 +1,4 @@
--- Rupia — esquema de negocio (personas + inventario + cuentas + unidades de negocio)
+-- Rupia — esquema de negocio (personas + inventario + cuentas + unidades de negocio + ventas)
 -- Usar con MySQL Workbench 8.0 CE (modelador EER), no con Workbench 26.x.
 --
 -- Workbench 8.0 (sin servidor MySQL):
@@ -49,7 +49,11 @@ CREATE TABLE IF NOT EXISTS `personas` (
   `pers_es_cliente` tinyint(1) NOT NULL DEFAULT 0,
   `pers_es_proveedor` tinyint(1) NOT NULL DEFAULT 0,
   `pers_es_empleado` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`pers_id`)
+  PRIMARY KEY (`pers_id`),
+  UNIQUE KEY `pers_documento` (`pers_documento`),
+  CONSTRAINT `personas_al_menos_un_rol` CHECK (
+    (`pers_es_cliente` = 1) OR (`pers_es_proveedor` = 1) OR (`pers_es_empleado` = 1)
+  )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `marcas` (
@@ -188,6 +192,91 @@ CREATE TABLE IF NOT EXISTS `items_unidades` (
   CONSTRAINT `items_unidades_item_id_fk` FOREIGN KEY (`itemunid_item_id`)
     REFERENCES `items` (`item_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `items_unidades_unidmedi_id_fk` FOREIGN KEY (`itemunid_unidmedi_id`)
+    REFERENCES `unidades_medidas` (`unidmedi_id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `puntos_expedicion` (
+  `puntexpe_id` int NOT NULL AUTO_INCREMENT,
+  `puntexpe_tipo` varchar(8) NOT NULL,
+  `puntexpe_establecimiento` varchar(3) NOT NULL,
+  `puntexpe_codigo` varchar(3) NOT NULL,
+  `puntexpe_timbrado` varchar(20) NOT NULL,
+  `puntexpe_vigencia_desde` date NOT NULL,
+  `puntexpe_vigencia_hasta` date NOT NULL,
+  `puntexpe_numero_desde` int unsigned NOT NULL,
+  `puntexpe_numero_hasta` int unsigned NOT NULL,
+  `puntexpe_numero_proximo` int unsigned NOT NULL,
+  `puntexpe_emisor_razon_social` varchar(300) NOT NULL,
+  `puntexpe_emisor_ruc` varchar(45) NOT NULL,
+  `puntexpe_emisor_direccion` varchar(300) NOT NULL,
+  `puntexpe_emisor_telefono` varchar(45) NOT NULL DEFAULT '',
+  `puntexpe_emisor_actividad` varchar(300) NOT NULL DEFAULT '',
+  PRIMARY KEY (`puntexpe_id`),
+  UNIQUE KEY `puntexpe_tipo` (`puntexpe_tipo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `ventas` (
+  `vent_id` int NOT NULL AUTO_INCREMENT,
+  `vent_fecha` date NOT NULL,
+  `vent_estado` varchar(8) NOT NULL,
+  `vent_pers_id` int DEFAULT NULL,
+  `vent_caja_id` int DEFAULT NULL,
+  `vent_cuen_id` int DEFAULT NULL,
+  `vent_medio` varchar(14) NOT NULL,
+  `vent_descuento` decimal(15,3) NOT NULL DEFAULT 0,
+  `vent_importe_recibido` decimal(15,3) NOT NULL DEFAULT 0,
+  `vent_observacion` varchar(300) NOT NULL DEFAULT '',
+  `vent_usuario_id` int NOT NULL,
+  `vent_tipo_comprobante` varchar(8) NOT NULL,
+  `vent_puntexpe_id` int DEFAULT NULL,
+  `vent_timbrado` varchar(20) NOT NULL DEFAULT '',
+  `vent_vigencia_desde` date DEFAULT NULL,
+  `vent_vigencia_hasta` date DEFAULT NULL,
+  `vent_establecimiento` varchar(3) NOT NULL DEFAULT '',
+  `vent_punto_codigo` varchar(3) NOT NULL DEFAULT '',
+  `vent_secuencial` int unsigned DEFAULT NULL,
+  `vent_numero_completo` varchar(15) DEFAULT NULL,
+  `vent_emisor_razon_social` varchar(300) NOT NULL DEFAULT '',
+  `vent_emisor_ruc` varchar(45) NOT NULL DEFAULT '',
+  `vent_emisor_direccion` varchar(300) NOT NULL DEFAULT '',
+  `vent_emisor_telefono` varchar(45) NOT NULL DEFAULT '',
+  `vent_emisor_actividad` varchar(300) NOT NULL DEFAULT '',
+  `vent_condicion` varchar(8) NOT NULL,
+  PRIMARY KEY (`vent_id`),
+  UNIQUE KEY `ventas_numero_completo` (`vent_numero_completo`),
+  KEY `ventas_pers_id` (`vent_pers_id`),
+  KEY `ventas_caja_id` (`vent_caja_id`),
+  KEY `ventas_cuen_id` (`vent_cuen_id`),
+  KEY `ventas_usuario_id` (`vent_usuario_id`),
+  KEY `ventas_puntexpe_id` (`vent_puntexpe_id`),
+  CONSTRAINT `ventas_pers_id_fk` FOREIGN KEY (`vent_pers_id`)
+    REFERENCES `personas` (`pers_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `ventas_caja_id_fk` FOREIGN KEY (`vent_caja_id`)
+    REFERENCES `cuentas` (`cuen_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `ventas_cuen_id_fk` FOREIGN KEY (`vent_cuen_id`)
+    REFERENCES `cuentas` (`cuen_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `ventas_puntexpe_id_fk` FOREIGN KEY (`vent_puntexpe_id`)
+    REFERENCES `puntos_expedicion` (`puntexpe_id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `ventas_detalles` (
+  `ventdeta_id` int NOT NULL AUTO_INCREMENT,
+  `ventdeta_vent_id` int NOT NULL,
+  `ventdeta_item_id` int NOT NULL,
+  `ventdeta_unidmedi_id` int NOT NULL,
+  `ventdeta_cantidad` decimal(15,3) NOT NULL,
+  `ventdeta_precio` decimal(15,3) NOT NULL,
+  `ventdeta_tasa_iva` smallint unsigned NOT NULL,
+  `ventdeta_subtotal` decimal(15,3) NOT NULL,
+  PRIMARY KEY (`ventdeta_id`),
+  KEY `ventas_detalles_vent_id` (`ventdeta_vent_id`),
+  KEY `ventas_detalles_item_id` (`ventdeta_item_id`),
+  KEY `ventas_detalles_unidmedi_id` (`ventdeta_unidmedi_id`),
+  CONSTRAINT `ventas_detalles_vent_id_fk` FOREIGN KEY (`ventdeta_vent_id`)
+    REFERENCES `ventas` (`vent_id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `ventas_detalles_item_id_fk` FOREIGN KEY (`ventdeta_item_id`)
+    REFERENCES `items` (`item_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `ventas_detalles_unidmedi_id_fk` FOREIGN KEY (`ventdeta_unidmedi_id`)
     REFERENCES `unidades_medidas` (`unidmedi_id`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
