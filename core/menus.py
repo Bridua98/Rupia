@@ -37,6 +37,7 @@ def main_menu(request):
 
     entries = [
         item("Inicio", url_name="home", icon="home"),
+        item("Punto de venta", url_name="punto_de_venta", icon="wallet"),
         item("Personas", url_name="persona_list", icon="users"),
         group(
             "Caja",

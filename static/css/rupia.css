@@ -1,4 +1,4 @@
-@font-face {
+﻿@font-face {
   font-family: "Fraunces";
   font-style: normal;
   font-weight: 100 900;
@@ -3240,4 +3240,311 @@ body.is-visor {
   .item-form-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.pos {
+  display: grid;
+  gap: 1rem;
+}
+
+.pos-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: var(--forest);
+  color: #f6f1e8;
+}
+
+.pos-brand strong,
+.pos-brand span span {
+  display: block;
+}
+
+.pos-brand strong {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+}
+
+.pos-brand > span:nth-child(2) span {
+  color: rgba(246, 241, 232, 0.72);
+  font-size: 0.85rem;
+}
+
+.pos-brand-mark {
+  display: grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  place-items: center;
+  border: 1px solid rgba(246, 241, 232, 0.35);
+  border-radius: 8px;
+}
+
+.pos-brand .pos-pill {
+  margin-left: auto;
+}
+
+.pos-card {
+  padding: 1.1rem 1.15rem 1.2rem;
+  border: 1px solid #e3ebe6;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.pos-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem 1rem;
+}
+
+.pos-head h1,
+.pos-card h2 {
+  margin: 0;
+}
+
+.pos-card h2 {
+  font-size: 1.05rem;
+}
+
+.pos-kicker {
+  margin: 0.35rem 0 0;
+  color: var(--ink-soft);
+}
+
+.pos-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  grid-column: 1 / -1;
+}
+
+.pos-meta span,
+.pos-row span,
+.pos-pay span,
+.pos-hint {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.pos-meta strong {
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.pos-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 1.7rem;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  background: #e7f4ec;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.pos-pill-ok {
+  background: rgba(246, 241, 232, 0.16);
+  color: #d7f0e0;
+}
+
+.pos-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 960px) {
+  .pos-grid {
+    grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
+    align-items: start;
+  }
+}
+
+.pos-section-head,
+.pos-row,
+.pos-line,
+.pos-line-end,
+.pos-pay {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.pos-lines {
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pos-line {
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--line);
+  align-items: flex-start;
+}
+
+.pos-line p {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.pos-price,
+.pos-total strong,
+.pos-vuelto strong {
+  color: var(--accent);
+}
+
+.pos-empty {
+  padding: 1rem 0;
+  color: var(--ink-soft);
+}
+
+.pos-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.pos-stepper button,
+.pos-remove {
+  width: 1.85rem;
+  height: 1.85rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.pos-stepper button[value="mas"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.pos-inline {
+  display: inline;
+  margin: 0;
+}
+
+.pos-inline select {
+  max-width: 5.5rem;
+}
+
+.pos-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
+
+.pos-search input,
+.pos-discount input,
+.pos-card .field input,
+.pos-card .field select,
+.pos-card .field textarea {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+}
+
+.pos-suggest {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 4;
+  margin: 0.25rem 0 0;
+  padding: 0.3rem;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.pos-suggest li {
+  padding: 0.45rem 0.55rem;
+  cursor: pointer;
+}
+
+.pos-suggest li:hover {
+  background: #e7f4ec;
+}
+
+.pos-total,
+.pos-vuelto {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.pos-medios,
+.pos-rapidos,
+.pos-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.pos-chip {
+  position: relative;
+  margin: 0.35rem 0 0;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  font: inherit;
+}
+
+.pos-chip.is-on,
+.pos-chip:has(input:checked) {
+  background: var(--forest);
+  border-color: var(--forest);
+  color: #f6f1e8;
+}
+
+.pos-chip input {
+  position: absolute;
+  opacity: 0;
+}
+
+.pos-pay {
+  margin-top: 0.9rem;
+  align-items: flex-end;
+}
+
+.pos-pay div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.pos-check {
+  display: flex;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+  font-size: 0.9rem;
+}
+
+.pos-side .button {
+  width: 100%;
+  margin-top: 0.85rem;
+}
+
+.pos-actions form {
+  flex: 1;
+  margin: 0;
+}
+
+.ticket-page,
+.factura-page {
+  max-width: 42rem;
 }

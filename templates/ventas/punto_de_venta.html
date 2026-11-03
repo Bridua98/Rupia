@@ -1,0 +1,224 @@
+{% extends "app.html" %}
+{% load static %}
+
+{% block title %}Punto de venta · Rupia{% endblock %}
+
+{% block work %}
+<div class="pos" data-pos>
+  <header class="pos-brand">
+    <span class="pos-brand-mark" aria-hidden="true">{% include "core/icon.html" with name="home" %}</span>
+    <span>
+      <strong>Rupia</strong>
+      <span>Punto de venta</span>
+    </span>
+    <span class="pos-pill pos-pill-ok">Caja abierta</span>
+  </header>
+
+  <section class="pos-card pos-head">
+    <div>
+      <h1>Nueva venta</h1>
+      <p class="pos-kicker">{{ caja_label }} · Venta al contado</p>
+    </div>
+    <span class="pos-pill">En curso</span>
+    <div class="pos-meta">
+      <div>
+        <span>Número de venta</span>
+        <strong>{{ proximo_numero|default:"—" }}</strong>
+      </div>
+      <div>
+        <span>Fecha</span>
+        <strong>{{ venta.fecha|date:"d/m/Y" }}</strong>
+      </div>
+    </div>
+  </section>
+
+  <div class="pos-grid">
+    <section class="pos-card">
+      <div class="pos-section-head">
+        <h2>Productos</h2>
+        <span class="pos-pill">{{ unidades_txt }} unidades</span>
+      </div>
+      <ul class="pos-lines">
+        {% for linea in lineas %}
+          <li class="pos-line">
+            <div>
+              <strong>{{ linea.descripcion }}</strong>
+              <p>
+                {% if linea.codigo %}Código: {{ linea.codigo }} · {% endif %}
+                <form class="pos-inline" method="post" action="{% url 'punto_de_venta_linea' linea.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="accion" value="unidad">
+                  <select name="unidad" onchange="this.form.submit()" aria-label="Unidad">
+                    {% for unidad in linea.unidades %}
+                      <option value="{{ unidad.id }}"{% if unidad.id == linea.unidad_id %} selected{% endif %}>{{ unidad.simbolo }}</option>
+                    {% endfor %}
+                  </select>
+                </form>
+                · IVA {{ linea.tasa }}%
+              </p>
+              <p class="pos-price">Gs. {{ linea.precio_txt }}</p>
+            </div>
+            <div class="pos-line-end">
+              <form method="post" action="{% url 'punto_de_venta_linea' linea.pk %}" class="pos-stepper">
+                {% csrf_token %}
+                <button type="submit" name="accion" value="menos" aria-label="Menos">−</button>
+                <span>{{ linea.cantidad_txt }}</span>
+                <button type="submit" name="accion" value="mas" aria-label="Más">+</button>
+              </form>
+              <strong>Gs. {{ linea.subtotal_txt }}</strong>
+              <form method="post" action="{% url 'punto_de_venta_linea' linea.pk %}">
+                {% csrf_token %}
+                <button class="pos-remove" type="submit" name="accion" value="quitar" aria-label="Quitar">{% include "core/icon.html" with name="trash" %}</button>
+              </form>
+            </div>
+          </li>
+        {% empty %}
+          <li class="pos-empty">Buscá un producto para empezar la venta.</li>
+        {% endfor %}
+      </ul>
+      <form class="pos-search" method="post" action="{% url 'punto_de_venta_agregar' %}" data-pos-search>
+        {% csrf_token %}
+        <span aria-hidden="true">{% include "core/icon.html" with name="search" %}</span>
+        <input type="search" name="q" placeholder="Buscar o agregar otro producto" autocomplete="off" aria-label="Buscar producto">
+        <ul class="pos-suggest" hidden data-pos-suggest></ul>
+      </form>
+    </section>
+
+    <div class="pos-side">
+      <form method="post" action="{% url 'punto_de_venta' %}" id="pos-cabecera">
+        {% csrf_token %}
+        <section class="pos-card">
+          <h2>Resumen de venta</h2>
+          <div class="pos-row">
+            <span>Subtotal</span>
+            <strong>{{ subtotal_txt }}</strong>
+          </div>
+          <label class="pos-row pos-discount">
+            <span>Descuento (Gs.)</span>
+            <input type="text" name="descuento" value="{{ descuento_txt }}" inputmode="numeric">
+          </label>
+          <div class="pos-total">
+            <span>TOTAL A PAGAR</span>
+            <strong>{{ total_txt }}</strong>
+          </div>
+        </section>
+
+        <section class="pos-card">
+          <h2>Medios de pago</h2>
+          <div class="pos-medios">
+            {% for value, label in medios %}
+              <label class="pos-chip{% if venta.medio == value %} is-on{% endif %}">
+                <input type="radio" name="medio" value="{{ value }}"{% if venta.medio == value %} checked{% endif %}>
+                {{ label }}
+              </label>
+            {% endfor %}
+          </div>
+          <label class="field">
+            <span>Caja</span>
+            <select name="caja">
+              <option value="">Elegí</option>
+              {% for caja in cajas %}
+                <option value="{{ caja.pk }}"{% if venta.caja_id == caja.pk %} selected{% endif %}>{{ caja.nombre_corto }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          {% if venta.medio != "EFECTIVO" %}
+            <label class="field">
+              <span>Cuenta de cobro</span>
+              <select name="cuenta_cobro">
+                <option value="">Elegí</option>
+                {% for cuenta in cuentas_cobro %}
+                  <option value="{{ cuenta.pk }}"{% if venta.cuenta_cobro_id == cuenta.pk %} selected{% endif %}>{{ cuenta.nombre_corto }}</option>
+                {% endfor %}
+              </select>
+            </label>
+          {% endif %}
+          <label class="field">
+            <span>Importe recibido (Gs.)</span>
+            <input type="text" name="importe_recibido" value="{{ recibido_txt }}" inputmode="numeric" {% if venta.medio != "EFECTIVO" %}readonly{% endif %} data-pos-recibido>
+          </label>
+          {% if venta.medio == "EFECTIVO" and rapidos %}
+            <p class="pos-hint">Importes rápidos</p>
+            <div class="pos-rapidos">
+              {% for monto in rapidos %}
+                <button type="submit" name="importe_recibido" value="{{ monto.valor }}" class="pos-chip">Gs. {{ monto.txt }}</button>
+              {% endfor %}
+            </div>
+          {% endif %}
+          <div class="pos-pay">
+            <div>
+              <span>Total a pagar</span>
+              <strong>{{ total_txt }}</strong>
+            </div>
+            <div>
+              <span>Recibido</span>
+              <strong>Gs. {{ recibido_txt }}</strong>
+            </div>
+            <div class="pos-vuelto">
+              <span>VUELTO</span>
+              <strong>{{ vuelto_txt }}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="pos-card">
+          <h2>Opciones adicionales</h2>
+          <label class="field">
+            <span>Comprobante</span>
+            <select name="tipo_comprobante">
+              {% for value, label in comprobantes %}
+                <option value="{{ value }}"{% if venta.tipo_comprobante == value %} selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <div class="field" data-pos-cliente>
+            <span>Cliente</span>
+            <input type="hidden" name="cliente" value="{{ venta.cliente_id|default:'' }}">
+            <input type="search" value="{{ cliente_label }}" placeholder="Consumidor final" autocomplete="off" data-pos-cliente-q>
+            <ul class="pos-suggest" hidden data-pos-cliente-suggest></ul>
+            {% if venta.tipo_comprobante == "TICKET" %}
+              <label class="pos-check">
+                <input type="checkbox" name="consumidor_final" value="1"{% if not venta.cliente_id %} checked{% endif %}>
+                Consumidor final
+              </label>
+            {% endif %}
+          </div>
+          <label class="field">
+            <span>Observaciones</span>
+            <textarea name="observacion" rows="2">{{ venta.observacion }}</textarea>
+          </label>
+          <button class="button" type="submit" formaction="{% url 'punto_de_venta' %}">Guardar datos</button>
+        </section>
+      </form>
+
+      <div class="pos-actions">
+        <form method="post" action="{% url 'punto_de_venta_confirmar' %}">
+          {% csrf_token %}
+          <input type="hidden" name="caja" value="{{ venta.caja_id|default:'' }}">
+          <input type="hidden" name="cuenta_cobro" value="{{ venta.cuenta_cobro_id|default:'' }}">
+          <input type="hidden" name="medio" value="{{ venta.medio }}">
+          <input type="hidden" name="tipo_comprobante" value="{{ venta.tipo_comprobante }}">
+          <input type="hidden" name="descuento" value="{{ descuento_txt }}">
+          <input type="hidden" name="importe_recibido" value="{{ recibido_txt }}">
+          {% if venta.cliente_id %}
+            <input type="hidden" name="cliente" value="{{ venta.cliente_id }}">
+          {% else %}
+            <input type="hidden" name="consumidor_final" value="1">
+          {% endif %}
+          <input type="hidden" name="observacion" value="{{ venta.observacion }}">
+          <button class="button" type="submit">Confirmar cobro</button>
+        </form>
+        <form method="post" action="{% url 'punto_de_venta_cancelar' %}">
+          {% csrf_token %}
+          <button class="button button-ghost" type="submit">Cancelar / Limpiar venta</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="{% static 'js/rupia-venta.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Factura {{ venta.numero_completo }} · Rupia{% endblock %}
+{% block body_class %}print-view{% endblock %}
+
+{% block content %}
+<article class="print-page factura-page">
+  <header class="print-toolbar">
+    <a class="back" href="{% url 'punto_de_venta' %}">
+      {% include "core/icon.html" with name="back" %}
+      <span>Volver</span>
+    </a>
+    <button type="button" class="button" onclick="window.print()">
+      {% include "core/icon.html" with name="print" %}
+      <span>Imprimir</span>
+    </button>
+  </header>
+  <p class="eyebrow">Factura legal</p>
+  <h1>{{ venta.emisor_razon_social }}</h1>
+  <p>RUC {{ venta.emisor_ruc }}</p>
+  <p>{{ venta.emisor_direccion }}</p>
+  {% if venta.emisor_telefono %}<p>Tel. {{ venta.emisor_telefono }}</p>{% endif %}
+  {% if venta.emisor_actividad %}<p>{{ venta.emisor_actividad }}</p>{% endif %}
+  <p>Timbrado N° {{ venta.timbrado }}</p>
+  <p>Vigencia {{ venta.vigencia_desde|date:"d/m/Y" }} al {{ venta.vigencia_hasta|date:"d/m/Y" }}</p>
+  <p>Factura N° {{ venta.numero_completo }}</p>
+  <p>Fecha {{ venta.fecha|date:"d/m/Y" }} · Condición: Contado</p>
+  <p>Cliente {{ venta.cliente.razon_social }} · {{ venta.cliente.get_tipo_documento_display }} {{ venta.cliente.documento }}</p>
+  {% if venta.cliente.direccion %}<p>{{ venta.cliente.direccion }}</p>{% endif %}
+  <table class="sheet print-table">
+    <thead>
+      <tr>
+        <th scope="col">Descripción</th>
+        <th scope="col">Cant.</th>
+        <th scope="col">IVA</th>
+        <th scope="col">Precio</th>
+        <th scope="col">Exentas</th>
+        <th scope="col">5%</th>
+        <th scope="col">10%</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for linea in lineas %}
+        <tr>
+          <td>{{ linea.descripcion }}</td>
+          <td>{{ linea.cantidad_txt }} {{ linea.unidad }}</td>
+          <td>{{ linea.tasa }}%</td>
+          <td>Gs. {{ linea.precio_txt }}</td>
+          <td>{% if linea.tasa == 0 %}Gs. {{ linea.subtotal_txt }}{% else %}—{% endif %}</td>
+          <td>{% if linea.tasa == 5 %}Gs. {{ linea.subtotal_txt }}{% else %}—{% endif %}</td>
+          <td>{% if linea.tasa == 10 %}Gs. {{ linea.subtotal_txt }}{% else %}—{% endif %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p>Subtotal {{ subtotal_txt }}</p>
+  {% if iva.descuento %}<p>Descuento {{ descuento_txt }}</p>{% endif %}
+  <p>Gravadas 10% {{ gravadas_10_txt }} · IVA 10% {{ iva_10_txt }}</p>
+  <p>Gravadas 5% {{ gravadas_5_txt }} · IVA 5% {{ iva_5_txt }}</p>
+  <p>Exentas {{ exentas_txt }}</p>
+  <p><strong>Total a pagar {{ total_txt }}</strong></p>
+  <p>{{ venta.get_medio_display }} · Recibido {{ recibido_txt }} · Vuelto {{ vuelto_txt }}</p>
+</article>
+{% endblock %}
