@@ -1,4 +1,5 @@
 from django import forms
+from django.urls import reverse
 
 from core.forms import RupiaModelForm
 from personas.models import Genero, Persona, TipoDocumento
@@ -25,7 +26,10 @@ class PersonaForm(RupiaModelForm):
             "es_empleado": "Personal",
         }
         widgets = {
-            "documento": forms.TextInput(attrs={"autofocus": True}),
+            "documento": forms.TextInput(
+                attrs={"autofocus": True, "autocomplete": "off"}
+            ),
+            "razon_social": forms.TextInput(attrs={"autocomplete": "off"}),
             "fecha_nacimiento": forms.DateInput(
                 format="%Y-%m-%d",
                 attrs={"type": "date"},
@@ -64,6 +68,21 @@ class PersonaForm(RupiaModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        consulta_url = reverse("persona_consulta")
+        self.fields["documento"].widget.attrs.update(
+            {
+                "autocomplete": "off",
+                "data-persona-consulta": consulta_url,
+                "data-persona-campo": "documento",
+            }
+        )
+        self.fields["razon_social"].widget.attrs.update(
+            {
+                "autocomplete": "off",
+                "data-persona-consulta": consulta_url,
+                "data-persona-campo": "razon_social",
+            }
+        )
         if not self.instance.pk:
             self.fields["tipo_documento"].initial = TipoDocumento.CEDULA
             self.fields["genero"].initial = Genero.SIN_DEFINIR

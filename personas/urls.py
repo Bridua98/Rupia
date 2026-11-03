@@ -2,6 +2,7 @@ from django.urls import path
 
 from core.mantenimiento import mantenimiento_salida
 from personas.views import (
+    PersonaConsultaView,
     PersonaCreateView,
     PersonaDeleteView,
     PersonaListView,
@@ -26,6 +27,7 @@ urlpatterns = [
         name="persona_export_pdf",
     ),
     path("nueva/", PersonaCreateView.as_view(), name="persona_create"),
+    path("consulta/", PersonaConsultaView.as_view(), name="persona_consulta"),
     path("<int:pk>/", PersonaUpdateView.as_view(), name="persona_update"),
     path("<int:pk>/eliminar/", PersonaDeleteView.as_view(), name="persona_delete"),
 ]

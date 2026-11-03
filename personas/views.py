@@ -1,9 +1,14 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import JsonResponse
+from django.views import View
+
 from core.mantenimiento import (
     MantenimientoCreateView,
     MantenimientoDeleteView,
     MantenimientoListView,
     MantenimientoUpdateView,
 )
+from personas.consulta import buscar, consultar_ruc
 from personas.forms import PersonaForm
 from personas.models import Genero, Persona, TipoDocumento
 from personas.tables import PersonaTable
@@ -72,3 +77,14 @@ class PersonaUpdateView(PersonaMantenimiento, MantenimientoUpdateView):
 
 class PersonaDeleteView(PersonaMantenimiento, MantenimientoDeleteView):
     pass
+
+
+class PersonaConsultaView(LoginRequiredMixin, View):
+    def get(self, request):
+        ruc = request.GET.get("ruc", "").strip()
+        if ruc:
+            ficha = consultar_ruc(ruc)
+            if ficha is None:
+                return JsonResponse({}, status=404)
+            return JsonResponse(ficha)
+        return JsonResponse({"results": buscar(request.GET.get("q", ""))})
