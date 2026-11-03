@@ -1,11 +1,15 @@
+import json
 from datetime import date, timedelta
 from io import BytesIO
+from unittest.mock import patch
+from urllib.error import URLError
 
 import pytest
 from django.urls import reverse
 from django.utils import timezone
 from openpyxl import load_workbook
 
+from personas.consulta import buscar, consultar_ruc, ficha_persona
 from personas.models import Genero, Persona, TipoDocumento
 
 
@@ -448,3 +452,146 @@ def test_imprimir_incluye_el_tipo(ingresada):
     assert "80012345-6" in contenido
     assert "RUC 80012345-6" not in contenido
     assert "window.print" in contenido
+
+
+class FakePeople:
+    def __init__(self, payload):
+        self._payload = json.dumps(payload).encode()
+
+    def read(self):
+        return self._payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+
+def test_ficha_mapea_ruc_con_dv():
+    ficha = ficha_persona(
+        {
+            "ruc": "80009735",
+            "razonsocial": "ADMINISTRACION NACIONAL DE ELECTRICIDAD - ANDE",
+            "dv": "1",
+            "tipo": "J",
+            "estado": "ACTIVO",
+        }
+    )
+
+    assert ficha["tipo_documento"] == TipoDocumento.RUC
+    assert ficha["documento"] == "80009735-1"
+    assert ficha["razon_social"] == "ADMINISTRACION NACIONAL DE ELECTRICIDAD - ANDE"
+    assert ficha["fecha_nacimiento"] is None
+    assert ficha["label"] == "ADMINISTRACION NACIONAL DE ELECTRICIDAD - ANDE (80009735-1)"
+
+
+def test_ficha_mapea_cedula_sin_dv_y_fecha():
+    ficha = ficha_persona(
+        {
+            "ruc": "1234567",
+            "razonsocial": "GOMEZ ANA",
+            "dv": None,
+            "tipo": "F",
+            "fecNac": "15/01/1990",
+        }
+    )
+
+    assert ficha["tipo_documento"] == TipoDocumento.CEDULA
+    assert ficha["documento"] == "1234567"
+    assert ficha["razon_social"] == "GOMEZ ANA"
+    assert ficha["fecha_nacimiento"] == "1990-01-15"
+
+
+@patch("personas.consulta.urlopen")
+def test_buscar_devuelve_vacio_si_el_servicio_cae(urlopen):
+    urlopen.side_effect = URLError("down")
+
+    assert buscar("ande") == []
+
+
+@patch("personas.consulta.urlopen")
+def test_consultar_ruc_devuelve_vacio_si_el_servicio_cae(urlopen):
+    urlopen.side_effect = URLError("down")
+
+    assert consultar_ruc("80009735") is None
+
+
+@patch("personas.consulta.urlopen")
+def test_buscar_usa_el_padron(urlopen):
+    urlopen.return_value = FakePeople(
+        [
+            {
+                "ruc": "80009735",
+                "razonsocial": "ANDE",
+                "dv": "1",
+                "tipo": "J",
+                "estado": "ACTIVO",
+            }
+        ]
+    )
+
+    results = buscar("ande")
+
+    assert results[0]["documento"] == "80009735-1"
+    assert urlopen.call_args[0][0].full_url.endswith("/search?query=ande")
+
+
+@pytest.mark.django_db
+def test_consulta_pide_ingreso(client):
+    response = client.get("/personas/consulta/?q=ande")
+
+    assert response.status_code == 302
+    assert response.url.startswith("/login/")
+
+
+@pytest.mark.django_db
+@patch("personas.views.buscar")
+def test_consulta_devuelve_sugerencias(buscar_mock, ingresada):
+    buscar_mock.return_value = [
+        {
+            "ruc": "80009735",
+            "tipo_documento": TipoDocumento.RUC,
+            "documento": "80009735-1",
+            "razon_social": "ANDE",
+            "fecha_nacimiento": None,
+            "label": "ANDE (80009735-1)",
+        }
+    ]
+
+    response = ingresada.get("/personas/consulta/?q=ande")
+
+    assert response.status_code == 200
+    assert response.json()["results"][0]["documento"] == "80009735-1"
+    buscar_mock.assert_called_once_with("ande")
+
+
+@pytest.mark.django_db
+@patch("personas.views.consultar_ruc")
+def test_consulta_devuelve_la_ficha(consultar_mock, ingresada):
+    consultar_mock.return_value = {
+        "ruc": "1234567",
+        "tipo_documento": TipoDocumento.CEDULA,
+        "documento": "1234567",
+        "razon_social": "GOMEZ ANA",
+        "fecha_nacimiento": "1990-01-15",
+        "label": "GOMEZ ANA (1234567)",
+    }
+
+    response = ingresada.get("/personas/consulta/?ruc=1234567")
+
+    assert response.status_code == 200
+    assert response.json()["fecha_nacimiento"] == "1990-01-15"
+    consultar_mock.assert_called_once_with("1234567")
+
+
+@pytest.mark.django_db
+def test_formulario_publica_la_consulta(ingresada):
+    response = ingresada.get("/personas/nueva/")
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert 'data-persona-consulta="/personas/consulta/"' in content
+    assert 'data-persona-campo="documento"' in content
+    assert 'data-persona-campo="razon_social"' in content
+    assert "js/rupia-personas.js" in content

@@ -2667,3 +2667,28 @@ body.is-visor {
 .detail-panel .rupia-tabs-panel .selector {
   max-width: none;
 }
+
+.persona-consulta-results {
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  right: 0;
+  top: 4.35rem;
+  max-height: 14rem;
+  margin: 0;
+  padding: 0.25rem 0;
+  overflow: auto;
+  list-style: none;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+
+.persona-consulta-results li {
+  padding: 0.45rem 0.15rem;
+  cursor: pointer;
+}
+
+.persona-consulta-results li:hover,
+.persona-consulta-results li[aria-selected="true"] {
+  background: rgba(20, 51, 43, 0.08);
+}
