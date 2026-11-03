@@ -2,7 +2,6 @@ from decimal import Decimal
 from io import BytesIO
 
 import pytest
-from django.urls import reverse
 from openpyxl import load_workbook
 from pypdf import PdfReader
 
@@ -63,6 +62,7 @@ def test_listado_marca_la_primera_fila(ingresada):
     assert "Volver" in content
     assert 'class="sheet-col-acciones"' in content
     assert 'aria-label="Acciones"' in content
+    assert "Ver" in content
     assert "Modificar" in content
     assert "2 registros" in content
     assert "Flechas para moverse" in content
@@ -80,9 +80,26 @@ def test_listado_marca_la_fila_pedida(ingresada):
     )
     assert f'data-id="{beta.pk}"' in selected
     assert 'class="detail-panel"' in response.content.decode()
-    assert "Abrir ficha" in response.content.decode()
-    assert f'href="/inventario/marcas/{beta.pk}/"' in response.content.decode()
+    assert "Abrir ficha" not in response.content.decode()
     assert 'aria-label="Cerrar"' in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_ver_muestra_panel_solo_lectura(ingresada):
+    marca = Marca.objects.create(descripcion="Solo lectura")
+
+    response = ingresada.get(f"/inventario/marcas/?marca={marca.pk}&ver=1")
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "view-panel" in content
+    assert "Datos del registro" in content
+    assert "Solo lectura" in content
+    assert 'id="panel-form"' not in content
+    assert "Guardar" not in content
+    assert f'href="/inventario/marcas/?marca={marca.pk}"' in content
+    assert ">Id<" not in content
+    assert "view-panel-1" not in content
 
 
 @pytest.mark.django_db
@@ -151,7 +168,7 @@ def test_guardar_y_seguir_abre_otra_ficha(ingresada):
     )
 
     assert response.status_code == 302
-    assert response.url == reverse("marca_create")
+    assert response.url == "/inventario/marcas/?nueva=1"
     assert Marca.objects.filter(descripcion="Molinos").exists()
 
     marca = Marca.objects.get(descripcion="Molinos")
@@ -163,33 +180,37 @@ def test_guardar_y_seguir_abre_otra_ficha(ingresada):
     marca.refresh_from_db()
     assert marca.descripcion == "Molinos SA"
     assert seguido.status_code == 302
-    assert seguido.url == "/inventario/marcas/nueva/"
+    assert seguido.url == "/inventario/marcas/?nueva=1"
 
 
 @pytest.mark.django_db
-def test_ficha_nueva_no_ofrece_eliminar(ingresada):
+def test_alta_abre_el_panel_del_listado(ingresada):
     response = ingresada.get("/inventario/marcas/nueva/")
 
-    content = response.content.decode()
-    assert response.status_code == 200
+    assert response.status_code == 302
+    assert response.url == "/inventario/marcas/?nueva=1"
+    pagina = ingresada.get(response.url)
+    content = pagina.content.decode()
+    assert pagina.status_code == 200
     assert "Nueva marca" in content
-    assert "Guardar y seguir" in content
-    assert "Eliminar" not in content
+    assert "Guardar" in content
+    assert "Abrir ficha" not in content
     assert "Marca anterior" not in content
 
 
 @pytest.mark.django_db
-def test_ficha_muestra_vecinas(ingresada):
+def test_edicion_abre_el_panel_del_listado(ingresada):
     alfa = Marca.objects.create(descripcion="Alfa")
-    beta = Marca.objects.create(descripcion="Beta")
 
     response = ingresada.get(f"/inventario/marcas/{alfa.pk}/")
 
-    content = response.content.decode()
-    assert "1 de 2" in content
-    assert f'href="/inventario/marcas/{beta.pk}/"' in content
-    assert "Eliminar" in content
-    assert 'aria-current="page"' in content
+    assert response.status_code == 302
+    assert response.url == f"/inventario/marcas/?marca={alfa.pk}"
+    pagina = ingresada.get(response.url)
+    content = pagina.content.decode()
+    assert "1 de 2" not in content
+    assert "Abrir ficha" not in content
+    assert 'class="detail-panel"' in content
 
 
 @pytest.mark.django_db
@@ -231,10 +252,10 @@ def test_no_elimina_marca_en_uso(ingresada):
     response = ingresada.post(f"/inventario/marcas/{marca.pk}/eliminar/")
 
     assert response.status_code == 302
-    assert response.url == f"/inventario/marcas/{marca.pk}/"
+    assert response.url == f"/inventario/marcas/?marca={marca.pk}"
     assert Marca.objects.filter(pk=marca.pk).exists()
-    ficha = ingresada.get(response.url)
-    assert "está en uso y no se puede eliminar." in ficha.content.decode()
+    pagina = ingresada.get(response.url)
+    assert "está en uso y no se puede eliminar." in pagina.content.decode()
 
 
 @pytest.mark.django_db

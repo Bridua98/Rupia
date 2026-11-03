@@ -1,7 +1,6 @@
 from io import BytesIO
 
 import pytest
-from django.urls import reverse
 from openpyxl import load_workbook
 from pypdf import PdfReader
 
@@ -131,7 +130,7 @@ def test_guardar_y_seguir_abre_otra_ficha(ingresada):
     response = ingresada.post("/unidades-negocio/nueva/", _payload(accion="seguir"))
 
     assert response.status_code == 302
-    assert response.url == reverse("unidad_negocio_create")
+    assert response.url == "/unidades-negocio/?nueva=1"
     assert UnidadNegocio.objects.filter(abreviado="DEP").exists()
 
 
@@ -164,10 +163,10 @@ def test_no_elimina_unidad_de_negocio_en_uso(ingresada):
     response = ingresada.post(f"/unidades-negocio/{unidad_negocio.pk}/eliminar/")
 
     assert response.status_code == 302
-    assert response.url == f"/unidades-negocio/{unidad_negocio.pk}/"
+    assert response.url == f"/unidades-negocio/?unidad_negocio={unidad_negocio.pk}"
     assert UnidadNegocio.objects.filter(pk=unidad_negocio.pk).exists()
-    ficha = ingresada.get(response.url)
-    assert "está en uso y no se puede eliminar." in ficha.content.decode()
+    pagina = ingresada.get(response.url)
+    assert "está en uso y no se puede eliminar." in pagina.content.decode()
 
 
 @pytest.mark.django_db

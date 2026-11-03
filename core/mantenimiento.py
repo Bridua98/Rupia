@@ -23,6 +23,7 @@ from core.listado import (
     listado_query_params,
     search_fields_for,
 )
+from core.vista import build_view_context, view_queryset
 
 
 def _skip_export(column):
@@ -220,6 +221,13 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
     def creating(self):
         return self.force_nueva or self.request.GET.get("nueva") == "1"
 
+    def viewing(self):
+        if self.creating():
+            return False
+        if self.request.GET.get("ver") != "1":
+            return False
+        return self.panel_pk() is not None
+
     def panel_pk(self):
         if self.creating():
             return None
@@ -252,12 +260,16 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
                 page = self.page_number_for_pk(int(raw))
                 if page and page > 1:
                     params = request.GET.copy()
-                    params["page"] = page
+                    params["page"] = str(page)
                     return redirect(f"{request.path}?{params.urlencode()}")
         return super().get(request, *args, **kwargs)
 
     def get_table(self, **kwargs):
         table = super().get_table(**kwargs)
+        table.list_query = self.list_query
+        table.selection_param = self.selection_param
+        table.update_url_name = getattr(self, "update_url_name", "")
+        table.delete_url_name = getattr(self, "delete_url_name", "")
         self._visible_pks = [row.record.pk for row in table.paginated_rows]
         return table
 
@@ -295,14 +307,37 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
                     }
         return form
 
+    def get_view_record_queryset(self):
+        return view_queryset(self.model)
+
+    def _view_record(self, pk):
+        return self.get_view_record_queryset().get(pk=pk)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         nueva = self.creating()
+        viewing = self.viewing()
         selected = self.panel_pk()
-        panel_form = self._panel_form(nueva, selected)
+        panel_form = None
+        view_open = False
+        view_context = {}
         panel_object = None
-        if panel_form is not None and getattr(panel_form.instance, "pk", None):
-            panel_object = panel_form.instance
+
+        if viewing and selected:
+            record = self._view_record(selected)
+            view_context = build_view_context(record)
+            view_open = True
+            panel_object = record
+        elif not viewing:
+            panel_form = self._panel_form(nueva, selected)
+            if panel_form is not None and getattr(panel_form.instance, "pk", None):
+                panel_object = panel_form.instance
+
+        detail_open = view_open or panel_form is not None
+        edit_url = ""
+        if view_open and panel_object:
+            edit_url = self.list_query(**{self.selection_param: panel_object.pk})
+
         context.update(
             {
                 "page_title": self.page_title,
@@ -318,9 +353,11 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
                 "query": self.query(),
                 "search_label": self.search_label,
                 "search_placeholder": self.search_placeholder or self.search_label,
-                "detail_open": panel_form is not None,
+                "detail_open": detail_open,
+                "view_open": view_open,
                 "panel_form": panel_form,
                 "panel_object": panel_object,
+                "edit_url": edit_url,
                 "panel_action": (
                     reverse(self.update_url_name, args=[panel_object.pk])
                     if panel_object
@@ -331,14 +368,12 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
                     )
                 ),
                 "close_url": self.list_query(),
-                "ficha_url": (
-                    reverse(self.update_url_name, args=[panel_object.pk]) if panel_object else ""
-                ),
                 "print_url": self._salida_url(self.print_url_name),
                 "export_xlsx_url": self._salida_url(self.export_xlsx_url_name),
                 "export_pdf_url": self._salida_url(self.export_pdf_url_name),
             }
         )
+        context.update(view_context)
         context.update(self._filter_context())
         return context
 
@@ -356,12 +391,22 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
 
 
 class MantenimientoWriteMixin:
-    template_name = "core/ficha.html"
+    def list_panel_url(self, **extra):
+        params = {key: value for key, value in extra.items() if value not in (None, "")}
+        destino = reverse(self.list_url_name)
+        if params:
+            return f"{destino}?{urlencode(params)}"
+        return destino
 
-    def form_valid(self, form):
-        self.object = form.save()
+    def get(self, request, *args, **kwargs):
+        pk = kwargs.get("pk")
+        if pk:
+            return redirect(self.list_panel_url(**{self.selection_param: pk}))
+        return redirect(self.list_panel_url(nueva=1))
+
+    def redirect_after_save(self):
         if self.request.POST.get("accion") == "seguir":
-            return redirect(self.create_url_name)
+            return redirect(self.list_panel_url(nueva=1))
         params = {}
         query = self.request.POST.get("q", "").strip()
         if query:
@@ -369,14 +414,13 @@ class MantenimientoWriteMixin:
         if self.request.POST.get("desde") == "listado":
             for name, value in filter_values(self.request, filter_specs_for(self)).items():
                 params[name] = value
-        destino = reverse(self.list_url_name)
-        if params:
-            destino = f"{destino}?{urlencode(params)}"
-        return redirect(destino)
+        return redirect(self.list_panel_url(**params))
+
+    def form_valid(self, form):
+        self.object = form.save()
+        return self.redirect_after_save()
 
     def form_invalid(self, form):
-        if self.request.POST.get("desde") != "listado":
-            return super().form_invalid(form)
         listado = self.list_view_class()
         listado.setup(self.request)
         listado.panel_form_override = form
@@ -384,37 +428,6 @@ class MantenimientoWriteMixin:
         if getattr(form.instance, "pk", None):
             listado.selected_override = form.instance.pk
         return listado.get(self.request)
-
-    def neighbor_context(self, obj):
-        ids = list(self.model.objects.order_by(*self.order_by).values_list("pk", flat=True))
-        index = ids.index(obj.pk)
-        prev_id = ids[index - 1] if index > 0 else None
-        next_id = ids[index + 1] if index + 1 < len(ids) else None
-        return {
-            "position": index + 1,
-            "total": len(ids),
-            "prev_url": reverse(self.update_url_name, args=[prev_id]) if prev_id else "",
-            "next_url": reverse(self.update_url_name, args=[next_id]) if next_id else "",
-        }
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        obj = context.get("object")
-        context["eyebrow"] = self.eyebrow
-        context["create_label"] = self.create_label
-        context["record_noun"] = self.record_noun
-        if obj is not None:
-            context.update(self.neighbor_context(obj))
-            context["list_url"] = (
-                f"{reverse(self.list_url_name)}?{urlencode({self.selection_param: obj.pk})}"
-            )
-            context["delete_url"] = reverse(self.delete_url_name, args=[obj.pk])
-        else:
-            context["list_url"] = reverse(self.list_url_name)
-            context["prev_url"] = ""
-            context["next_url"] = ""
-            context["delete_url"] = ""
-        return context
 
 
 class MantenimientoCreateView(LoginRequiredMixin, MantenimientoWriteMixin, CreateView):
@@ -433,5 +446,6 @@ class MantenimientoDeleteView(LoginRequiredMixin, View):
             obj.delete()
         except RestrictedError:
             messages.error(request, f"{label} está en uso y no se puede eliminar.")
-            return redirect(self.update_url_name, pk=pk)
+            destino = reverse(self.list_url_name)
+            return redirect(f"{destino}?{urlencode({self.selection_param: pk})}")
         return redirect(self.list_url_name)

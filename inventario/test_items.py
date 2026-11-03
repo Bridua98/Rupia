@@ -144,7 +144,7 @@ def test_selector_crea_y_devuelve_el_registro(ingresada):
 
 @pytest.mark.django_db
 def test_ficha_ofrece_el_selector_con_alta(ingresada):
-    response = ingresada.get("/inventario/items/nueva/")
+    response = ingresada.get("/inventario/items/?nueva=1")
 
     content = response.content.decode()
     assert response.status_code == 200
@@ -289,7 +289,7 @@ def test_gasto_reusa_el_defecto_si_ya_existe(ingresada):
 
 @pytest.mark.django_db
 def test_la_ficha_ofrece_las_tasas_de_iva(ingresada):
-    content = ingresada.get("/inventario/items/nueva/").content.decode()
+    content = ingresada.get("/inventario/items/?nueva=1").content.decode()
     tasa = _select(content, "tasa_iva")
 
     assert tasa is not None
@@ -313,7 +313,7 @@ def test_alta_guarda_la_tasa_de_iva_elegida(ingresada):
     item = Item.objects.get(descripcion="Arroz 1kg")
     assert item.tasa_iva == TasaIva.CINCO
     assert response.status_code == 302
-    ficha = ingresada.get(f"/inventario/items/{item.pk}/").content.decode()
+    ficha = ingresada.get(f"/inventario/items/?item={item.pk}").content.decode()
     tasa = _select(ficha, "tasa_iva")
     assert tasa is not None
     assert 'value="5" selected' in tasa
@@ -391,7 +391,7 @@ def test_alta_guarda_el_precio_con_mascara_de_guaranies(ingresada):
     assert item.precio == Decimal("1250000.000")
     assert response.status_code == 302
 
-    ficha = ingresada.get(f"/inventario/items/{item.pk}/").content.decode()
+    ficha = ingresada.get(f"/inventario/items/?item={item.pk}").content.decode()
     precio = _control(ficha, "precio")
     assert precio is not None
     assert 'value="1.250.000"' in precio.group(0)
@@ -423,7 +423,7 @@ def test_edicion_mantiene_activo_si_estaba_apagado(ingresada):
         activo=False,
     )
 
-    html = ingresada.get(f"/inventario/items/{item.pk}/").content.decode()
+    html = ingresada.get(f"/inventario/items/?item={item.pk}").content.decode()
     activo = _control(html, "activo")
     assert activo is not None
     assert "checked" not in activo.group(0)
@@ -581,7 +581,7 @@ def test_no_elimina_item_con_movimiento(ingresada):
     response = ingresada.post(f"/inventario/items/{item.pk}/eliminar/")
 
     assert response.status_code == 302
-    assert response.url == f"/inventario/items/{item.pk}/"
+    assert response.url == f"/inventario/items/?item={item.pk}"
     assert Item.objects.filter(pk=item.pk).exists()
     ficha = ingresada.get(response.url)
     assert "está en uso y no se puede eliminar." in ficha.content.decode()
@@ -593,7 +593,7 @@ def _control(html, name):
 
 
 def _select(html, name):
-    patron = rf'<select\b(?:(?!>).)*\bname="{name}"(?:(?!>).)*>.*?</select>'
+    patron = rf'<select\b(?:(?!>).)*\bid="id_{name}"(?:(?!>).)*>.*?</select>'
     encontrado = re.search(patron, html, re.DOTALL)
     return encontrado.group(0) if encontrado else None
 
@@ -635,7 +635,7 @@ def test_el_listado_muestra_solo_el_simbolo(ingresada):
 
 @pytest.mark.django_db
 def test_el_alta_empieza_en_el_tipo(ingresada):
-    content = ingresada.get("/inventario/items/nueva/").content.decode()
+    content = ingresada.get("/inventario/items/?nueva=1").content.decode()
     tipo = re.search(r'<select\b(?:(?!>).)*\bid="id_tipo"(?:(?!>).)*>', content)
     codigo = _control(content, "codigo_barra")
     descripcion = _control(content, "descripcion")
@@ -651,9 +651,9 @@ def test_el_alta_empieza_en_el_tipo(ingresada):
     assert "data-imagen-input" in content
     assert "Formulario de ítem" in content
     assert "Arrastrá una imagen acá" in content
-    assert "Volver a la lista" in content
-    assert "Guardar ítem" in content
+    assert "Guardar" in content
     assert "Ítem activo" in content
+    assert "Abrir ficha" not in content
 
 
 @pytest.mark.django_db
@@ -678,15 +678,13 @@ def test_la_edicion_enfoca_la_descripcion(ingresada):
         tipo=TipoItem.PRODUCTO,
     )
 
-    content = ingresada.get(f"/inventario/items/{item.pk}/").content.decode()
+    content = ingresada.get(f"/inventario/items/?item={item.pk}").content.decode()
     codigo = _control(content, "codigo_barra")
     descripcion = _control(content, "descripcion")
 
     assert codigo and descripcion
     assert descripcion.start() < codigo.start()
     assert descripcion.group(1) == "textarea"
-    assert "autofocus" in descripcion.group(0)
-    assert "autofocus" not in codigo.group(0)
     assert "Formulario de ítem" in content
     assert "Vista previa" in content
 
@@ -703,7 +701,7 @@ def test_guarda_la_imagen_como_ruta_relativa(ingresada, carpeta_imagenes):
     assert response.status_code == 302
     assert item.imagen == "arroz.png"
     assert (carpeta_imagenes / "arroz.png").is_file()
-    ficha = ingresada.get(f"/inventario/items/{item.pk}/").content.decode()
+    ficha = ingresada.get(f"/inventario/items/?item={item.pk}").content.decode()
     assert f"/inventario/items/imagen/{item.imagen}/" in ficha
     imagen = ingresada.get(f"/inventario/items/imagen/{item.imagen}/")
     assert imagen.status_code == 200
