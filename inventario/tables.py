@@ -123,7 +123,6 @@ def unidad_row_actions(record, table=None):
 
 
 class UnidadTable(tables.Table):
-    id = tables.Column(verbose_name="Código")
     descripcion = tables.Column(verbose_name="Descripción")
     simbolo = tables.Column(verbose_name="Símbolo")
     acciones = ActionMenuColumn(
@@ -134,7 +133,7 @@ class UnidadTable(tables.Table):
 
     class Meta:
         model = UnidadMedida
-        fields = ("id", "descripcion", "simbolo", "acciones")
+        fields = ("descripcion", "simbolo", "acciones")
         orderable = False
         template_name = "django_tables2/rupia.html"
         empty_text = "Todavía no hay unidades."

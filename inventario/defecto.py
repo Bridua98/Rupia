@@ -4,7 +4,7 @@ from inventario.models import ItemCategoria, Marca, UnidadMedida
 
 DEFECTO_ID = 999999999
 DEFECTO_NOMBRE = "defecto"
-DEFECTO_SIMBOLO = "999999999"
+DEFECTO_SIMBOLO = "def"
 
 
 def _buscar(model, **extra):
