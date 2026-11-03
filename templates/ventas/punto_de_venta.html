@@ -23,7 +23,7 @@
     <div class="pos-meta">
       <div>
         <span>Número de venta</span>
-        <strong>{{ proximo_numero|default:"—" }}</strong>
+        <strong>{% if proximo_numero %}{{ proximo_numero }}{% else %}—{% endif %}</strong>
       </div>
       <div>
         <span>Fecha</span>
@@ -171,6 +171,9 @@
               {% endfor %}
             </select>
           </label>
+          {% if emision_motivo %}
+            <p class="pos-hint">{{ emision_motivo }}</p>
+          {% endif %}
           <div class="field" data-pos-cliente>
             <span>Cliente</span>
             <input type="hidden" name="cliente" value="{{ venta.cliente_id|default:'' }}">
@@ -206,7 +209,7 @@
             <input type="hidden" name="consumidor_final" value="1">
           {% endif %}
           <input type="hidden" name="observacion" value="{{ venta.observacion }}">
-          <button class="button" type="submit">Confirmar cobro</button>
+          <button class="button" type="submit"{% if not puede_emitir %} disabled{% endif %}>Confirmar cobro</button>
         </form>
         <form method="post" action="{% url 'punto_de_venta_cancelar' %}">
           {% csrf_token %}

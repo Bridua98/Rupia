@@ -72,6 +72,11 @@ class PuntoExpedicion(models.Model):
         "número próximo",
         db_column="puntexpe_numero_proximo",
     )
+    habilitado = models.BooleanField(
+        "habilitado",
+        default=True,
+        db_column="puntexpe_habilitado",
+    )
     emisor_razon_social = models.CharField(
         "razón social",
         max_length=300,
@@ -108,6 +113,10 @@ class PuntoExpedicion(models.Model):
 
     def __str__(self):
         return f"{self.get_tipo_display()} {self.establecimiento}-{self.codigo}"
+
+    @property
+    def serie(self):
+        return f"{self.establecimiento}-{self.codigo}"
 
     def clean(self):
         super().clean()

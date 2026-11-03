@@ -332,6 +332,74 @@ def test_timbrado_vencido_y_rango_agotado(ingresada):
 
 
 @pytest.mark.django_db
+def test_timbrado_deshabilitado_no_confirma(ingresada):
+    _punto(TipoComprobante.TICKET, habilitado=False)
+    _caja()
+    item = _item()
+    _stock(item)
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "El timbrado no está habilitado." in content
+    assert "disabled" in content
+    response = ingresada.post("/ventas/punto-de-venta/confirmar/")
+    assert response.url == "/ventas/punto-de-venta/"
+    assert Venta.objects.filter(estado=EstadoVenta.COBRADA).count() == 0
+    assert "El timbrado no está habilitado." in ingresada.get(
+        "/ventas/punto-de-venta/"
+    ).content.decode()
+
+
+@pytest.mark.django_db
+def test_factura_deshabilitada_no_impide_ticket(ingresada):
+    _punto(TipoComprobante.TICKET)
+    _punto(TipoComprobante.FACTURA, habilitado=False)
+    _caja()
+    item = _item()
+    _stock(item)
+    cliente = _cliente()
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert 'value="TICKET"' in content
+    assert 'value="FACTURA"' not in content
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
+    response = ingresada.post("/ventas/punto-de-venta/confirmar/")
+    venta = Venta.objects.get(estado=EstadoVenta.COBRADA)
+    assert response.url == f"/ventas/{venta.pk}/ticket/"
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
+    ingresada.post(
+        "/ventas/punto-de-venta/",
+        {"tipo_comprobante": TipoComprobante.FACTURA, "cliente": cliente.pk},
+    )
+    response = ingresada.post(
+        "/ventas/punto-de-venta/confirmar/",
+        {"tipo_comprobante": TipoComprobante.FACTURA, "cliente": cliente.pk},
+    )
+    assert response.url == "/ventas/punto-de-venta/"
+    assert (
+        Venta.objects.filter(
+            tipo_comprobante=TipoComprobante.FACTURA,
+            estado=EstadoVenta.COBRADA,
+        ).count()
+        == 0
+    )
+    assert "El timbrado no está habilitado." in ingresada.get(
+        "/ventas/punto-de-venta/"
+    ).content.decode()
+
+
+@pytest.mark.django_db
+def test_sin_timbrado_no_confirma(ingresada):
+    _caja()
+    item = _item()
+    _stock(item)
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
+    response = ingresada.post("/ventas/punto-de-venta/confirmar/")
+    assert response.url == "/ventas/punto-de-venta/"
+    assert "No hay un timbrado registrado" in ingresada.get(
+        "/ventas/punto-de-venta/"
+    ).content.decode()
+
+
+@pytest.mark.django_db
 def test_liquidacion_iva_cierra_con_total(usuario):
     _caja()
     venta = Venta.objects.create(
