@@ -8,6 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import Http404
 from PIL import Image
 
+from inventario.defecto import DEFECTO_ID, DEFECTO_NOMBRE, DEFECTO_SIMBOLO
 from inventario.imagenes import resolver_imagen
 from inventario.models import (
     Item,
@@ -143,7 +144,7 @@ def test_selector_crea_y_devuelve_el_registro(ingresada):
 
 @pytest.mark.django_db
 def test_ficha_ofrece_el_selector_con_alta(ingresada):
-    response = ingresada.get("/inventario/items/nueva/")
+    response = ingresada.get("/inventario/items/?nueva=1")
 
     content = response.content.decode()
     assert response.status_code == 200
@@ -151,6 +152,7 @@ def test_ficha_ofrece_el_selector_con_alta(ingresada):
     assert 'data-search-url="/selector/marca/"' in content
     assert 'data-create-url="/selector/marca/nueva/"' in content
     assert 'class="selector-nueva"' in content
+    assert 'class="button button-compact" data-selector-guardar' in content
     assert 'aria-label="Nueva marca"' in content
     assert 'name="marca-descripcion"' in content
     assert "Nueva categoría" in content
@@ -235,8 +237,59 @@ def test_gasto_no_exige_unidad_de_negocio(ingresada):
 
 
 @pytest.mark.django_db
+def test_gasto_asigna_referenciales_defecto(ingresada):
+    response = ingresada.post(
+        "/inventario/items/nueva/",
+        {
+            "descripcion": "Flete mensual",
+            "tipo": TipoItem.GASTO,
+            "tasa_iva": TasaIva.DIEZ,
+            "activo": "on",
+            "accion": "guardar",
+        },
+    )
+
+    item = Item.objects.get(descripcion="Flete mensual")
+    assert response.status_code == 302
+    assert item.marca_id == DEFECTO_ID
+    assert item.categoria_id == DEFECTO_ID
+    assert item.unidad_medida_id == DEFECTO_ID
+    assert item.marca.descripcion == DEFECTO_NOMBRE
+    assert item.categoria.descripcion == DEFECTO_NOMBRE
+    assert item.unidad_medida.descripcion == DEFECTO_NOMBRE
+    assert item.unidad_medida.simbolo == DEFECTO_SIMBOLO
+    assert item.codigo_barra is None
+    assert item.precio is None
+    assert item.precio_segun_costo is False
+
+
+@pytest.mark.django_db
+def test_gasto_reusa_el_defecto_si_ya_existe(ingresada):
+    marca = Marca.objects.create(descripcion=DEFECTO_NOMBRE)
+    categoria = ItemCategoria.objects.create(descripcion=DEFECTO_NOMBRE)
+    unidad = UnidadMedida.objects.create(descripcion=DEFECTO_NOMBRE, simbolo="DEF")
+
+    response = ingresada.post(
+        "/inventario/items/nueva/",
+        {
+            "descripcion": "Alquiler",
+            "tipo": TipoItem.GASTO,
+            "tasa_iva": TasaIva.DIEZ,
+            "accion": "guardar",
+        },
+    )
+
+    item = Item.objects.get(descripcion="Alquiler")
+    assert response.status_code == 302
+    assert item.marca_id == marca.pk
+    assert item.categoria_id == categoria.pk
+    assert item.unidad_medida_id == unidad.pk
+    assert Marca.objects.filter(descripcion__iexact=DEFECTO_NOMBRE).count() == 1
+
+
+@pytest.mark.django_db
 def test_la_ficha_ofrece_las_tasas_de_iva(ingresada):
-    content = ingresada.get("/inventario/items/nueva/").content.decode()
+    content = ingresada.get("/inventario/items/?nueva=1").content.decode()
     tasa = _select(content, "tasa_iva")
 
     assert tasa is not None
@@ -260,7 +313,7 @@ def test_alta_guarda_la_tasa_de_iva_elegida(ingresada):
     item = Item.objects.get(descripcion="Arroz 1kg")
     assert item.tasa_iva == TasaIva.CINCO
     assert response.status_code == 302
-    ficha = ingresada.get(f"/inventario/items/{item.pk}/").content.decode()
+    ficha = ingresada.get(f"/inventario/items/?item={item.pk}").content.decode()
     tasa = _select(ficha, "tasa_iva")
     assert tasa is not None
     assert 'value="5" selected' in tasa
@@ -338,7 +391,7 @@ def test_alta_guarda_el_precio_con_mascara_de_guaranies(ingresada):
     assert item.precio == Decimal("1250000.000")
     assert response.status_code == 302
 
-    ficha = ingresada.get(f"/inventario/items/{item.pk}/").content.decode()
+    ficha = ingresada.get(f"/inventario/items/?item={item.pk}").content.decode()
     precio = _control(ficha, "precio")
     assert precio is not None
     assert 'value="1.250.000"' in precio.group(0)
@@ -370,7 +423,7 @@ def test_edicion_mantiene_activo_si_estaba_apagado(ingresada):
         activo=False,
     )
 
-    html = ingresada.get(f"/inventario/items/{item.pk}/").content.decode()
+    html = ingresada.get(f"/inventario/items/?item={item.pk}").content.decode()
     activo = _control(html, "activo")
     assert activo is not None
     assert "checked" not in activo.group(0)
@@ -528,7 +581,7 @@ def test_no_elimina_item_con_movimiento(ingresada):
     response = ingresada.post(f"/inventario/items/{item.pk}/eliminar/")
 
     assert response.status_code == 302
-    assert response.url == f"/inventario/items/{item.pk}/"
+    assert response.url == f"/inventario/items/?item={item.pk}"
     assert Item.objects.filter(pk=item.pk).exists()
     ficha = ingresada.get(response.url)
     assert "está en uso y no se puede eliminar." in ficha.content.decode()
@@ -540,7 +593,7 @@ def _control(html, name):
 
 
 def _select(html, name):
-    patron = rf'<select\b(?:(?!>).)*\bname="{name}"(?:(?!>).)*>.*?</select>'
+    patron = rf'<select\b(?:(?!>).)*\bid="id_{name}"(?:(?!>).)*>.*?</select>'
     encontrado = re.search(patron, html, re.DOTALL)
     return encontrado.group(0) if encontrado else None
 
@@ -581,29 +634,36 @@ def test_el_listado_muestra_solo_el_simbolo(ingresada):
 
 
 @pytest.mark.django_db
-def test_el_alta_empieza_en_el_codigo_de_barra(ingresada):
-    content = ingresada.get("/inventario/items/nueva/").content.decode()
+def test_el_alta_empieza_en_el_tipo(ingresada):
+    content = ingresada.get("/inventario/items/?nueva=1").content.decode()
+    tipo = re.search(r'<select\b(?:(?!>).)*\bid="id_tipo"(?:(?!>).)*>', content)
     codigo = _control(content, "codigo_barra")
     descripcion = _control(content, "descripcion")
 
-    assert codigo and descripcion
-    assert codigo.start() < descripcion.start()
-    assert codigo.group(1) == "input"
-    assert "autofocus" in codigo.group(0)
+    assert tipo and codigo and descripcion
+    assert tipo.start() < descripcion.start() < codigo.start()
+    assert "autofocus" in tipo.group(0)
+    assert "autofocus" not in codigo.group(0)
     assert descripcion.group(1) == "textarea"
     assert "autofocus" not in descripcion.group(0)
+    assert 'data-item-solo-producto' in content
     assert 'enctype="multipart/form-data"' in content
     assert "data-imagen-input" in content
+    assert "Formulario de ítem" in content
+    assert "Arrastrá una imagen acá" in content
+    assert "Guardar" in content
+    assert "Ítem activo" in content
+    assert "Abrir ficha" not in content
 
 
 @pytest.mark.django_db
-def test_el_panel_nuevo_enfoca_el_codigo(ingresada):
+def test_el_panel_nuevo_enfoca_el_tipo(ingresada):
     content = ingresada.get("/inventario/items/?nueva=1").content.decode()
-    codigo = _control(content, "codigo_barra")
+    tipo = re.search(r'<select\b(?:(?!>).)*\bid="id_tipo"(?:(?!>).)*>', content)
     descripcion = _control(content, "descripcion")
 
-    assert codigo and descripcion
-    assert "autofocus" in codigo.group(0)
+    assert tipo and descripcion
+    assert "autofocus" in tipo.group(0)
     assert descripcion.group(1) == "textarea"
 
 
@@ -618,15 +678,15 @@ def test_la_edicion_enfoca_la_descripcion(ingresada):
         tipo=TipoItem.PRODUCTO,
     )
 
-    content = ingresada.get(f"/inventario/items/{item.pk}/").content.decode()
+    content = ingresada.get(f"/inventario/items/?item={item.pk}").content.decode()
     codigo = _control(content, "codigo_barra")
     descripcion = _control(content, "descripcion")
 
     assert codigo and descripcion
-    assert codigo.start() < descripcion.start()
-    assert descripcion.group(1) == "input"
-    assert "autofocus" in descripcion.group(0)
-    assert "autofocus" not in codigo.group(0)
+    assert descripcion.start() < codigo.start()
+    assert descripcion.group(1) == "textarea"
+    assert "Formulario de ítem" in content
+    assert "Vista previa" in content
 
 
 @pytest.mark.django_db
@@ -641,7 +701,7 @@ def test_guarda_la_imagen_como_ruta_relativa(ingresada, carpeta_imagenes):
     assert response.status_code == 302
     assert item.imagen == "arroz.png"
     assert (carpeta_imagenes / "arroz.png").is_file()
-    ficha = ingresada.get(f"/inventario/items/{item.pk}/").content.decode()
+    ficha = ingresada.get(f"/inventario/items/?item={item.pk}").content.decode()
     assert f"/inventario/items/imagen/{item.imagen}/" in ficha
     imagen = ingresada.get(f"/inventario/items/imagen/{item.imagen}/")
     assert imagen.status_code == 200

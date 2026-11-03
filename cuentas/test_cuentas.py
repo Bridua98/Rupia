@@ -1,7 +1,6 @@
 from io import BytesIO
 
 import pytest
-from django.urls import reverse
 from openpyxl import load_workbook
 from pypdf import PdfReader
 
@@ -205,19 +204,22 @@ def test_guardar_y_seguir_abre_otra_ficha(ingresada):
     response = ingresada.post("/cuentas/nueva/", _payload(accion="seguir"))
 
     assert response.status_code == 302
-    assert response.url == reverse("cuenta_create")
+    assert response.url == "/cuentas/?nueva=1"
     assert Cuenta.objects.filter(nombre_corto="CAJA").exists()
 
 
 @pytest.mark.django_db
-def test_ficha_nueva_no_ofrece_eliminar(ingresada):
+def test_alta_abre_el_panel_del_listado(ingresada):
     response = ingresada.get("/cuentas/nueva/")
 
-    content = response.content.decode()
-    assert response.status_code == 200
+    assert response.status_code == 302
+    assert response.url == "/cuentas/?nueva=1"
+    pagina = ingresada.get(response.url)
+    content = pagina.content.decode()
+    assert pagina.status_code == 200
     assert "Nueva cuenta" in content
-    assert "Guardar y seguir" in content
-    assert "Eliminar" not in content
+    assert "Guardar" in content
+    assert "Abrir ficha" not in content
     assert "data-cuenta-banco" in content
     assert "data-cuenta-si-banco" in content
 

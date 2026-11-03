@@ -27,7 +27,7 @@ class ItemCategoriaAdmin(admin.ModelAdmin):
 
 @admin.register(UnidadMedida)
 class UnidadMedidaAdmin(admin.ModelAdmin):
-    list_display = ("id", "descripcion", "simbolo")
+    list_display = ("descripcion", "simbolo")
     search_fields = ("descripcion", "simbolo")
 
 

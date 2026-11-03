@@ -150,7 +150,7 @@ def test_rechaza_unidad_no_relacionada():
 
 @pytest.mark.django_db
 def test_ficha_muestra_unidades_relacionadas(ingresada):
-    content = ingresada.get("/inventario/items/nueva/").content.decode()
+    content = ingresada.get("/inventario/items/?nueva=1").content.decode()
 
     assert 'data-rupia="tabs"' in content
     assert 'data-tab="datos"' in content
@@ -270,10 +270,35 @@ def test_ficha_muestra_el_valor_con_coma_decimal(ingresada):
     )
     _relacion(item, gramo, RelacionUnidad.MENOR, "1000")
 
-    content = ingresada.get(f"/inventario/items/{item.pk}/").content.decode()
+    content = ingresada.get(f"/inventario/items/?item={item.pk}").content.decode()
 
     assert "1.000" in content
     assert "1.000,000" not in content
     assert 'data-cantidad="py"' in content
     assert "Unidad" in content
     assert 'data-rupia="selector"' in content
+
+
+@pytest.mark.django_db
+def test_ver_muestra_unidades_relacionadas(ingresada):
+    marca, categoria, kilo = _foraneos()
+    gramo = UnidadMedida.objects.create(descripcion="Gramo", simbolo="g")
+    item = Item.objects.create(
+        marca=marca,
+        categoria=categoria,
+        unidad_medida=kilo,
+        descripcion="Helado ver",
+        tipo=TipoItem.PRODUCTO,
+        precio=Decimal("15000"),
+    )
+    _relacion(item, gramo, RelacionUnidad.MENOR, "1000")
+
+    content = ingresada.get(f"/inventario/items/?item={item.pk}&ver=1").content.decode()
+
+    assert "view-panel" in content
+    assert "Unidades relacionadas" in content
+    assert "Historial de precios" in content
+    assert "Movimientos" in content or "movimientos" in content.lower()
+    assert "Gramo" in content or "g" in content
+    assert "Detalles de ajuste" not in content
+    assert 'id="panel-form"' not in content

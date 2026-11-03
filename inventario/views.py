@@ -263,7 +263,8 @@ class ItemWriteMixin:
 
     def form_valid(self, form):
         formset = None
-        if "unidades-TOTAL_FORMS" in self.request.POST:
+        es_gasto = form.cleaned_data.get("tipo") == TipoItem.GASTO
+        if not es_gasto and "unidades-TOTAL_FORMS" in self.request.POST:
             formset = self._unidades_formset(form, data=self.request.POST)
             self.unidades_formset = formset
             if not formset.is_valid():
@@ -273,26 +274,12 @@ class ItemWriteMixin:
             if formset is not None:
                 formset.instance = self.object
                 formset.save()
-        if self.request.POST.get("accion") == "seguir":
-            return redirect(self.create_url_name)
-        params = {}
-        query = self.request.POST.get("q", "").strip()
-        if query:
-            params["q"] = query
-        if self.request.POST.get("desde") == "listado":
-            for name, value in filter_values(self.request, filter_specs_for(self)).items():
-                params[name] = value
-        destino = reverse(self.list_url_name)
-        if params:
-            destino = f"{destino}?{urlencode(params)}"
-        return redirect(destino)
+        return self.redirect_after_save()
 
     def form_invalid(self, form):
         if not hasattr(self, "unidades_formset"):
             data = self.request.POST if "unidades-TOTAL_FORMS" in self.request.POST else None
             self.unidades_formset = self._unidades_formset(form, data=data)
-        if self.request.POST.get("desde") != "listado":
-            return super().form_invalid(form)
         listado = self.list_view_class()
         listado.setup(self.request)
         listado.panel_form_override = form
@@ -301,18 +288,6 @@ class ItemWriteMixin:
         if getattr(form.instance, "pk", None):
             listado.selected_override = form.instance.pk
         return listado.get(self.request)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["unidades_formset"] = getattr(self, "unidades_formset", None) or unidades_formset(
-            item=context.get("object") or getattr(self, "object", None),
-            unidad_base=getattr(
-                context.get("object") or getattr(self, "object", None),
-                "unidad_medida",
-                None,
-            ),
-        )
-        return context
 
 
 class ItemListView(ItemMantenimiento, MantenimientoListView):

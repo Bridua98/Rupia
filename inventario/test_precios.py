@@ -361,7 +361,7 @@ def test_ficha_audita_el_cambio_de_precio(ingresada):
 
 @pytest.mark.django_db
 def test_ficha_muestra_la_casilla_segun_costo(ingresada):
-    response = ingresada.get("/inventario/items/nueva/")
+    response = ingresada.get("/inventario/items/?nueva=1")
 
     content = response.content.decode()
     assert 'name="precio_segun_costo"' in content

@@ -2,7 +2,6 @@ from decimal import Decimal
 from io import BytesIO
 
 import pytest
-from django.urls import reverse
 from openpyxl import load_workbook
 from pypdf import PdfReader
 
@@ -61,7 +60,7 @@ def test_listado_marca_la_primera_fila(ingresada):
     selected = next(part for part in content.split("<tr") if 'aria-selected="true"' in part)
     assert f'data-id="{alfa.pk}"' in selected
     assert "Nueva unidad" in content
-    assert "Código" in content
+    assert "Código" not in content
     assert "Símbolo" in content
     assert "2 registros" in content
     assert "Flechas para moverse" in content
@@ -79,7 +78,7 @@ def test_listado_marca_la_fila_pedida(ingresada):
     )
     assert f'data-id="{beta.pk}"' in selected
     assert 'class="detail-panel"' in response.content.decode()
-    assert f'href="/inventario/unidades/{beta.pk}/"' in response.content.decode()
+    assert "Abrir ficha" not in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -168,7 +167,7 @@ def test_guardar_y_seguir_abre_otra_ficha(ingresada):
     )
 
     assert response.status_code == 302
-    assert response.url == reverse("unidad_create")
+    assert response.url == "/inventario/unidades/?nueva=1"
     assert UnidadMedida.objects.filter(descripcion="Par").exists()
 
     unidad = UnidadMedida.objects.get(descripcion="Par")
@@ -180,30 +179,34 @@ def test_guardar_y_seguir_abre_otra_ficha(ingresada):
     unidad.refresh_from_db()
     assert unidad.descripcion == "Par (2 u.)"
     assert seguido.status_code == 302
-    assert seguido.url == "/inventario/unidades/nueva/"
+    assert seguido.url == "/inventario/unidades/?nueva=1"
 
 
 @pytest.mark.django_db
-def test_ficha_nueva_no_ofrece_eliminar(ingresada):
+def test_alta_abre_el_panel_del_listado(ingresada):
     response = ingresada.get("/inventario/unidades/nueva/")
 
-    content = response.content.decode()
-    assert response.status_code == 200
+    assert response.status_code == 302
+    assert response.url == "/inventario/unidades/?nueva=1"
+    pagina = ingresada.get(response.url)
+    content = pagina.content.decode()
+    assert pagina.status_code == 200
     assert "Nueva unidad" in content
-    assert "Eliminar" not in content
+    assert "Abrir ficha" not in content
 
 
 @pytest.mark.django_db
-def test_ficha_muestra_vecinas(ingresada):
+def test_edicion_abre_el_panel_del_listado(ingresada):
     alfa = UnidadMedida.objects.create(descripcion="Alfa", simbolo="A")
-    beta = UnidadMedida.objects.create(descripcion="Beta", simbolo="B")
 
     response = ingresada.get(f"/inventario/unidades/{alfa.pk}/")
 
-    content = response.content.decode()
-    assert "1 de 2" in content
-    assert f'href="/inventario/unidades/{beta.pk}/"' in content
-    assert "Eliminar" in content
+    assert response.status_code == 302
+    assert response.url == f"/inventario/unidades/?unidad={alfa.pk}"
+    pagina = ingresada.get(response.url)
+    assert "1 de 2" not in pagina.content.decode()
+    assert "Abrir ficha" not in pagina.content.decode()
+    assert 'class="detail-panel"' in pagina.content.decode()
 
 
 @pytest.mark.django_db
@@ -234,10 +237,10 @@ def test_no_elimina_unidad_en_uso(ingresada):
     response = ingresada.post(f"/inventario/unidades/{unidad.pk}/eliminar/")
 
     assert response.status_code == 302
-    assert response.url == f"/inventario/unidades/{unidad.pk}/"
+    assert response.url == f"/inventario/unidades/?unidad={unidad.pk}"
     assert UnidadMedida.objects.filter(pk=unidad.pk).exists()
-    ficha = ingresada.get(response.url)
-    assert "está en uso y no se puede eliminar." in ficha.content.decode()
+    pagina = ingresada.get(response.url)
+    assert "está en uso y no se puede eliminar." in pagina.content.decode()
 
 
 @pytest.mark.django_db
@@ -337,8 +340,8 @@ def test_exporta_el_filtro_completo_en_excel(ingresada):
     assert 'filename="unidades.xlsx"' in response["Content-Disposition"]
     libro = load_workbook(BytesIO(response.content))
     filas = list(libro.active.values)
-    assert filas[0] == ("Código", "Descripción", "Símbolo")
-    descripciones = [fila[1] for fila in filas[1:]]
+    assert filas[0] == ("Descripción", "Símbolo")
+    descripciones = [fila[0] for fila in filas[1:]]
     assert "Serie 01" in descripciones
     assert "Serie 26" in descripciones
     assert "Fuera" not in descripciones

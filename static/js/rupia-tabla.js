@@ -59,9 +59,11 @@
     if (!card) return;
     var input = card.querySelector("[data-imagen-input]");
     var preview = card.querySelector("[data-imagen-preview]");
+    var previewWrap = card.querySelector("[data-imagen-preview-wrap]");
     var vacio = card.querySelector("[data-imagen-vacio]");
     var barra = card.querySelector("[data-imagen-barra]");
     var marco = card.querySelector(".imagen-marco");
+    var drop = card.querySelector("[data-imagen-drop]") || marco;
     var ver = card.querySelector("[data-imagen-ver]");
     var cambiar = card.querySelector("[data-imagen-cambiar]");
     var quitar = card.querySelector("[data-imagen-quitar]");
@@ -76,18 +78,29 @@
       preview.src = src;
       preview.alt = alt || "Imagen seleccionada";
       preview.hidden = false;
-      if (vacio) vacio.hidden = true;
+      if (previewWrap) previewWrap.hidden = false;
+      if (vacio && !previewWrap) vacio.hidden = true;
       if (barra) barra.hidden = false;
-      if (marco) marco.classList.add("tiene-foto");
+      if (marco && !previewWrap) marco.classList.add("tiene-foto");
       if (quitar) quitar.hidden = false;
     }
 
     function vaciar() {
       preview.hidden = true;
       preview.removeAttribute("src");
+      if (previewWrap) previewWrap.hidden = true;
       if (vacio) vacio.hidden = false;
       if (barra) barra.hidden = true;
       if (marco) marco.classList.remove("tiene-foto");
+    }
+
+    function usarArchivo(file) {
+      if (!file || file.type.indexOf("image/") !== 0) return;
+      if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
+      var url = URL.createObjectURL(file);
+      preview.dataset.objectUrl = url;
+      if (check) check.checked = false;
+      mostrar(url, "Imagen seleccionada");
     }
 
     if (check) quitar.hidden = !tieneFoto();
@@ -96,12 +109,36 @@
     input.addEventListener("change", function () {
       var file = input.files && input.files[0];
       if (!file) return;
-      if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
-      var url = URL.createObjectURL(file);
-      preview.dataset.objectUrl = url;
-      if (check) check.checked = false;
-      mostrar(url, "Imagen seleccionada");
+      usarArchivo(file);
     });
+
+    if (drop) {
+      ["dragenter", "dragover"].forEach(function (nombre) {
+        drop.addEventListener(nombre, function (event) {
+          event.preventDefault();
+          drop.classList.add("is-drop");
+        });
+      });
+      ["dragleave", "drop"].forEach(function (nombre) {
+        drop.addEventListener(nombre, function (event) {
+          event.preventDefault();
+          drop.classList.remove("is-drop");
+        });
+      });
+      drop.addEventListener("drop", function (event) {
+        var file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+        if (!file) return;
+        try {
+          var transferencia = new DataTransfer();
+          transferencia.items.add(file);
+          input.files = transferencia.files;
+        } catch (error) {
+          usarArchivo(file);
+          return;
+        }
+        usarArchivo(file);
+      });
+    }
 
     function verFoto() {
       if (!tieneFoto()) return;

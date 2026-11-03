@@ -2,7 +2,6 @@ from decimal import Decimal
 from io import BytesIO
 
 import pytest
-from django.urls import reverse
 from openpyxl import load_workbook
 from pypdf import PdfReader
 
@@ -80,8 +79,7 @@ def test_listado_marca_la_fila_pedida(ingresada):
     )
     assert f'data-id="{beta.pk}"' in selected
     assert 'class="detail-panel"' in response.content.decode()
-    assert "Abrir ficha" in response.content.decode()
-    assert f'href="/inventario/categorias/{beta.pk}/"' in response.content.decode()
+    assert "Abrir ficha" not in response.content.decode()
     assert 'aria-label="Cerrar"' in response.content.decode()
 
 
@@ -152,7 +150,7 @@ def test_guardar_y_seguir_abre_otra_ficha(ingresada):
     )
 
     assert response.status_code == 302
-    assert response.url == reverse("categoria_create")
+    assert response.url == "/inventario/categorias/?nueva=1"
     assert ItemCategoria.objects.filter(descripcion="Limpieza").exists()
 
     categoria = ItemCategoria.objects.get(descripcion="Limpieza")
@@ -164,33 +162,36 @@ def test_guardar_y_seguir_abre_otra_ficha(ingresada):
     categoria.refresh_from_db()
     assert categoria.descripcion == "Limpieza del hogar"
     assert seguido.status_code == 302
-    assert seguido.url == "/inventario/categorias/nueva/"
+    assert seguido.url == "/inventario/categorias/?nueva=1"
 
 
 @pytest.mark.django_db
-def test_ficha_nueva_no_ofrece_eliminar(ingresada):
+def test_alta_abre_el_panel_del_listado(ingresada):
     response = ingresada.get("/inventario/categorias/nueva/")
 
-    content = response.content.decode()
-    assert response.status_code == 200
+    assert response.status_code == 302
+    assert response.url == "/inventario/categorias/?nueva=1"
+    pagina = ingresada.get(response.url)
+    content = pagina.content.decode()
+    assert pagina.status_code == 200
     assert "Nueva categoría" in content
-    assert "Guardar y seguir" in content
-    assert "Eliminar" not in content
+    assert "Guardar" in content
+    assert "Abrir ficha" not in content
     assert "Categoría anterior" not in content
 
 
 @pytest.mark.django_db
-def test_ficha_muestra_vecinas(ingresada):
+def test_edicion_abre_el_panel_del_listado(ingresada):
     alfa = ItemCategoria.objects.create(descripcion="Alfa")
-    beta = ItemCategoria.objects.create(descripcion="Beta")
 
     response = ingresada.get(f"/inventario/categorias/{alfa.pk}/")
 
-    content = response.content.decode()
-    assert "1 de 2" in content
-    assert f'href="/inventario/categorias/{beta.pk}/"' in content
-    assert "Eliminar" in content
-    assert 'aria-current="page"' in content
+    assert response.status_code == 302
+    assert response.url == f"/inventario/categorias/?categoria={alfa.pk}"
+    pagina = ingresada.get(response.url)
+    assert "1 de 2" not in pagina.content.decode()
+    assert "Abrir ficha" not in pagina.content.decode()
+    assert 'class="detail-panel"' in pagina.content.decode()
 
 
 @pytest.mark.django_db
@@ -232,10 +233,10 @@ def test_no_elimina_categoria_en_uso(ingresada):
     response = ingresada.post(f"/inventario/categorias/{categoria.pk}/eliminar/")
 
     assert response.status_code == 302
-    assert response.url == f"/inventario/categorias/{categoria.pk}/"
+    assert response.url == f"/inventario/categorias/?categoria={categoria.pk}"
     assert ItemCategoria.objects.filter(pk=categoria.pk).exists()
-    ficha = ingresada.get(response.url)
-    assert "está en uso y no se puede eliminar." in ficha.content.decode()
+    pagina = ingresada.get(response.url)
+    assert "está en uso y no se puede eliminar." in pagina.content.decode()
 
 
 @pytest.mark.django_db
