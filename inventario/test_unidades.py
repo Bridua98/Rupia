@@ -61,7 +61,7 @@ def test_listado_marca_la_primera_fila(ingresada):
     selected = next(part for part in content.split("<tr") if 'aria-selected="true"' in part)
     assert f'data-id="{alfa.pk}"' in selected
     assert "Nueva unidad" in content
-    assert "Código" in content
+    assert "Código" not in content
     assert "Símbolo" in content
     assert "2 registros" in content
     assert "Flechas para moverse" in content
@@ -337,8 +337,8 @@ def test_exporta_el_filtro_completo_en_excel(ingresada):
     assert 'filename="unidades.xlsx"' in response["Content-Disposition"]
     libro = load_workbook(BytesIO(response.content))
     filas = list(libro.active.values)
-    assert filas[0] == ("Código", "Descripción", "Símbolo")
-    descripciones = [fila[1] for fila in filas[1:]]
+    assert filas[0] == ("Descripción", "Símbolo")
+    descripciones = [fila[0] for fila in filas[1:]]
     assert "Serie 01" in descripciones
     assert "Serie 26" in descripciones
     assert "Fuera" not in descripciones
