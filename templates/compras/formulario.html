@@ -1,0 +1,336 @@
+{% extends "app.html" %}
+{% load static %}
+
+{% block title %}Nueva compra · Rupia{% endblock %}
+{% block body_class %}app pos-screen{% endblock %}
+
+{% block work %}
+<div
+  class="pos"
+  data-compra
+  data-buscar="{% url 'compra_buscar' %}"
+  data-numero-url="{% url 'compra_numero' %}"
+  data-proveedores="{% url 'compra_proveedores' %}"
+  {% if hay_precios %}data-compra-precios="1"{% endif %}
+>
+  <section class="pos-sale">
+    <header class="pos-sale-head">
+      <div class="pos-sale-title">
+        <span class="pos-sale-mark" aria-hidden="true">{% include "core/icon.html" with name="wallet" %}</span>
+        <div>
+          <h1>Nueva compra</h1>
+          <p class="pos-sale-num">N.º <strong data-compra-proximo>{{ numero_visor }}</strong></p>
+        </div>
+      </div>
+      <div class="pos-sale-date">
+        {% include "core/icon.html" with name="calendar" %}
+        <span>
+          Fecha
+          <strong>{{ compra.fecha|date:"d/m/Y" }}</strong>
+        </span>
+      </div>
+    </header>
+
+    <form method="post" action="{% url 'compra_nueva' %}" class="compra-cuenta" id="compra-cabecera">
+      {% csrf_token %}
+      {% if compra.proveedor_id %}<input type="hidden" name="proveedor" value="{{ compra.proveedor_id }}">{% endif %}
+      <label class="field">
+        <span>Cuenta</span>
+        <select name="cuenta" aria-label="Cuenta" data-compra-cuenta>
+          <option value="">Elegí la cuenta</option>
+          {% for cuenta in cuentas %}
+            <option value="{{ cuenta.pk }}"{% if compra.cuenta_id == cuenta.pk %} selected{% endif %}>{{ cuenta.nombre_corto }} · {{ cuenta.descripcion }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <p class="pos-hint pos-comp-title">
+        {% include "core/icon.html" with name="file" %}
+        Tipo
+      </p>
+      <div class="pos-comprobantes">
+        {% for value, label in tipos %}
+          <label class="pos-radio{% if compra.tipo == value %} is-on{% endif %}">
+            <input type="radio" name="tipo" value="{{ value }}"{% if compra.tipo == value %} checked{% endif %}>
+            <span>{{ label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </form>
+
+    <div class="pos-search-row">
+      <form class="pos-search" method="post" action="{% url 'compra_agregar' %}" data-compra-search>
+        {% csrf_token %}
+        <span aria-hidden="true">{% include "core/icon.html" with name="search" %}</span>
+        <input type="search" name="q" placeholder="Buscar producto o gasto..." autocomplete="off" aria-label="Buscar ítem" data-compra-buscar-abrir readonly>
+      </form>
+      <div class="pos-search-actions">
+        <button type="button" class="pos-code" data-compra-codigo>
+          {% include "core/icon.html" with name="barcode" %}
+          <span>Agregar por código</span>
+          <kbd>F2</kbd>
+        </button>
+      </div>
+    </div>
+
+    <div class="pos-table-wrap">
+      <table class="pos-table">
+        <thead>
+          <tr>
+            <th>Ítem</th>
+            <th>Costo</th>
+            <th>Cant.</th>
+            <th>Importe</th>
+            <th><span class="sr-only">Quitar</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for linea in lineas %}
+            <tr>
+              <td>
+                <div class="pos-product">
+                  {% if linea.imagen %}
+                    <img src="{% url 'item_imagen' linea.imagen %}" alt="">
+                  {% else %}
+                    <span class="pos-thumb" aria-hidden="true">{% include "core/icon.html" with name="box" %}</span>
+                  {% endif %}
+                  <div>
+                    <strong>{{ linea.descripcion }}</strong>
+                    <span>
+                      {% if linea.es_gasto %}Gasto{% else %}Producto{% endif %}
+                      {% if linea.marca %} · {{ linea.marca }}{% endif %}
+                      {% if linea.codigo %} · {{ linea.codigo }}{% endif %}
+                      {% if not linea.es_gasto %} · IVA {{ linea.tasa }}%{% if linea.unidad_negocio %} · {{ linea.unidad_negocio }}{% endif %}{% endif %}
+                    </span>
+                    {% if linea.unidades|length > 1 %}
+                      <form class="pos-inline" method="post" action="{% url 'compra_linea' linea.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="accion" value="unidad">
+                        <select name="unidad" onchange="this.form.submit()" aria-label="Unidad">
+                          {% for unidad in linea.unidades %}
+                            <option value="{{ unidad.id }}"{% if unidad.id == linea.unidad_id %} selected{% endif %}>{{ unidad.simbolo }}</option>
+                          {% endfor %}
+                        </select>
+                      </form>
+                    {% endif %}
+                    {% if linea.es_gasto %}
+                      <div class="compra-gasto-campos">
+                        <form class="pos-inline" method="post" action="{% url 'compra_linea' linea.pk %}">
+                          {% csrf_token %}
+                          <input type="hidden" name="accion" value="negocio">
+                          <select name="unidad_negocio" onchange="this.form.submit()" aria-label="Unidad de negocio" required>
+                            <option value="">Unidad de negocio</option>
+                            {% for negocio in unidades_negocio %}
+                              <option value="{{ negocio.pk }}"{% if negocio.pk == linea.unidad_negocio_id %} selected{% endif %}>{{ negocio.abreviado }}</option>
+                            {% endfor %}
+                          </select>
+                        </form>
+                        <form class="pos-inline" method="post" action="{% url 'compra_linea' linea.pk %}">
+                          {% csrf_token %}
+                          <input type="hidden" name="accion" value="tasa">
+                          <select name="tasa" onchange="this.form.submit()" aria-label="Tasa IVA">
+                            {% for tasa in tasas %}
+                              <option value="{{ tasa.id }}"{% if tasa.id == linea.tasa %} selected{% endif %}>IVA {{ tasa.label }}</option>
+                            {% endfor %}
+                          </select>
+                        </form>
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+              <td>
+                <form method="post" action="{% url 'compra_linea' linea.pk %}" class="compra-costo">
+                  {% csrf_token %}
+                  <input type="hidden" name="accion" value="costo">
+                  <span>Gs.</span>
+                  <input
+                    type="text"
+                    name="costo"
+                    value="{{ linea.costo_txt }}"
+                    inputmode="numeric"
+                    data-moneda="guarani"
+                    data-moneda-max="12"
+                    aria-label="Costo"
+                    onchange="this.form.submit()"
+                  >
+                </form>
+              </td>
+              <td>
+                <form method="post" action="{% url 'compra_linea' linea.pk %}" class="pos-stepper">
+                  {% csrf_token %}
+                  <button type="submit" name="accion" value="menos" aria-label="Menos">−</button>
+                  <span>{{ linea.cantidad_txt }}</span>
+                  <button type="submit" name="accion" value="mas" aria-label="Más">+</button>
+                </form>
+              </td>
+              <td>Gs. {{ linea.subtotal_txt }}</td>
+              <td>
+                <form method="post" action="{% url 'compra_linea' linea.pk %}">
+                  {% csrf_token %}
+                  <button class="pos-remove" type="submit" name="accion" value="quitar" aria-label="Quitar">{% include "core/icon.html" with name="remove" %}</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td class="pos-empty" colspan="5">Buscá un producto o un gasto para empezar la compra.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pos-sale-actions">
+      <button class="button button-ghost" type="submit" form="compra-cabecera" name="guardar" value="1">
+        {% include "core/icon.html" with name="pause" %}
+        Guardar / Suspender
+      </button>
+      <form method="post" action="{% url 'compra_cancelar' %}">
+        {% csrf_token %}
+        <button class="button button-ghost pos-cancel" type="submit">
+          {% include "core/icon.html" with name="x" %}
+          Cancelar compra
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <aside class="pos-side">
+    <section class="pos-card pos-summary">
+      <div class="pos-row">
+        <span>Subtotal</span>
+        <strong>{{ subtotal_txt }}</strong>
+      </div>
+      <div class="pos-row">
+        <span>{{ iva_label }}</span>
+        <strong>{{ iva_txt }}</strong>
+      </div>
+      <div class="pos-total">
+        <span>TOTAL</span>
+        <strong>{{ total_txt }}</strong>
+      </div>
+    </section>
+
+    <section class="pos-card pos-cliente" data-compra-proveedor>
+      <h2>
+        {% include "core/icon.html" with name="users" %}
+        Proveedor
+      </h2>
+      <div class="pos-cliente-actual{% if not compra.proveedor_id %} is-warn{% endif %}">
+        <span class="pos-cliente-actual-icon" aria-hidden="true">{% include "core/icon.html" with name="users" %}</span>
+        <div>
+          {% if compra.proveedor_id %}
+            <strong>{{ compra.proveedor.razon_social }}</strong>
+            <span>{{ compra.proveedor.get_tipo_documento_display }} {{ compra.proveedor.documento }}</span>
+          {% else %}
+            <strong>Sin proveedor</strong>
+            <span>La compra pide un proveedor.</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="pos-cliente-lookup">
+        <label class="pos-cliente-search pos-cliente-search-lg{% if not compra.proveedor_id %} is-required{% endif %}">
+          {% include "core/icon.html" with name="search" %}
+          <input type="search" value="{{ proveedor_label }}" placeholder="Buscar proveedor por nombre o RUC..." autocomplete="off" aria-label="Buscar proveedor" data-compra-proveedor-q form="compra-cabecera">
+        </label>
+        <ul class="pos-suggest pos-suggest-lg" hidden data-compra-proveedor-suggest></ul>
+      </div>
+
+      {% if compra.es_factura %}
+        <div class="pos-factura-num" data-compra-factura-num>
+          <p class="pos-factura-num-label">
+            {% include "core/icon.html" with name="file" %}
+            Factura del proveedor
+          </p>
+          <label class="field">
+            <span>Timbrado</span>
+            <input type="text" name="timbrado" value="{{ timbrado_txt }}" maxlength="20" form="compra-cabecera" data-compra-timbrado aria-label="Timbrado">
+          </label>
+          <div class="pos-factura-num-big">
+            <input type="text" name="numero_establecimiento" value="{{ numero_establecimiento }}" maxlength="3" inputmode="numeric" aria-label="Establecimiento" form="compra-cabecera" data-compra-num-est>
+            <span>-</span>
+            <input type="text" name="numero_punto" value="{{ numero_punto }}" maxlength="3" inputmode="numeric" aria-label="Punto" form="compra-cabecera" data-compra-num-pto>
+            <span>-</span>
+            <input type="text" name="numero_secuencial" value="{{ numero_secuencial }}" maxlength="7" inputmode="numeric" aria-label="Número de factura" form="compra-cabecera" data-compra-num-sec>
+          </div>
+          <p class="pos-factura-num-msg" data-compra-num-msg hidden></p>
+        </div>
+      {% else %}
+        <p class="pos-hint">Egreso sin timbrado. No pide número de factura.</p>
+      {% endif %}
+
+      <details class="pos-obs"{% if compra.observacion %} open{% endif %}>
+        <summary>
+          {% include "core/icon.html" with name="file" %}
+          Observaciones
+        </summary>
+        <textarea name="observacion" rows="2" form="compra-cabecera">{{ compra.observacion }}</textarea>
+      </details>
+    </section>
+
+    <button
+      class="button pos-cobrar"
+      type="submit"
+      form="compra-cabecera"
+      formaction="{% url 'compra_confirmar' %}"
+      data-compra-confirmar
+    >
+      {% include "core/icon.html" with name="check" %}
+      Confirmar compra
+    </button>
+  </aside>
+
+  <dialog class="pos-modal" data-compra-modal-items>
+    <form method="dialog" class="pos-modal-head">
+      <h2>Buscar ítems</h2>
+      <button type="submit" class="pos-modal-close" aria-label="Cerrar">{% include "core/icon.html" with name="x" %}</button>
+    </form>
+    <label class="pos-modal-search">
+      {% include "core/icon.html" with name="search" %}
+      <input type="search" placeholder="Producto, gasto, marca o código..." autocomplete="off" aria-label="Buscar en el catálogo" data-compra-modal-q>
+    </label>
+    <ul class="pos-modal-list" data-compra-modal-list></ul>
+  </dialog>
+
+  <dialog class="pos-modal pos-modal-sm" data-compra-modal-codigo>
+    <form method="dialog" class="pos-modal-head">
+      <h2>Agregar por código</h2>
+      <button type="submit" class="pos-modal-close" aria-label="Cerrar">{% include "core/icon.html" with name="x" %}</button>
+    </form>
+    <form class="pos-codigo-form" method="post" action="{% url 'compra_agregar' %}" data-compra-codigo-form>
+      {% csrf_token %}
+      <label class="pos-modal-search">
+        {% include "core/icon.html" with name="barcode" %}
+        <input type="text" name="q" placeholder="Código o código de barras" autocomplete="off" aria-label="Código de ítem" data-compra-codigo-q>
+      </label>
+      <button class="button" type="submit">Agregar</button>
+    </form>
+  </dialog>
+
+  <dialog class="pos-modal pos-modal-factura" data-compra-modal-precios>
+    <form method="dialog" class="pos-modal-head">
+      <h2>Precios según costo</h2>
+      <button type="submit" class="pos-modal-close" aria-label="Cerrar">{% include "core/icon.html" with name="x" %}</button>
+    </form>
+    <p>Hay ítems con precio según último costo. ¿Querés actualizar los precios de venta?</p>
+    <ul class="compra-precios-lista">
+      {% for pendiente in pendientes %}
+        <li>
+          <strong>{{ pendiente.descripcion }}</strong>
+          <span>Costo {{ pendiente.costo_anterior }} → {{ pendiente.costo_nuevo }} · Precio {{ pendiente.precio_anterior }} → {{ pendiente.precio_nuevo }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+    <div class="pos-modal-actions">
+      <button type="button" class="button button-ghost" data-compra-precios-no>No, solo el costo</button>
+      <button type="button" class="button" data-compra-precios-si>Sí, actualizar precios</button>
+    </div>
+  </dialog>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="{% static 'js/rupia-moneda.js' %}"></script>
+<script src="{% static 'js/rupia-compra.js' %}"></script>
+{% endblock %}

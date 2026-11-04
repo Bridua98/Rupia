@@ -4879,3 +4879,56 @@ body.pos-screen .app-stage {
   max-width: 22rem;
   margin-top: 1rem;
 }
+
+.compra-cuenta {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.85rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.compra-cuenta .field {
+  margin: 0;
+}
+
+.compra-gasto-campos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
+.compra-costo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+}
+
+.compra-costo input {
+  width: 7.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+  font: inherit;
+  text-align: right;
+}
+
+.compra-precios-lista {
+  margin: 0.7rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.compra-precios-lista li {
+  margin: 0.45rem 0;
+}
+
+.compra-precios-lista span {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}

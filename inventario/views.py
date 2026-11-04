@@ -325,6 +325,8 @@ class ItemImagenView(LoginRequiredMixin, View):
         if not (
             tiene_permiso(request.user, "items", "ver")
             or tiene_permiso(request.user, "punto_de_venta", "ver")
+            or tiene_permiso(request.user, "compras", "ver")
+            or tiene_permiso(request.user, "compras", "alta")
         ):
             raise PermissionDenied("No tenés permiso para esta acción.")
         destino = resolver_imagen(nombre)

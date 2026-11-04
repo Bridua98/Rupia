@@ -44,6 +44,11 @@ FORMULARIOS = (
         "Ventas",
         (ACCION_VER, ACCION_ANULAR, ACCION_EXPORTAR),
     ),
+    Formulario(
+        "compras",
+        "Compras",
+        (ACCION_VER, ACCION_ALTA, ACCION_CANCELAR, ACCION_ANULAR, ACCION_EXPORTAR),
+    ),
     Formulario("personas", "Personas", ACCIONES_MANTENIMIENTO),
     Formulario("cuentas", "Cuentas", ACCIONES_MANTENIMIENTO),
     Formulario("timbrados", "Timbrados", ACCIONES_MANTENIMIENTO),

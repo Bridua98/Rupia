@@ -59,6 +59,7 @@ def main_menu(request):
             formulario="punto_de_venta",
         ),
         item("Ventas", url_name="venta_list", icon="receipt", formulario="ventas"),
+        item("Compras", url_name="compra_list", icon="wallet", formulario="compras"),
         item("Personas", url_name="persona_list", icon="users", formulario="personas"),
         group(
             "Gestión",
