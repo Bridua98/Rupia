@@ -58,10 +58,10 @@
 
     <div class="app-nav-foot">
       <span class="session-avatar" aria-hidden="true">{% include "core/icon.html" with name="user" %}</span>
-      <span class="session-meta">
+      <a class="session-meta" href="{% url 'cambiar_contrasena' %}">
         <span class="session-name">{{ user.get_username }}</span>
-        <span class="session-role">{% if user.is_staff %}Administrador{% else %}Usuario{% endif %}</span>
-      </span>
+        <span class="session-role">{{ session_role|default:"Usuario" }}</span>
+      </a>
       <form method="post" action="{% url 'logout' %}">
         {% csrf_token %}
         <button type="submit" class="session-logout" aria-label="Salir">

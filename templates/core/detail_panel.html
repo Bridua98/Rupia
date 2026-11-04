@@ -24,7 +24,7 @@
           <input type="hidden" name="filtro_{{ row.name }}" value="{{ row.value }}">
         {% endif %}
       {% endfor %}
-      {% include "core/form_fields.html" with form=panel_form %}
+      {% include form_fields_template|default:"core/form_fields.html" with form=panel_form %}
     </form>
   </div>
   <footer class="detail-foot">

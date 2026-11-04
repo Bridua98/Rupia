@@ -58,6 +58,7 @@ def stock_desde_movimientos(item, movimientos) -> tuple[Decimal, bool]:
 class ReporteStockListView(MantenimientoListView):
     template_name = "inventario/reporte_productos_list.html"
     model = Item
+    permiso_formulario = "reporte_stock"
     table_class = ReporteStockTable
     page_title = "Stock"
     eyebrow = "Inventario"

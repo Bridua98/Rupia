@@ -6,19 +6,6 @@ from django.utils import timezone
 from ventas.models import PuntoExpedicion, TipoComprobante
 
 
-@pytest.fixture
-def usuario(django_user_model):
-    return django_user_model.objects.create_user(
-        "ada",
-        "ada@rupia.local",
-        "Clave-inicial-Rupia-2026",
-    )
-
-
-@pytest.fixture
-def ingresada(client, usuario):
-    client.force_login(usuario)
-    return client
 
 
 def _hoy():

@@ -6,15 +6,18 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views import View
 
+from configuracion.permisos import PermisoRequeridoMixin
+
 SELECTORES = {}
 
 
-def registrar(clave, *, queryset, form, search_fields, create_label):
+def registrar(clave, *, queryset, form, search_fields, create_label, formulario):
     SELECTORES[clave] = {
         "queryset": queryset,
         "form": form,
         "search_fields": search_fields,
         "create_label": create_label,
+        "formulario": formulario,
     }
 
 
@@ -79,7 +82,12 @@ class SelectorAlta(forms.ModelChoiceField):
         )
 
 
-class SelectorSearchView(LoginRequiredMixin, View):
+class SelectorSearchView(LoginRequiredMixin, PermisoRequeridoMixin, View):
+    permiso_accion = "ver"
+
+    def get_permiso_formulario(self):
+        return _spec(self.kwargs["clave"])["formulario"]
+
     def get(self, request, clave):
         spec = _spec(clave)
         queryset = spec["queryset"]()
@@ -93,7 +101,12 @@ class SelectorSearchView(LoginRequiredMixin, View):
         return JsonResponse({"results": results})
 
 
-class SelectorCreateView(LoginRequiredMixin, View):
+class SelectorCreateView(LoginRequiredMixin, PermisoRequeridoMixin, View):
+    permiso_accion = "alta"
+
+    def get_permiso_formulario(self):
+        return _spec(self.kwargs["clave"])["formulario"]
+
     def post(self, request, clave):
         spec = _spec(clave)
         form = spec["form"](request.POST, prefix=clave)

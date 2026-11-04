@@ -105,9 +105,9 @@ def visible_fields(model, *, exclude=()):
     return fields
 
 
-def record_header_fields(record):
+def record_header_fields(record, *, exclude=()):
     rows = []
-    for field in visible_fields(record._meta.model):
+    for field in visible_fields(record._meta.model, exclude=exclude):
         label = str(field.verbose_name).capitalize() if field.verbose_name else field.name
         rows.append({"label": label, "value": format_value(record, field)})
     return rows
@@ -174,9 +174,9 @@ def build_detail_tables(record):
     return tables
 
 
-def build_view_context(record):
+def build_view_context(record, *, exclude=()):
     return {
         "view_record": record,
-        "view_fields": record_header_fields(record),
+        "view_fields": record_header_fields(record, exclude=exclude),
         "view_tables": build_detail_tables(record),
     }

@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 
+from configuracion.permisos import PermisoRequeridoMixin
 from core.cantidad import formatear_cantidad
 from core.mantenimiento import (
     MantenimientoCreateView,
@@ -104,6 +105,7 @@ class TimbradoMantenimiento:
     model = PuntoExpedicion
     form_class = TimbradoForm
     table_class = TimbradoTable
+    permiso_formulario = "timbrados"
     page_title = "Timbrados"
     eyebrow = "Caja"
     title = "Timbrados"
@@ -151,7 +153,12 @@ class TimbradoDeleteView(TimbradoMantenimiento, MantenimientoDeleteView):
     pass
 
 
-class PuntoVentaView(LoginRequiredMixin, View):
+class PosPermisoView(LoginRequiredMixin, PermisoRequeridoMixin, View):
+    permiso_formulario = "punto_de_venta"
+    permiso_accion = "ver"
+
+
+class PuntoVentaView(PosPermisoView):
     def get(self, request):
         venta = borrador(request.user)
         return render(request, "ventas/punto_de_venta.html", self._contexto(venta))
@@ -272,7 +279,7 @@ class PuntoVentaView(LoginRequiredMixin, View):
         }
 
 
-class BuscarProductosView(LoginRequiredMixin, View):
+class BuscarProductosView(PosPermisoView):
     def get(self, request):
         query = request.GET.get("q", "")
         try:
@@ -309,7 +316,7 @@ class BuscarProductosView(LoginRequiredMixin, View):
         )
 
 
-class ValidarNumeroView(LoginRequiredMixin, View):
+class ValidarNumeroView(PosPermisoView):
     def get(self, request):
         venta = borrador(request.user)
         punto = punto_de(venta.tipo_comprobante)
@@ -345,7 +352,7 @@ class ValidarNumeroView(LoginRequiredMixin, View):
         return JsonResponse({"ok": True, "numero": numero, "timbrado": punto.timbrado})
 
 
-class BuscarClientesView(LoginRequiredMixin, View):
+class BuscarClientesView(PosPermisoView):
     def get(self, request):
         query = request.GET.get("q", "")
         return JsonResponse({"resultados": buscar_clientes_pos(query)})
@@ -368,7 +375,7 @@ class BuscarClientesView(LoginRequiredMixin, View):
         return redirect("punto_de_venta")
 
 
-class AgregarProductoView(LoginRequiredMixin, View):
+class AgregarProductoView(PosPermisoView):
     def post(self, request):
         venta = borrador(request.user)
         item = None
@@ -384,7 +391,7 @@ class AgregarProductoView(LoginRequiredMixin, View):
         return redirect("punto_de_venta")
 
 
-class LineaVentaView(LoginRequiredMixin, View):
+class LineaVentaView(PosPermisoView):
     def post(self, request, pk):
         venta = borrador(request.user)
         detalle = get_object_or_404(VentaDetalle, pk=pk, venta=venta)
@@ -410,7 +417,9 @@ class LineaVentaView(LoginRequiredMixin, View):
         return redirect("punto_de_venta")
 
 
-class ConfirmarVentaView(LoginRequiredMixin, View):
+class ConfirmarVentaView(PosPermisoView):
+    permiso_accion = "cobrar"
+
     def post(self, request):
         venta = borrador(request.user)
         try:
@@ -430,7 +439,9 @@ class ConfirmarVentaView(LoginRequiredMixin, View):
         return redirect("venta_ticket", pk=venta.pk)
 
 
-class CancelarVentaView(LoginRequiredMixin, View):
+class CancelarVentaView(PosPermisoView):
+    permiso_accion = "cancelar"
+
     def post(self, request):
         venta = Venta.objects.filter(usuario=request.user, estado=EstadoVenta.EN_CURSO).first()
         if venta:
@@ -442,7 +453,7 @@ class CancelarVentaView(LoginRequiredMixin, View):
         return redirect("punto_de_venta")
 
 
-class ComprobanteView(LoginRequiredMixin, View):
+class ComprobanteView(PosPermisoView):
     tipo = TipoComprobante.TICKET
     template_name = "ventas/ticket.html"
 

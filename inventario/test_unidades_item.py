@@ -16,19 +16,6 @@ from inventario.unidades import convertir_a_base
 from negocio.models import UnidadNegocio
 
 
-@pytest.fixture
-def usuario(django_user_model):
-    return django_user_model.objects.create_user(
-        "ada",
-        "ada@rupia.local",
-        "Clave-inicial-Rupia-2026",
-    )
-
-
-@pytest.fixture
-def ingresada(client, usuario):
-    client.force_login(usuario)
-    return client
 
 
 def _foraneos(*, simbolo="kg"):

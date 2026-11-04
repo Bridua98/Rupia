@@ -2,6 +2,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.views import View
 
+from configuracion.permisos import PermisoRequeridoMixin
 from core.mantenimiento import (
     MantenimientoCreateView,
     MantenimientoDeleteView,
@@ -18,6 +19,7 @@ class PersonaMantenimiento:
     model = Persona
     form_class = PersonaForm
     table_class = PersonaTable
+    permiso_formulario = "personas"
 
     page_title = "Personas"
     eyebrow = "Personas"
@@ -79,7 +81,8 @@ class PersonaDeleteView(PersonaMantenimiento, MantenimientoDeleteView):
     pass
 
 
-class PersonaConsultaView(LoginRequiredMixin, View):
+class PersonaConsultaView(LoginRequiredMixin, PermisoRequeridoMixin, View):
+    permiso_formulario = "personas"
     def get(self, request):
         ruc = request.GET.get("ruc", "").strip()
         if ruc:

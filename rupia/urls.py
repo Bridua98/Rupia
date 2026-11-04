@@ -20,5 +20,8 @@ urlpatterns = [
     path("cuentas/", include("cuentas.urls")),
     path("ventas/", include("ventas.urls")),
     path("unidades-negocio/", include("negocio.urls")),
+    path("configuracion/", include("configuracion.urls")),
     path("", include("core.urls")),
 ]
+
+handler403 = "core.views.error_403"

@@ -81,4 +81,5 @@ registrar(
     form=CuentaForm,
     search_fields=("descripcion", "nombre_corto", "numero"),
     create_label="Nueva cuenta",
+    formulario="cuentas",
 )

@@ -136,6 +136,7 @@
             <button type="submit" class="button button-ghost button-compact" name="accion" value="calcular">
               <span>Vista previa</span>
             </button>
+            {% if puede_ajustar %}
             <button
               type="submit"
               class="button button-compact"
@@ -146,8 +147,10 @@
               {% include "core/icon.html" with name="check" %}
               <span>Aplicar precios</span>
             </button>
+            {% endif %}
           </div>
         </div>
+        {% if puede_ajustar %}
         <div class="precios-confirm" data-precios-confirm hidden>
           <p data-precios-confirm-text></p>
           <div class="precios-acciones">
@@ -160,6 +163,7 @@
             </button>
           </div>
         </div>
+        {% endif %}
         {% for error in ajuste_form.porcentaje.errors %}
           <p class="field-error">{{ error }}</p>
         {% endfor %}

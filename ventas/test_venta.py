@@ -24,19 +24,6 @@ from ventas.cobro import agregar_producto, cambiar_cantidad, liquidar_iva, medio
 from ventas.models import EstadoVenta, MedioPago, PuntoExpedicion, TipoComprobante, Venta
 
 
-@pytest.fixture
-def usuario(django_user_model):
-    return django_user_model.objects.create_user(
-        "ada",
-        "ada@rupia.local",
-        "Clave-inicial-Rupia-2026",
-    )
-
-
-@pytest.fixture
-def ingresada(client, usuario):
-    client.force_login(usuario)
-    return client
 
 
 def _hoy():

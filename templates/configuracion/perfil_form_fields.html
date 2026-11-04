@@ -1,0 +1,41 @@
+{% for hidden in form.hidden_fields %}
+  {{ hidden }}
+{% endfor %}
+{% for error in form.non_field_errors %}
+  <p class="field-error">{{ error }}</p>
+{% endfor %}
+{% include "core/form_field.html" with field=form.descripcion %}
+{% include "core/form_field.html" with field=form.activo %}
+
+<p class="permisos-title">Permisos</p>
+<div class="permisos-tabla-wrap">
+  <table class="permisos-tabla">
+    <thead>
+      <tr>
+        <th scope="col">Formulario</th>
+        {% for accion in acciones_catalogo %}
+          <th scope="col">{{ accion.etiqueta }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for fila in matriz_permisos %}
+        <tr>
+          <th scope="row">{{ fila.etiqueta }}</th>
+          {% for celda in fila.celdas %}
+            <td>
+              {% if celda %}
+                <label class="permiso-celda">
+                  {{ celda }}
+                  <span class="sr-only">{{ celda.label }}</span>
+                </label>
+              {% else %}
+                <span class="permiso-vacio" aria-hidden="true">—</span>
+              {% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

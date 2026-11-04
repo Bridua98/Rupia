@@ -13,6 +13,7 @@ class CuentaMantenimiento:
     model = Cuenta
     form_class = CuentaForm
     table_class = CuentaTable
+    permiso_formulario = "cuentas"
     page_title = "Cuentas"
     eyebrow = "Caja"
     title = "Cuentas"

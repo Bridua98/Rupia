@@ -12,13 +12,6 @@ from ventas.models import EstadoVenta, TipoComprobante, Venta
 from ventas.tablero import tablero_inicio
 
 
-@pytest.fixture
-def usuario(django_user_model):
-    return django_user_model.objects.create_user(
-        "ada",
-        "ada@rupia.local",
-        "Clave-inicial-Rupia-2026",
-    )
 
 
 def _hoy():
