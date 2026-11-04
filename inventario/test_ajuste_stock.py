@@ -118,6 +118,34 @@ def test_menu_muestra_ajustes_de_stock(ingresada):
 
 
 @pytest.mark.django_db
+def test_formulario_alta_renderiza(ingresada):
+    response = ingresada.get("/inventario/ajustes/nuevo/")
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "data-ajuste-stock" in content
+    assert "detalles-TOTAL_FORMS" in content
+    assert "Agregar detalle" in content
+    assert "Guardar ajuste" in content
+
+
+@pytest.mark.django_db
+def test_formulario_edicion_renderiza(ingresada):
+    item = _producto("Producto")
+    _movimiento(item, "10", pk=1)
+    _crear(ingresada, [{"item": item, "cantidad": "8"}])
+    ajuste = AjusteStock.objects.get()
+
+    response = ingresada.get(f"/inventario/ajustes/{ajuste.pk}/editar/")
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert f"Ajuste de stock N.º {ajuste.pk}" in content
+    assert "Producto" in content
+    assert "detalles-INITIAL_FORMS" in content
+
+
+@pytest.mark.django_db
 def test_alta_crea_detalle_y_movimiento_negativo(ingresada):
     item = _producto("Arroz")
     _movimiento(item, "10", pk=1)
