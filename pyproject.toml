@@ -55,4 +55,4 @@ select = ["E", "F", "I", "UP"]
 "**/migrations/*.py" = ["E501"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["configuracion", "core", "cuentas", "inventario", "negocio", "personas", "rupia", "ventas"]
+known-first-party = ["compras", "configuracion", "core", "cuentas", "inventario", "negocio", "personas", "rupia", "ventas"]

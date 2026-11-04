@@ -24,6 +24,7 @@ class TipoMovimiento(models.TextChoices):
 class OrigenPrecio(models.TextChoices):
     FICHA = "FICHA", "Ficha"
     MASIVO = "MASIVO", "Masivo"
+    COMPRA = "COMPRA", "Compra"
 
 
 class RelacionUnidad(models.TextChoices):
