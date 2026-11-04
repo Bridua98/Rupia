@@ -492,7 +492,7 @@ class AjusteStockForm(RupiaModelForm):
     fecha = forms.DateField(
         label="Fecha",
         initial=timezone.localdate,
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         error_messages={
             "required": "Elegí la fecha.",
             "invalid": "Elegí una fecha válida.",
@@ -515,6 +515,11 @@ class AjusteStockForm(RupiaModelForm):
     class Meta:
         model = AjusteStock
         fields = ["fecha", "observacion"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound and not self.initial.get("fecha"):
+            self.initial["fecha"] = timezone.localdate()
 
     def clean_fecha(self):
         fecha = self.cleaned_data["fecha"]
@@ -655,10 +660,6 @@ class AjusteStockDetalleForm(RupiaModelForm):
 
 
 class AjusteStockDetalleFormSetBase(forms.BaseInlineFormSet):
-    default_error_messages = {
-        "too_few_forms": "Agregá al menos un ítem al ajuste.",
-    }
-
     def clean(self):
         super().clean()
         if any(self.errors):
@@ -683,10 +684,10 @@ AjusteStockDetalleFormSet = inlineformset_factory(
     AjusteStockDetalle,
     form=AjusteStockDetalleForm,
     formset=AjusteStockDetalleFormSetBase,
-    extra=1,
+    extra=0,
     can_delete=True,
-    min_num=1,
-    validate_min=True,
+    min_num=0,
+    validate_min=False,
 )
 
 
