@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from decimal import Decimal
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -13,7 +14,9 @@ from inventario.models import Item, ItemMovimiento, TipoItem, TipoMovimiento
 from inventario.precios import redondear_guarani
 from inventario.reporte_stock import stock_desde_movimientos
 from inventario.unidades import convertir_a_base, redondear_cantidad
-from personas.models import Persona
+from personas.consulta import buscar as buscar_padron
+from personas.consulta import consultar_ruc
+from personas.models import Genero, Persona, TipoDocumento
 from ventas.models import (
     CondicionVenta,
     EstadoVenta,
@@ -27,6 +30,7 @@ from ventas.models import (
 
 UNO = Decimal("1")
 CERO = Decimal("0")
+CIEN = Decimal("100")
 ONCE = Decimal("11")
 VEINTIUNO = Decimal("21")
 
@@ -59,6 +63,31 @@ class LineaVista:
     subtotal: Decimal
     subtotal_txt: str
     tasa: int
+    imagen: str
+    descuento_porcentaje: Decimal
+    descuento_txt: str
+
+
+def formatear_porcentaje(valor) -> str:
+    numero = Decimal(valor or 0)
+    if numero == numero.to_integral_value():
+        return str(int(numero))
+    texto = format(numero.normalize(), "f")
+    if "." in texto:
+        texto = texto.rstrip("0").rstrip(".")
+    return texto.replace(".", ",")
+
+
+def importe_linea(precio, cantidad, descuento_porcentaje=CERO) -> Decimal:
+    porcentaje = Decimal(descuento_porcentaje or 0)
+    if porcentaje < 0 or porcentaje > CIEN:
+        raise ValidationError(
+            "El descuento de la línea tiene que estar entre 0 y 100.",
+            code="descuento",
+        )
+    bruto = Decimal(precio) * Decimal(cantidad)
+    descuento = redondear_guarani(bruto * porcentaje / CIEN)
+    return redondear_guarani(bruto - descuento)
 
 
 def precio_en_unidad(item, unidad) -> Decimal:
@@ -86,7 +115,24 @@ def cuentas_para_medio(medio, caja=None):
         return Cuenta.objects.filter(pk=caja.pk)
     if medio == MedioPago.TARJETA:
         return Cuenta.objects.filter(es_tarjeta=True).order_by("descripcion")
-    return Cuenta.objects.filter(es_banco=True, es_tarjeta=False).order_by("descripcion")
+    if medio in (MedioPago.TRANSFERENCIA, MedioPago.QR):
+        return Cuenta.objects.filter(es_banco=True, es_tarjeta=False).order_by("descripcion")
+    return Cuenta.objects.none()
+
+
+def medios_disponibles(medio_actual=None):
+    opciones = []
+    if cajas().exists():
+        opciones.append((MedioPago.EFECTIVO, "Efectivo"))
+    if cuentas_para_medio(MedioPago.TARJETA).exists():
+        opciones.append((MedioPago.TARJETA, "Tarjeta"))
+    if cuentas_para_medio(MedioPago.TRANSFERENCIA).exists():
+        opciones.append((MedioPago.TRANSFERENCIA, "Transferencia"))
+    vistos = {valor for valor, _etiqueta in opciones}
+    if medio_actual and medio_actual not in vistos:
+        etiqueta = dict(MedioPago.choices).get(medio_actual, medio_actual)
+        opciones.append((medio_actual, etiqueta))
+    return opciones
 
 
 def caja_por_defecto():
@@ -94,6 +140,18 @@ def caja_por_defecto():
     if qs.count() == 1:
         return qs.first()
     return None
+
+
+def cliente_ocasional():
+    return (
+        Persona.objects.filter(
+            activo=True,
+            es_cliente=True,
+            razon_social__icontains="ocasional",
+        )
+        .order_by("razon_social")
+        .first()
+    )
 
 
 def borrador(usuario) -> Venta:
@@ -105,7 +163,7 @@ def borrador(usuario) -> Venta:
     if venta:
         return venta
     caja = caja_por_defecto()
-    return Venta.objects.create(
+    venta = Venta.objects.create(
         fecha=timezone.localdate(),
         estado=EstadoVenta.EN_CURSO,
         usuario=usuario,
@@ -114,7 +172,9 @@ def borrador(usuario) -> Venta:
         medio=MedioPago.EFECTIVO,
         tipo_comprobante=TipoComprobante.TICKET,
         condicion_venta=CondicionVenta.CONTADO,
+        cliente=cliente_ocasional(),
     )
+    return venta
 
 
 def cancelar(venta):
@@ -278,12 +338,100 @@ def buscar_clientes(query: str, *, limite=12):
     query = (query or "").strip()
     clientes = Persona.objects.filter(activo=True, es_cliente=True)
     if not query:
-        return clientes.order_by("razon_social")[:limite]
+        return list(clientes.order_by("razon_social")[:limite])
     return list(
         clientes.filter(Q(razon_social__icontains=query) | Q(documento__icontains=query)).order_by(
             "razon_social"
         )[:limite]
     )
+
+
+def _resultado_cliente(persona, *, origen="local"):
+    return {
+        "id": persona.pk,
+        "label": str(persona),
+        "origen": origen,
+        "ruc": persona.documento,
+        "documento": persona.documento,
+    }
+
+
+def buscar_clientes_pos(query: str, *, limite=12):
+    query = (query or "").strip()
+    locales = buscar_clientes(query, limite=limite)
+    resultados = [_resultado_cliente(persona) for persona in locales]
+    if not query:
+        return resultados
+    vistos = {persona.documento for persona in locales}
+    for ficha in buscar_padron(query):
+        documento = ficha.get("documento") or ""
+        if documento in vistos:
+            continue
+        existente = Persona.objects.filter(documento=documento).first() if documento else None
+        if existente:
+            resultados.append(_resultado_cliente(existente))
+            vistos.add(existente.documento)
+        else:
+            resultados.append(
+                {
+                    "id": None,
+                    "label": ficha.get("label") or documento,
+                    "origen": "padron",
+                    "ruc": ficha.get("ruc") or "",
+                    "documento": documento,
+                }
+            )
+            vistos.add(documento)
+        if len(resultados) >= limite:
+            break
+    return resultados
+
+
+def asegurar_cliente_desde_ficha(ficha) -> Persona:
+    documento = str((ficha or {}).get("documento") or "").strip()
+    if not documento:
+        raise ValidationError("No encontré esa persona en el padrón.", code="padron")
+    persona = Persona.objects.filter(documento=documento).first()
+    if persona:
+        campos = []
+        if not persona.es_cliente:
+            persona.es_cliente = True
+            campos.append("es_cliente")
+        if not persona.activo:
+            persona.activo = True
+            campos.append("activo")
+        if campos:
+            persona.save(update_fields=campos)
+        return persona
+    fecha = None
+    texto_fecha = (ficha or {}).get("fecha_nacimiento")
+    if texto_fecha:
+        try:
+            fecha = datetime.strptime(str(texto_fecha), "%Y-%m-%d").date()
+        except ValueError:
+            fecha = None
+    return Persona.objects.create(
+        tipo_documento=ficha.get("tipo_documento") or TipoDocumento.CEDULA,
+        documento=documento,
+        razon_social=(ficha.get("razon_social") or documento).strip(),
+        fecha_nacimiento=fecha,
+        genero=Genero.SIN_DEFINIR,
+        direccion="Sin dirección",
+        es_cliente=True,
+    )
+
+
+def asegurar_cliente_desde_consulta(*, ruc="", query="") -> Persona:
+    ficha = consultar_ruc(ruc) if ruc else None
+    if ficha is None and query:
+        hallados = buscar_padron(query)
+        ficha = hallados[0] if hallados else None
+    if ficha is None and ruc:
+        hallados = buscar_padron(ruc)
+        ficha = hallados[0] if hallados else None
+    if ficha is None:
+        raise ValidationError("No encontré esa persona en el padrón.", code="padron")
+    return asegurar_cliente_desde_ficha(ficha)
 
 
 def agregar_producto(venta, *, item=None, query=""):
@@ -302,7 +450,7 @@ def agregar_producto(venta, *, item=None, query=""):
     if linea:
         linea.cantidad = redondear_cantidad(linea.cantidad + UNO)
         linea.precio = precio
-        linea.subtotal = redondear_guarani(linea.precio * linea.cantidad)
+        linea.subtotal = importe_linea(linea.precio, linea.cantidad, linea.descuento_porcentaje)
         linea.save(update_fields=["cantidad", "precio", "subtotal"])
         return linea
     return VentaDetalle.objects.create(
@@ -312,7 +460,8 @@ def agregar_producto(venta, *, item=None, query=""):
         cantidad=UNO,
         precio=precio,
         tasa_iva=item.tasa_iva,
-        subtotal=precio,
+        descuento_porcentaje=CERO,
+        subtotal=importe_linea(precio, UNO, CERO),
     )
 
 
@@ -324,7 +473,9 @@ def cambiar_cantidad(detalle, cantidad):
         return None
     detalle.cantidad = cantidad
     detalle.precio = precio_en_unidad(detalle.item, detalle.unidad_medida)
-    detalle.subtotal = redondear_guarani(detalle.precio * detalle.cantidad)
+    detalle.subtotal = importe_linea(
+        detalle.precio, detalle.cantidad, detalle.descuento_porcentaje
+    )
     detalle.save(update_fields=["cantidad", "precio", "subtotal"])
     return detalle
 
@@ -343,14 +494,31 @@ def cambiar_unidad(detalle, unidad):
     if otra:
         otra.cantidad = redondear_cantidad(otra.cantidad + detalle.cantidad)
         otra.precio = precio_en_unidad(item, unidad)
-        otra.subtotal = redondear_guarani(otra.precio * otra.cantidad)
+        otra.subtotal = importe_linea(otra.precio, otra.cantidad, otra.descuento_porcentaje)
         otra.save(update_fields=["cantidad", "precio", "subtotal"])
         detalle.delete()
         return otra
     detalle.unidad_medida = unidad
     detalle.precio = precio_en_unidad(item, unidad)
-    detalle.subtotal = redondear_guarani(detalle.precio * detalle.cantidad)
+    detalle.subtotal = importe_linea(
+        detalle.precio, detalle.cantidad, detalle.descuento_porcentaje
+    )
     detalle.save(update_fields=["unidad_medida", "precio", "subtotal"])
+    return detalle
+
+
+def cambiar_descuento(detalle, porcentaje):
+    _exige_borrador(detalle.venta)
+    try:
+        porcentaje = Decimal(str(porcentaje).replace(",", ".").strip() or "0")
+    except InvalidOperation as exc:
+        raise ValidationError("Escribí un descuento en porcentaje.", code="descuento") from exc
+    detalle.descuento_porcentaje = porcentaje.quantize(Decimal("0.01"))
+    detalle.precio = precio_en_unidad(detalle.item, detalle.unidad_medida)
+    detalle.subtotal = importe_linea(
+        detalle.precio, detalle.cantidad, detalle.descuento_porcentaje
+    )
+    detalle.save(update_fields=["descuento_porcentaje", "precio", "subtotal"])
     return detalle
 
 
@@ -396,10 +564,11 @@ def actualizar_cabecera(
                 campos.append("cuenta_cobro")
     if cuenta_cobro is not None:
         permitidas = set(cuentas_para_medio(venta.medio, venta.caja).values_list("pk", flat=True))
-        if cuenta_cobro.pk not in permitidas:
+        if cuenta_cobro.pk in permitidas:
+            venta.cuenta_cobro = cuenta_cobro
+            campos.append("cuenta_cobro")
+        elif medio is None:
             raise ValidationError("Elegí la cuenta de cobro.", code="cuenta")
-        venta.cuenta_cobro = cuenta_cobro
-        campos.append("cuenta_cobro")
     if descuento is not None:
         descuento = redondear_guarani(Decimal(descuento))
         if descuento < 0:
@@ -520,6 +689,9 @@ def lineas_vista(venta) -> list[LineaVista]:
                 subtotal=detalle.subtotal,
                 subtotal_txt=formatear_guaranies(detalle.subtotal),
                 tasa=detalle.tasa_iva,
+                imagen=detalle.item.imagen or "",
+                descuento_porcentaje=detalle.descuento_porcentaje or CERO,
+                descuento_txt=formatear_porcentaje(detalle.descuento_porcentaje or CERO),
             )
         )
     return lineas

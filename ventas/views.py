@@ -21,24 +21,28 @@ from personas.models import Persona
 from ventas.cobro import (
     actualizar_cabecera,
     agregar_producto,
+    asegurar_cliente_desde_consulta,
     borrador,
-    buscar_clientes,
+    buscar_clientes_pos,
     buscar_productos,
     cajas,
     cambiar_cantidad,
+    cambiar_descuento,
     cambiar_unidad,
     cancelar,
+    cliente_ocasional,
     comprobantes_emitibles,
     confirmar,
     cuentas_para_medio,
+    formatear_porcentaje,
     importes_rapidos,
     lineas_vista,
     liquidar_iva,
+    medios_disponibles,
     motivo_emision,
     proximo_numero,
     puede_emitir,
     punto_de,
-    punto_para,
     quitar_linea,
     subtotal_venta,
     total_venta,
@@ -142,6 +146,10 @@ class PuntoVentaView(LoginRequiredMixin, View):
             self._aplicar(request, venta)
         except ValidationError as exc:
             messages.error(request, _error(exc))
+            return redirect("punto_de_venta")
+        if request.POST.get("guardar"):
+            messages.success(request, "La venta quedó guardada.")
+            return redirect("home")
         return redirect("punto_de_venta")
 
     def _aplicar(self, request, venta):
@@ -153,8 +161,12 @@ class PuntoVentaView(LoginRequiredMixin, View):
         if datos.get("cuenta_cobro"):
             cuenta = get_object_or_404(Cuenta, pk=datos.get("cuenta_cobro"))
         cliente = None
-        consumidor = datos.get("consumidor_final") == "1"
-        if datos.get("cliente") and not consumidor:
+        consumidor = False
+        if datos.get("asignar_ocasional"):
+            cliente = cliente_ocasional()
+        elif datos.get("consumidor_final") == "1":
+            consumidor = True
+        elif datos.get("cliente"):
             cliente = get_object_or_404(Persona, pk=datos.get("cliente"))
         tipo = datos.get("tipo_comprobante")
         if tipo and tipo not in TipoComprobante.values:
@@ -181,6 +193,19 @@ class PuntoVentaView(LoginRequiredMixin, View):
         total = total_venta(venta)
         subtotal = subtotal_venta(venta)
         punto = punto_de(venta.tipo_comprobante)
+        iva_monto = iva.iva_10 + iva.iva_5
+        if iva.iva_10 and not iva.iva_5:
+            iva_label = "IVA (10%)"
+        elif iva.iva_5 and not iva.iva_10:
+            iva_label = "IVA (5%)"
+        else:
+            iva_label = "IVA"
+        if subtotal > 0 and venta.descuento:
+            descuento_pct = (venta.descuento * Decimal("100") / subtotal).quantize(
+                Decimal("0.01")
+            )
+        else:
+            descuento_pct = Decimal("0")
         emitibles = comprobantes_emitibles()
         tipos_emitibles = {tipo for tipo, _etiqueta in emitibles}
         if venta.tipo_comprobante not in tipos_emitibles:
@@ -196,12 +221,12 @@ class PuntoVentaView(LoginRequiredMixin, View):
             "iva": iva,
             "cajas": cajas(),
             "cuentas_cobro": cuentas_para_medio(venta.medio, venta.caja),
-            "medios": MedioPago.choices,
+            "medios": medios_disponibles(venta.medio),
             "comprobantes": comprobantes,
             "puede_emitir": puede_emitir(punto),
             "emision_motivo": motivo_emision(punto),
             "proximo_numero": proximo_numero(venta.tipo_comprobante),
-            "punto": punto_para(venta.tipo_comprobante),
+            "punto": punto,
             "subtotal": subtotal,
             "total": total,
             "vuelto": vuelto_venta(venta),
@@ -209,16 +234,21 @@ class PuntoVentaView(LoginRequiredMixin, View):
                 {"valor": monto, "txt": formatear_guaranies(monto)}
                 for monto in importes_rapidos(total)
             ],
+            "subtotal_entero": int(subtotal),
             "subtotal_txt": _dinero(subtotal),
             "total_txt": _dinero(total),
+            "iva_label": iva_label,
+            "iva_txt": _dinero(iva_monto),
+            "descuento_pct_txt": formatear_porcentaje(descuento_pct),
             "descuento_txt": formatear_guaranies(venta.descuento or 0),
             "recibido_txt": formatear_guaranies(venta.importe_recibido or 0),
             "vuelto_txt": _dinero(vuelto_venta(venta)),
             "unidades_txt": formatear_cantidad(
                 sum((linea.cantidad for linea in lineas), Decimal("0"))
             ),
-            "cliente_label": (str(venta.cliente) if venta.cliente_id else "Consumidor final"),
+            "cliente_label": (str(venta.cliente) if venta.cliente_id else ""),
             "caja_label": venta.caja.nombre_corto if venta.caja_id else "Sin caja",
+            "cliente_ocasional": cliente_ocasional(),
         }
 
 
@@ -242,14 +272,24 @@ class BuscarProductosView(LoginRequiredMixin, View):
 class BuscarClientesView(LoginRequiredMixin, View):
     def get(self, request):
         query = request.GET.get("q", "")
-        resultados = [
-            {
-                "id": persona.pk,
-                "label": str(persona),
-            }
-            for persona in buscar_clientes(query)
-        ]
-        return JsonResponse({"resultados": resultados})
+        return JsonResponse({"resultados": buscar_clientes_pos(query)})
+
+    def post(self, request):
+        venta = borrador(request.user)
+        try:
+            cliente = asegurar_cliente_desde_consulta(
+                ruc=request.POST.get("ruc", ""),
+                query=request.POST.get("q", ""),
+            )
+            actualizar_cabecera(venta, cliente=cliente)
+        except ValidationError as exc:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"error": _error(exc)}, status=400)
+            messages.error(request, _error(exc))
+            return redirect("punto_de_venta")
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"id": cliente.pk, "label": str(cliente)})
+        return redirect("punto_de_venta")
 
 
 class AgregarProductoView(LoginRequiredMixin, View):
@@ -279,6 +319,8 @@ class LineaVentaView(LoginRequiredMixin, View):
             elif accion == "unidad":
                 unidad = get_object_or_404(UnidadMedida, pk=request.POST.get("unidad"))
                 cambiar_unidad(detalle, unidad)
+            elif accion == "descuento":
+                cambiar_descuento(detalle, request.POST.get("descuento") or 0)
             else:
                 actual = detalle.cantidad
                 if accion == "mas":
