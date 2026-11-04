@@ -101,7 +101,11 @@ def precio_en_unidad(item, unidad) -> Decimal:
 
 def unidades_del_item(item):
     vistas = [{"id": item.unidad_medida_id, "simbolo": item.unidad_medida.simbolo}]
+    vistos = {item.unidad_medida_id}
     for relacion in item.unidades.all():
+        if relacion.unidad_medida_id in vistos:
+            continue
+        vistos.add(relacion.unidad_medida_id)
         vistas.append({"id": relacion.unidad_medida_id, "simbolo": relacion.unidad_medida.simbolo})
     return vistas
 
@@ -702,6 +706,8 @@ def interpretar_secuencial(valor, por_defecto: int) -> int:
         return por_defecto
     if not texto.isdigit():
         raise ValidationError("El número de factura solo admite dígitos.", code="numero")
+    if len(texto) > 7:
+        raise ValidationError("El número de factura admite hasta 7 dígitos.", code="numero")
     return int(texto)
 
 

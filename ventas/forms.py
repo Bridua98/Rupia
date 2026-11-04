@@ -1,6 +1,7 @@
 from django import forms
 
 from core.forms import RupiaModelForm
+from core.timbrado import LONGITUD_TIMBRADO, MENSAJE_TIMBRADO, interpretar_timbrado
 from ventas.models import PuntoExpedicion, TipoComprobante
 
 
@@ -26,6 +27,13 @@ class TimbradoForm(RupiaModelForm):
         ]
         widgets = {
             "tipo": forms.Select(attrs={"autofocus": True}),
+            "timbrado": forms.TextInput(
+                attrs={
+                    "maxlength": str(LONGITUD_TIMBRADO),
+                    "inputmode": "numeric",
+                    "autocomplete": "off",
+                }
+            ),
             "vigencia_desde": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
             "vigencia_hasta": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
         }
@@ -45,7 +53,7 @@ class TimbradoForm(RupiaModelForm):
             },
             "timbrado": {
                 "required": "Escribí el timbrado.",
-                "max_length": "El timbrado admite hasta 20 caracteres.",
+                "max_length": MENSAJE_TIMBRADO,
             },
             "vigencia_desde": {
                 "required": "Escribí la vigencia desde.",
@@ -79,6 +87,12 @@ class TimbradoForm(RupiaModelForm):
         super().__init__(*args, **kwargs)
         self.fields["numero_proximo"].required = False
         self.fields["tipo"].choices = [("", "---------"), *TipoComprobante.choices]
+        self.fields["timbrado"].max_length = LONGITUD_TIMBRADO
+        self.fields["timbrado"].min_length = LONGITUD_TIMBRADO
+        self.fields["timbrado"].error_messages["min_length"] = MENSAJE_TIMBRADO
+
+    def clean_timbrado(self):
+        return interpretar_timbrado(self.cleaned_data.get("timbrado"))
 
     def clean(self):
         cleaned = super().clean()

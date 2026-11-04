@@ -394,6 +394,11 @@ class PuntoVentaView(PosPermisoView):
             "unidades_txt": formatear_cantidad(
                 sum((linea.cantidad for linea in lineas), Decimal("0"))
             ),
+            "persona_nueva_url": (
+                f"{reverse('persona_list')}?nueva=1&cliente=1"
+                if tiene_permiso(self.request.user, "personas", "alta")
+                else ""
+            ),
             "cliente_label": (str(venta.cliente) if venta.cliente_id else ""),
             "caja_label": venta.caja.nombre_corto if venta.caja_id else "Sin caja",
             "cliente_ocasional": cliente_ocasional(),

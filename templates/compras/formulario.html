@@ -11,6 +11,7 @@
   data-buscar="{% url 'compra_buscar' %}"
   data-numero-url="{% url 'compra_numero' %}"
   data-proveedores="{% url 'compra_proveedores' %}"
+  {% if persona_nueva_url %}data-persona-nueva="{{ persona_nueva_url }}"{% endif %}
   {% if hay_precios %}data-compra-precios="1"{% endif %}
 >
   <section class="pos-sale">
@@ -101,11 +102,11 @@
                       {% if linea.codigo %} · {{ linea.codigo }}{% endif %}
                       {% if not linea.es_gasto %} · IVA {{ linea.tasa }}%{% if linea.unidad_negocio %} · {{ linea.unidad_negocio }}{% endif %}{% endif %}
                     </span>
-                    {% if linea.unidades|length > 1 %}
+                    {% if linea.unidades %}
                       <form class="pos-inline" method="post" action="{% url 'compra_linea' linea.pk %}">
                         {% csrf_token %}
                         <input type="hidden" name="accion" value="unidad">
-                        <select name="unidad" onchange="this.form.submit()" aria-label="Unidad">
+                        <select name="unidad" onchange="this.form.submit()" aria-label="Unidad"{% if linea.unidades|length == 1 %} disabled{% endif %}>
                           {% for unidad in linea.unidades %}
                             <option value="{{ unidad.id }}"{% if unidad.id == linea.unidad_id %} selected{% endif %}>{{ unidad.simbolo }}</option>
                           {% endfor %}
@@ -159,7 +160,20 @@
                 <form method="post" action="{% url 'compra_linea' linea.pk %}" class="pos-stepper">
                   {% csrf_token %}
                   <button type="submit" name="accion" value="menos" aria-label="Menos">−</button>
-                  <span>{{ linea.cantidad_txt }}</span>
+                  <input
+                    type="text"
+                    name="cantidad"
+                    value="{{ linea.cantidad_txt }}"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    data-cantidad="py"
+                    data-cantidad-decimales="3"
+                    data-cantidad-max="9"
+                    data-cantidad-miles="."
+                    data-cantidad-decimal=","
+                    aria-label="Cantidad"
+                    onchange="this.form.submit()"
+                  >
                   <button type="submit" name="accion" value="mas" aria-label="Más">+</button>
                 </form>
               </td>
@@ -244,7 +258,7 @@
           </p>
           <label class="field">
             <span>Timbrado</span>
-            <input type="text" name="timbrado" value="{{ timbrado_txt }}" maxlength="20" form="compra-cabecera" data-compra-timbrado aria-label="Timbrado">
+            <input type="text" name="timbrado" value="{{ timbrado_txt }}" maxlength="8" inputmode="numeric" autocomplete="off" form="compra-cabecera" data-compra-timbrado aria-label="Timbrado">
           </label>
           <div class="pos-factura-num-big">
             <input type="text" name="numero_establecimiento" value="{{ numero_establecimiento }}" maxlength="3" inputmode="numeric" aria-label="Establecimiento" form="compra-cabecera" data-compra-num-est>
@@ -332,5 +346,6 @@
 {% block scripts %}
 {{ block.super }}
 <script src="{% static 'js/rupia-moneda.js' %}"></script>
+<script src="{% static 'js/rupia-cantidad.js' %}"></script>
 <script src="{% static 'js/rupia-compra.js' %}"></script>
 {% endblock %}

@@ -315,6 +315,8 @@
   [numEst, numPto, numSec, timbrado].forEach(function (el) {
     if (!el) return;
     el.addEventListener("input", function () {
+      var max = el === timbrado ? 8 : (el === numSec ? 7 : 3);
+      el.value = String(el.value || "").replace(/\D/g, "").slice(0, max);
       pintarProximo();
       clearTimeout(numeroTimer);
       numeroTimer = setTimeout(function () { validarNumero(); }, 250);
@@ -322,9 +324,29 @@
   });
   pintarProximo();
 
+  function personaNuevaUrl() {
+    return root.getAttribute("data-persona-nueva") || "";
+  }
+
+  function abrirNuevaPersona() {
+    var base = personaNuevaUrl();
+    if (!base) return;
+    var url = new URL(base, window.location.origin);
+    var q = proveedorQ ? proveedorQ.value.trim() : "";
+    if (q) {
+      if (/^\d[\d.-]*$/.test(q)) url.searchParams.set("documento", q);
+      else url.searchParams.set("razon_social", q);
+    }
+    window.open(url.toString(), "rupia_persona", "popup=yes,width=960,height=780");
+  }
+
   function pintarProveedores(items) {
     if (!proveedorSuggest) return;
-    proveedorItems = items || [];
+    var q = proveedorQ ? proveedorQ.value.trim() : "";
+    proveedorItems = (items || []).slice();
+    if (personaNuevaUrl() && q) {
+      proveedorItems.push({ nueva: true, label: "Nueva persona" });
+    }
     proveedorActivo = proveedorItems.length ? 0 : -1;
     proveedorSuggest.innerHTML = "";
     if (!proveedorItems.length) {
@@ -333,7 +355,17 @@
     }
     proveedorItems.forEach(function (item, index) {
       var li = document.createElement("li");
-      li.textContent = item.label || "";
+      if (item.nueva) {
+        li.className = "is-action";
+        var titulo = document.createElement("strong");
+        titulo.textContent = item.label;
+        li.appendChild(titulo);
+        var detalle = document.createElement("small");
+        detalle.textContent = "Abrir la ficha para cargar un proveedor.";
+        li.appendChild(detalle);
+      } else {
+        li.textContent = item.label || "";
+      }
       if (index === proveedorActivo) li.classList.add("is-on");
       li.addEventListener("click", function () { elegirProveedor(item); });
       proveedorSuggest.appendChild(li);
@@ -350,6 +382,10 @@
 
   function elegirProveedor(item) {
     if (!item) return;
+    if (item.nueva) {
+      abrirNuevaPersona();
+      return;
+    }
     if (item.id && cabecera) {
       var hidden = cabecera.querySelector("input[name='proveedor']");
       if (!hidden) {

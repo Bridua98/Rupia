@@ -237,6 +237,8 @@ class MantenimientoListView(
             return False
         if self.request.GET.get("ver") == "1":
             return True
+        if not getattr(self, "update_url_name", ""):
+            return True
         formulario = getattr(self, "permiso_formulario", "")
         if formulario and not tiene_permiso(self.request.user, formulario, "modificar"):
             return True
@@ -316,6 +318,8 @@ class MantenimientoListView(
     def _panel_form(self, nueva, selected):
         if self.panel_form_override is not None:
             form = self.panel_form_override
+        elif not getattr(self, "form_class", None):
+            return None
         elif nueva:
             form = self.form_class()
         elif selected:
@@ -360,8 +364,21 @@ class MantenimientoListView(
 
         detail_open = view_open or panel_form is not None
         edit_url = ""
-        if view_open and panel_object:
+        if (
+            view_open
+            and panel_object
+            and getattr(self, "update_url_name", "")
+            and self.puede("modificar")
+        ):
             edit_url = self.list_query(**{self.selection_param: panel_object.pk})
+        update_url_name = getattr(self, "update_url_name", "")
+        create_url_name = getattr(self, "create_url_name", "")
+        if not viewing and panel_object and update_url_name:
+            panel_action = reverse(update_url_name, args=[panel_object.pk])
+        elif not viewing and create_url_name:
+            panel_action = reverse(create_url_name)
+        else:
+            panel_action = ""
 
         context.update(
             {
@@ -386,15 +403,7 @@ class MantenimientoListView(
                 "panel_form": panel_form,
                 "panel_object": panel_object,
                 "edit_url": edit_url,
-                "panel_action": (
-                    reverse(self.update_url_name, args=[panel_object.pk])
-                    if panel_object
-                    else (
-                        reverse(self.create_url_name)
-                        if getattr(self, "create_url_name", "")
-                        else ""
-                    )
-                ),
+                "panel_action": panel_action,
                 "close_url": self.list_query(),
                 "print_url": (
                     self._salida_url(self.print_url_name) if self.puede("exportar") else ""
