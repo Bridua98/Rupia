@@ -82,3 +82,21 @@ def test_alta_exige_permiso(client, django_user_model):
     assert lista.status_code == 200
     assert "Nueva compra" not in lista.content.decode()
     assert client.get("/compras/nueva/").status_code == 403
+
+
+@pytest.mark.django_db
+def test_ver_compra_abre_el_panel(ingresada):
+    compra = _confirmar_factura(ingresada)
+    response = ingresada.get(f"/compras/?compra={compra.pk}&ver=1")
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert compra.numero_completo in content
+    assert "Datos del registro" in content
+    assert "rupia-badge is-vigente" in content
+    assert "view-panel is-anulado" not in content
+
+    ingresada.post(f"/compras/{compra.pk}/anular/")
+    anulada = ingresada.get(f"/compras/?compra={compra.pk}&ver=1").content.decode()
+    assert "view-panel is-anulado" in anulada
+    assert "rupia-badge is-anulado" in anulada
+    assert "Este registro está anulado." in anulada

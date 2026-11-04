@@ -10,8 +10,10 @@ from inventario.models import (
     ItemCategoria,
     ItemMovimiento,
     ItemPrecioHistorial,
+    ItemUnidad,
     Marca,
     OrigenPrecio,
+    RelacionUnidad,
     TasaIva,
     TipoItem,
     TipoMovimiento,
@@ -126,6 +128,8 @@ def test_formulario_muestra_cuenta_y_tipos(ingresada):
     assert 'value="FAC_CON"' in content
     assert 'value="FAC_CRE"' in content
     assert 'value="EGRESO"' in content
+    assert "data-compra-guardar" in content
+    assert "data-compra-confirmar" in content
 
 
 @pytest.mark.django_db
@@ -322,3 +326,103 @@ def test_no_afecta_precios_si_dice_que_no(ingresada):
     assert item.ultimo_costo == Decimal("10000")
     assert item.precio == Decimal("12000")
     assert ItemPrecioHistorial.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_cantidad_acepta_coma_y_tres_decimales(ingresada):
+    _preparar()
+    ingresada.post("/compras/nueva/agregar/", {"q": "PROD-001"})
+    detalle = CompraDetalle.objects.get()
+    pagina = ingresada.get("/compras/nueva/")
+    content = pagina.content.decode()
+    assert 'name="cantidad"' in content
+    assert 'data-cantidad="py"' in content
+    assert 'src="/static/js/rupia-cantidad.js"' in content
+
+    ingresada.post(
+        f"/compras/nueva/lineas/{detalle.pk}/",
+        {"cantidad": "1,250"},
+    )
+    detalle.refresh_from_db()
+    assert detalle.cantidad == Decimal("1.250")
+
+
+@pytest.mark.django_db
+def test_solo_unidades_vinculadas(ingresada):
+    _preparar()
+    item = Item.objects.get(codigo_barra="PROD-001")
+    caja, _ = UnidadMedida.objects.get_or_create(
+        descripcion="Caja", defaults={"simbolo": "Cj"}
+    )
+    suelta, _ = UnidadMedida.objects.get_or_create(
+        descripcion="Suelta", defaults={"simbolo": "Su"}
+    )
+    ItemUnidad.objects.create(
+        item=item,
+        unidad_medida=caja,
+        relacion=RelacionUnidad.MAYOR,
+        valor=Decimal("12"),
+    )
+    ingresada.post("/compras/nueva/agregar/", {"q": "PROD-001"})
+    detalle = CompraDetalle.objects.get()
+    content = ingresada.get("/compras/nueva/").content.decode()
+    assert f'value="{item.unidad_medida_id}"' in content
+    assert f'value="{caja.pk}"' in content
+    assert f'value="{suelta.pk}"' not in content
+
+    rechazada = ingresada.post(
+        f"/compras/nueva/lineas/{detalle.pk}/",
+        {"accion": "unidad", "unidad": str(suelta.pk)},
+    )
+    assert rechazada.status_code == 302
+    detalle.refresh_from_db()
+    assert detalle.unidad_medida_id == item.unidad_medida_id
+
+    ingresada.post(
+        f"/compras/nueva/lineas/{detalle.pk}/",
+        {"accion": "unidad", "unidad": str(caja.pk)},
+    )
+    detalle.refresh_from_db()
+    assert detalle.unidad_medida_id == caja.pk
+
+
+@pytest.mark.django_db
+def test_buscador_ofrece_nueva_persona(ingresada):
+    content = ingresada.get("/compras/nueva/").content.decode()
+    assert 'data-persona-nueva="/personas/?nueva=1&amp;proveedor=1"' in content
+
+
+@pytest.mark.django_db
+def test_timbrado_de_ocho_digitos_y_factura_de_siete(ingresada):
+    cuenta, proveedor, _item = _preparar()
+    ingresada.post("/compras/nueva/agregar/", {"q": "PROD-001"})
+    detalle = CompraDetalle.objects.get()
+    ingresada.post(
+        f"/compras/nueva/lineas/{detalle.pk}/",
+        {"accion": "costo", "costo": "8.000"},
+    )
+    pagina = ingresada.get("/compras/nueva/").content.decode()
+    assert 'name="timbrado"' in pagina
+    assert 'maxlength="8"' in pagina
+    assert 'name="numero_secuencial"' in pagina
+    assert 'maxlength="7"' in pagina
+
+    corta = ingresada.post(
+        "/compras/nueva/confirmar/",
+        _cabecera(cuenta, proveedor, timbrado="1234567"),
+    )
+    assert Compra.objects.filter(estado=EstadoCompra.CONFIRMADA).count() == 0
+    assert corta.status_code == 302
+
+    ingresada.post(
+        "/compras/nueva/confirmar/",
+        _cabecera(
+            cuenta,
+            proveedor,
+            timbrado="12345678",
+            numero_secuencial="1234567",
+        ),
+    )
+    compra = Compra.objects.get(estado=EstadoCompra.CONFIRMADA)
+    assert compra.timbrado == "12345678"
+    assert compra.numero_completo == "001-001-1234567"

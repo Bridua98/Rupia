@@ -30,6 +30,27 @@ def test_listado_pide_ingreso(client):
 
 
 @pytest.mark.django_db
+def test_listado_muestra_boton_punto_de_venta(ingresada):
+    content = ingresada.get("/ventas/").content.decode()
+    assert 'button-create" href="/ventas/punto-de-venta/"' in content
+    assert ">Punto de venta</span>" in content
+
+
+@pytest.mark.django_db
+def test_listado_sin_permiso_pos_oculta_boton(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        "backoffice", "backoffice@rupia.local", "Clave-inicial-Rupia-2026"
+    )
+    perfil = Perfil.objects.create(descripcion="Backoffice")
+    for accion in ("ver", "anular", "exportar"):
+        PerfilPermiso.objects.create(perfil=perfil, formulario="ventas", accion=accion)
+    perfil.usuarios.add(user)
+    client.force_login(user)
+    content = client.get("/ventas/").content.decode()
+    assert 'button-create" href="/ventas/punto-de-venta/"' not in content
+
+
+@pytest.mark.django_db
 def test_listado_exige_permiso(client, django_user_model):
     user = django_user_model.objects.create_user(
         "cajero", "cajero@rupia.local", "Clave-inicial-Rupia-2026"
@@ -126,6 +147,24 @@ def test_no_anula_dos_veces(ingresada):
     venta.refresh_from_db()
     assert venta.tipo_anulacion == TipoAnulacion.FISICA
     assert "ya está anulada" in ingresada.get("/ventas/").content.decode()
+
+
+@pytest.mark.django_db
+def test_ver_venta_pinta_situacion(ingresada):
+    _preparar()
+    venta = _cobrar_ticket(ingresada)
+    content = ingresada.get(f"/ventas/?venta={venta.pk}&ver=1").content.decode()
+    assert "rupia-badge is-vigente" in content
+    assert "view-panel is-anulado" not in content
+
+    ingresada.post(
+        f"/ventas/{venta.pk}/anular/",
+        {"tipo_anulacion": TipoAnulacion.FISICA},
+    )
+    anulada = ingresada.get(f"/ventas/?venta={venta.pk}&ver=1").content.decode()
+    assert "view-panel is-anulado" in anulada
+    assert "rupia-badge is-anulado" in anulada
+    assert "Este registro está anulado." in anulada
 
 
 @pytest.mark.django_db

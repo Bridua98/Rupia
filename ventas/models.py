@@ -55,7 +55,7 @@ class PuntoExpedicion(models.Model):
     )
     timbrado = models.CharField(
         "timbrado",
-        max_length=20,
+        max_length=8,
         db_column="puntexpe_timbrado",
     )
     vigencia_desde = models.DateField(
@@ -246,7 +246,7 @@ class Venta(models.Model):
     )
     timbrado = models.CharField(
         "timbrado",
-        max_length=20,
+        max_length=8,
         blank=True,
         db_column="vent_timbrado",
     )

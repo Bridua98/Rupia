@@ -153,6 +153,8 @@ def test_agregar_por_descripcion_y_codigo(ingresada):
     assert "Nueva venta" in content
     assert 'value="TICKET"' in content
     assert 'value="FACTURA"' in content
+    assert "data-pos-guardar" in content
+    assert "data-pos-cobrar" in content
 
     ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "Bombón"})
     ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-002"})
@@ -288,8 +290,17 @@ def test_ticket_y_factura_avanzan_series_distintas(ingresada):
     ticket = Venta.objects.get(tipo_comprobante=TipoComprobante.TICKET, estado=EstadoVenta.COBRADA)
     assert ticket.numero_completo == "001-001-0000124"
     ticket_html = ingresada.get(f"/ventas/{ticket.pk}/ticket/").content.decode()
-    assert "Timbrado 12345678" in ticket_html
+    assert 'data-ticket-formato="80mm"' in ticket_html
+    assert "Rupia SA" in ticket_html
+    assert "N° venta" in ticket_html
     assert "001-001-0000124" in ticket_html
+    assert "Fecha" in ticket_html
+    assert "Hora" in ticket_html
+    assert "Cant." in ticket_html
+    assert "Descripción" in ticket_html
+    assert "Monto" in ticket_html
+    assert "Total" in ticket_html
+    assert "Bombón de helado sabor frutillas" in ticket_html
 
     ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
     response = ingresada.post(

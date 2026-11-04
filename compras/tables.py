@@ -4,6 +4,7 @@ from django.urls import reverse
 from compras.models import Compra, EstadoCompra
 from core.moneda import html_guaranies
 from core.tables import ATTRS_MONEDA, ActionMenuColumn
+from core.vista import html_situacion
 
 
 def compra_row_actions(record, table=None):
@@ -79,7 +80,7 @@ class CompraTable(tables.Table):
         return str(value) if value else "—"
 
     def render_estado(self, value, record):
-        return record.get_estado_display()
+        return html_situacion(value, record.get_estado_display())
 
     def render_importe(self, value):
         return html_guaranies(value or 0)

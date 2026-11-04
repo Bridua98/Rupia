@@ -2,6 +2,7 @@ import django_tables2 as tables
 from django.utils.html import format_html_join
 
 from core.tables import ActionMenuColumn
+from core.vista import html_bool
 from personas.models import Persona
 
 
@@ -38,4 +39,4 @@ class PersonaTable(tables.Table):
         )
 
     def render_activo(self, value):
-        return "Sí" if value else "No"
+        return html_bool(value)

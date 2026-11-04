@@ -66,7 +66,25 @@ class PersonaMantenimiento:
 
 
 class PersonaListView(PersonaMantenimiento, MantenimientoListView):
-    pass
+    def _panel_form(self, nueva, selected):
+        form = super()._panel_form(nueva, selected)
+        if not nueva or form is None or form.is_bound:
+            return form
+        if self.request.GET.get("proveedor") == "1":
+            form.initial["es_proveedor"] = True
+            form.fields["es_proveedor"].initial = True
+        if self.request.GET.get("cliente") == "1":
+            form.initial["es_cliente"] = True
+            form.fields["es_cliente"].initial = True
+        documento = (self.request.GET.get("documento") or "").strip()
+        if documento:
+            form.initial["documento"] = documento
+            form.fields["documento"].initial = documento
+        razon = (self.request.GET.get("razon_social") or "").strip()
+        if razon:
+            form.initial["razon_social"] = razon
+            form.fields["razon_social"].initial = razon
+        return form
 
 
 class PersonaCreateView(PersonaMantenimiento, MantenimientoCreateView):

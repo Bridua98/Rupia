@@ -45,8 +45,9 @@ from compras.models import (
     formatear_numero_factura,
 )
 from compras.tables import CompraTable
-from configuracion.permisos import PermisoRequeridoMixin
-from core.cantidad import formatear_cantidad
+from configuracion.permisos import PermisoRequeridoMixin, tiene_permiso
+from core.cantidad import formatear_cantidad, interpretar_cantidad
+from core.timbrado import interpretar_timbrado
 from core.listado import (
     apply_filters,
     apply_search,
@@ -290,6 +291,11 @@ class CompraFormView(CompraPermisoView):
             "numero_secuencial": (f"{compra.secuencial:07d}" if compra.secuencial else ""),
             "timbrado_txt": compra.timbrado or "",
             "numero_visor": compra.numero_completo or "—",
+            "persona_nueva_url": (
+                f"{reverse('persona_list')}?nueva=1&proveedor=1"
+                if tiene_permiso(self.request.user, "personas", "alta")
+                else ""
+            ),
         }
 
 
@@ -335,8 +341,8 @@ class BuscarItemsView(CompraPermisoView):
 class ValidarNumeroView(CompraPermisoView):
     def get(self, request):
         compra = borrador(request.user)
-        timbrado = (request.GET.get("timbrado") or "").strip()
         try:
+            timbrado = interpretar_timbrado(request.GET.get("timbrado"))
             establecimiento = interpretar_serie_compra(
                 request.GET.get("establecimiento") or "001",
                 "establecimiento",
@@ -346,8 +352,6 @@ class ValidarNumeroView(CompraPermisoView):
         except ValidationError as exc:
             return JsonResponse({"ok": False, "error": _error(exc)}, status=400)
         numero = formatear_numero_factura(establecimiento, codigo, secuencial)
-        if not timbrado:
-            return JsonResponse({"ok": False, "numero": numero, "error": "Escribí el timbrado."})
         if numero_ya_usado(compra.proveedor_id, timbrado, numero, excluir=compra.pk):
             return JsonResponse(
                 {
@@ -426,7 +430,10 @@ class LineaCompraView(CompraPermisoView):
                 elif accion == "menos":
                     cambiar_cantidad(detalle, actual - 1)
                 elif request.POST.get("cantidad") not in (None, ""):
-                    cambiar_cantidad(detalle, Decimal(request.POST.get("cantidad")))
+                    crudo = interpretar_cantidad(request.POST.get("cantidad"))
+                    if not crudo:
+                        raise ValidationError("Escribí la cantidad.", code="cantidad")
+                    cambiar_cantidad(detalle, Decimal(crudo))
         except ValidationError as exc:
             messages.error(request, _error(exc))
         return redirect("compra_nueva")

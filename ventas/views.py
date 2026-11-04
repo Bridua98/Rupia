@@ -8,6 +8,7 @@ from django.db.models.functions import Coalesce
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views import View
 
 from configuracion.permisos import PermisoRequeridoMixin, tiene_permiso
@@ -161,6 +162,11 @@ class VentaListado:
     title = "Ventas"
     create_label = ""
     show_create = False
+    stage_action_url_name = "punto_de_venta"
+    stage_action_label = "Punto de venta"
+    stage_action_icon = "bag"
+    stage_action_permiso_formulario = "punto_de_venta"
+    stage_action_permiso_accion = "ver"
     list_hint = "Flechas para moverse. Enter abre la venta."
     search_label = "Buscar"
     search_placeholder = "Buscar por número, cliente o timbrado..."
@@ -394,6 +400,11 @@ class PuntoVentaView(PosPermisoView):
             "unidades_txt": formatear_cantidad(
                 sum((linea.cantidad for linea in lineas), Decimal("0"))
             ),
+            "persona_nueva_url": (
+                f"{reverse('persona_list')}?nueva=1&cliente=1"
+                if tiene_permiso(self.request.user, "personas", "alta")
+                else ""
+            ),
             "cliente_label": (str(venta.cliente) if venta.cliente_id else ""),
             "caja_label": venta.caja.nombre_corto if venta.caja_id else "Sin caja",
             "cliente_ocasional": cliente_ocasional(),
@@ -596,6 +607,7 @@ class ComprobanteView(LoginRequiredMixin, View):
             raise Http404()
         iva = liquidar_iva(venta)
         lineas = lineas_vista(venta)
+        ahora = timezone.localtime()
         return render(
             request,
             self.template_name,
@@ -603,6 +615,7 @@ class ComprobanteView(LoginRequiredMixin, View):
                 "venta": venta,
                 "lineas": lineas,
                 "iva": iva,
+                "hora_txt": ahora.strftime("%H:%M"),
                 "subtotal_txt": _dinero(iva.subtotal),
                 "descuento_txt": _dinero(iva.descuento),
                 "total_txt": _dinero(iva.total),

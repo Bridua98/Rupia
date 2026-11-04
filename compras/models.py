@@ -58,7 +58,7 @@ class Compra(models.Model):
     )
     timbrado = models.CharField(
         "timbrado",
-        max_length=20,
+        max_length=8,
         blank=True,
         db_column="compr_timbrado",
     )

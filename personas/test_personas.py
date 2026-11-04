@@ -237,6 +237,19 @@ def test_guardar_y_seguir_abre_otra_ficha(ingresada):
 
 
 @pytest.mark.django_db
+def test_nueva_persona_desde_compras_marca_proveedor(ingresada):
+    response = ingresada.get(
+        "/personas/?nueva=1&proveedor=1&razon_social=Proveedor%20nuevo"
+    )
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Nueva persona" in content
+    assert "Proveedor nuevo" in content
+    assert 'id="id_es_proveedor"' in content
+    assert 'id="id_es_proveedor" checked' in content
+
+
+@pytest.mark.django_db
 def test_formulario_usa_personal_y_fecha_nativa(ingresada):
     response = ingresada.get("/personas/?nueva=1")
 

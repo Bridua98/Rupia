@@ -24,7 +24,7 @@ from core.listado import (
     listado_query_params,
     search_fields_for,
 )
-from core.vista import build_view_context, view_queryset
+from core.vista import build_view_context, record_anulado, view_queryset
 
 
 def _skip_export(column):
@@ -163,6 +163,11 @@ class MantenimientoListView(
     force_nueva = False
     selected_override = None
     show_create = True
+    stage_action_url_name = ""
+    stage_action_label = ""
+    stage_action_icon = "arrow-right"
+    stage_action_permiso_formulario = ""
+    stage_action_permiso_accion = "ver"
     permiso_accion = "ver"
     form_fields_template = "core/form_fields.html"
     view_exclude = ()
@@ -236,6 +241,8 @@ class MantenimientoListView(
         if self.panel_pk() is None:
             return False
         if self.request.GET.get("ver") == "1":
+            return True
+        if not getattr(self, "update_url_name", ""):
             return True
         formulario = getattr(self, "permiso_formulario", "")
         if formulario and not tiene_permiso(self.request.user, formulario, "modificar"):
@@ -316,6 +323,8 @@ class MantenimientoListView(
     def _panel_form(self, nueva, selected):
         if self.panel_form_override is not None:
             form = self.panel_form_override
+        elif not getattr(self, "form_class", None):
+            return None
         elif nueva:
             form = self.form_class()
         elif selected:
@@ -337,6 +346,16 @@ class MantenimientoListView(
 
     def _view_record(self, pk):
         return self.get_view_record_queryset().get(pk=pk)
+
+    def _stage_action_url(self):
+        url_name = getattr(self, "stage_action_url_name", "")
+        if not url_name:
+            return ""
+        formulario = getattr(self, "stage_action_permiso_formulario", "")
+        accion = getattr(self, "stage_action_permiso_accion", "ver")
+        if formulario and not tiene_permiso(self.request.user, formulario, accion):
+            return ""
+        return reverse(url_name)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -360,8 +379,21 @@ class MantenimientoListView(
 
         detail_open = view_open or panel_form is not None
         edit_url = ""
-        if view_open and panel_object:
+        if (
+            view_open
+            and panel_object
+            and getattr(self, "update_url_name", "")
+            and self.puede("modificar")
+        ):
             edit_url = self.list_query(**{self.selection_param: panel_object.pk})
+        update_url_name = getattr(self, "update_url_name", "")
+        create_url_name = getattr(self, "create_url_name", "")
+        if not viewing and panel_object and update_url_name:
+            panel_action = reverse(update_url_name, args=[panel_object.pk])
+        elif not viewing and create_url_name:
+            panel_action = reverse(create_url_name)
+        else:
+            panel_action = ""
 
         context.update(
             {
@@ -373,6 +405,9 @@ class MantenimientoListView(
                 "create_url": self.list_query(nueva=1),
                 "create_label": self.create_label,
                 "show_create": self.show_create and self.puede("alta"),
+                "stage_action_url": self._stage_action_url(),
+                "stage_action_label": getattr(self, "stage_action_label", ""),
+                "stage_action_icon": getattr(self, "stage_action_icon", "arrow-right"),
                 "form_fields_template": getattr(
                     self, "form_fields_template", "core/form_fields.html"
                 ),
@@ -386,15 +421,7 @@ class MantenimientoListView(
                 "panel_form": panel_form,
                 "panel_object": panel_object,
                 "edit_url": edit_url,
-                "panel_action": (
-                    reverse(self.update_url_name, args=[panel_object.pk])
-                    if panel_object
-                    else (
-                        reverse(self.create_url_name)
-                        if getattr(self, "create_url_name", "")
-                        else ""
-                    )
-                ),
+                "panel_action": panel_action,
                 "close_url": self.list_query(),
                 "print_url": (
                     self._salida_url(self.print_url_name) if self.puede("exportar") else ""
@@ -419,6 +446,7 @@ class MantenimientoListView(
             "row_attrs": {
                 "data-id": lambda record: record.pk,
                 "data-href": lambda record: self.list_query(**{self.selection_param: record.pk}),
+                "class": lambda record: "is-anulado" if record_anulado(record) else "",
                 "aria-selected": lambda record: (
                     "true" if record.pk == self.selected_pk() else "false"
                 ),

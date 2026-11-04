@@ -71,6 +71,18 @@ def test_alta_ticket_y_factura(ingresada):
 
 
 @pytest.mark.django_db
+def test_timbrado_exige_ocho_digitos(ingresada):
+    corto = ingresada.post("/ventas/timbrados/nueva/", _payload(timbrado="1234567"))
+    assert corto.status_code == 200
+    assert "8 dígitos" in corto.content.decode()
+    assert PuntoExpedicion.objects.count() == 0
+
+    largo = ingresada.post("/ventas/timbrados/nueva/", _payload(timbrado="123456789"))
+    assert largo.status_code == 200
+    assert PuntoExpedicion.objects.count() == 0
+
+
+@pytest.mark.django_db
 def test_no_repite_tipo(ingresada):
     ingresada.post("/ventas/timbrados/nueva/", _payload())
     repetido = ingresada.post("/ventas/timbrados/nueva/", _payload(timbrado="99999999"))

@@ -21,6 +21,12 @@
       </div>
       <div class="stage-actions">
         {% include "core/output_menu.html" %}
+        {% if stage_action_url %}
+          <a class="button button-create" href="{{ stage_action_url }}">
+            {% include "core/icon.html" with name=stage_action_icon %}
+            <span>{{ stage_action_label }}</span>
+          </a>
+        {% endif %}
         {% if show_create %}
           <a class="button button-create" href="{{ create_url }}">
             {% include "core/icon.html" with name="plus" %}

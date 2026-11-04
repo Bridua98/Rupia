@@ -6,6 +6,7 @@ from django.utils.safestring import mark_safe
 from core.cantidad import html_cantidad
 from core.moneda import html_guaranies
 from core.tables import ATTRS_MONEDA, ATTRS_NUM, ActionMenuColumn
+from core.vista import html_bool
 from inventario.models import (
     Item,
     ItemCategoria,
@@ -220,7 +221,7 @@ class PrecioHistorialTable(tables.Table):
         return format(value, "f").rstrip("0").replace(".", ",")
 
     def render_segun_costo(self, value):
-        return "Sí" if value else "No"
+        return html_bool(value)
 
 
 def _clase_movimiento(record):
