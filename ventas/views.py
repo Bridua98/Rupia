@@ -2,14 +2,23 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import DecimalField, F, Sum, Value
+from django.db.models.functions import Coalesce
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 
-from configuracion.permisos import PermisoRequeridoMixin
+from configuracion.permisos import PermisoRequeridoMixin, tiene_permiso
 from core.cantidad import formatear_cantidad
+from core.listado import (
+    apply_filters,
+    apply_search,
+    filter_specs_for,
+    filter_values,
+    search_fields_for,
+)
 from core.mantenimiento import (
     MantenimientoCreateView,
     MantenimientoDeleteView,
@@ -23,6 +32,7 @@ from personas.models import Persona
 from ventas.cobro import (
     actualizar_cabecera,
     agregar_producto,
+    anular,
     asegurar_cliente_desde_consulta,
     borrador,
     buscar_clientes_pos,
@@ -60,12 +70,13 @@ from ventas.models import (
     EstadoVenta,
     MedioPago,
     PuntoExpedicion,
+    TipoAnulacion,
     TipoComprobante,
     Venta,
     VentaDetalle,
     formatear_numero_comprobante,
 )
-from ventas.tables import TimbradoTable
+from ventas.tables import TimbradoTable, VentaTable
 
 
 def _dinero(valor) -> str:
@@ -139,6 +150,116 @@ class TimbradoMantenimiento:
 
 class TimbradoListView(TimbradoMantenimiento, MantenimientoListView):
     pass
+
+
+class VentaListado:
+    model = Venta
+    table_class = VentaTable
+    permiso_formulario = "ventas"
+    page_title = "Ventas"
+    eyebrow = "Ventas"
+    title = "Ventas"
+    create_label = ""
+    show_create = False
+    list_hint = "Flechas para moverse. Enter abre la venta."
+    search_label = "Buscar"
+    search_placeholder = "Buscar por número, cliente o timbrado..."
+    search_field = "numero_completo"
+    search_fields = ("numero_completo", "cliente__razon_social", "timbrado")
+    filters = (
+        {
+            "name": "tipo_comprobante",
+            "label": "Comprobante",
+            "kind": "choice",
+            "choices": TipoComprobante.choices,
+        },
+        {
+            "name": "estado",
+            "label": "Estado",
+            "kind": "choice",
+            "choices": (
+                (EstadoVenta.COBRADA, "Cobrada"),
+                (EstadoVenta.ANULADA, "Anulada"),
+            ),
+        },
+        {
+            "name": "fecha_desde",
+            "label": "Desde",
+            "kind": "date",
+            "field": "fecha",
+            "lookup": "gte",
+        },
+        {
+            "name": "fecha_hasta",
+            "label": "Hasta",
+            "kind": "date",
+            "field": "fecha",
+            "lookup": "lte",
+        },
+    )
+    selection_param = "venta"
+    record_noun = "venta"
+    order_by = ("-fecha", "-pk")
+    list_url_name = "venta_list"
+    print_url_name = "venta_print"
+    export_xlsx_url_name = "venta_export_xlsx"
+    export_pdf_url_name = "venta_export_pdf"
+    export_basename = "ventas"
+    view_exclude = (
+        "punto",
+        "vigencia_desde",
+        "vigencia_hasta",
+        "establecimiento",
+        "punto_codigo",
+        "secuencial",
+        "emisor_razon_social",
+        "emisor_ruc",
+        "emisor_direccion",
+        "emisor_telefono",
+        "emisor_actividad",
+    )
+
+
+class VentaListView(VentaListado, MantenimientoListView):
+    def get_queryset(self):
+        cero = Value(0, output_field=DecimalField(max_digits=15, decimal_places=3))
+        importe = Coalesce(Sum("detalles__subtotal"), cero) - Coalesce(F("descuento"), cero)
+        queryset = (
+            self.model.objects.filter(
+                estado__in=(EstadoVenta.COBRADA, EstadoVenta.ANULADA)
+            )
+            .select_related("cliente")
+            .annotate(importe=importe)
+            .order_by(*self.order_by)
+        )
+        queryset = apply_search(queryset, self.query(), search_fields_for(self))
+        specs = filter_specs_for(self)
+        return apply_filters(queryset, filter_values(self.request, specs), specs)
+
+    def get_table(self, **kwargs):
+        table = super().get_table(**kwargs)
+        table.puede_anular = self.puede("anular")
+        return table
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["edit_url"] = ""
+        return context
+
+
+class AnularVentaView(LoginRequiredMixin, PermisoRequeridoMixin, View):
+    permiso_formulario = "ventas"
+    permiso_accion = "anular"
+
+    def post(self, request, pk):
+        venta = get_object_or_404(Venta, pk=pk)
+        tipo = request.POST.get("tipo_anulacion") or TipoAnulacion.FISICA
+        try:
+            anular(venta, tipo, usuario=request.user)
+            messages.success(request, f"Se anuló {venta}.")
+        except ValidationError as exc:
+            messages.error(request, _error(exc))
+        return redirect("venta_list")
 
 
 class TimbradoCreateView(TimbradoMantenimiento, MantenimientoCreateView):
@@ -453,15 +574,22 @@ class CancelarVentaView(PosPermisoView):
         return redirect("punto_de_venta")
 
 
-class ComprobanteView(PosPermisoView):
+class ComprobanteView(LoginRequiredMixin, View):
     tipo = TipoComprobante.TICKET
     template_name = "ventas/ticket.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not (
+            tiene_permiso(request.user, "punto_de_venta", "ver")
+            or tiene_permiso(request.user, "ventas", "ver")
+        ):
+            raise PermissionDenied("No tenés permiso para esta acción.")
+        return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, pk):
         venta = get_object_or_404(
             Venta.objects.select_related("cliente", "caja", "cuenta_cobro"),
             pk=pk,
-            usuario=request.user,
             estado=EstadoVenta.COBRADA,
         )
         if venta.tipo_comprobante != self.tipo:

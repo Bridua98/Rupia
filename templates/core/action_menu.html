@@ -43,10 +43,28 @@
       <p class="action-menu-confirm-text" data-confirm-text></p>
       <form method="post" class="action-menu-confirm-form" data-delete-form>
         {% csrf_token %}
+        {% for action in actions %}
+          {% if action.confirm_choices %}
+            <fieldset class="action-menu-choices">
+              <legend class="sr-only">Tipo de anulación</legend>
+              {% for choice in action.confirm_choices %}
+                <label class="action-menu-choice">
+                  <input
+                    type="radio"
+                    name="{{ action.confirm_field }}"
+                    value="{{ choice.value }}"
+                    {% if choice.checked %}checked{% endif %}
+                  >
+                  <span>{{ choice.label }}</span>
+                </label>
+              {% endfor %}
+            </fieldset>
+          {% endif %}
+        {% endfor %}
         <div class="action-menu-confirm-actions">
           <button type="submit" class="button button-danger button-compact">
             {% include "core/icon.html" with name="trash" %}
-            <span>Eliminar</span>
+            <span>{% for action in actions %}{% if action.delete_url %}{{ action.submit_label|default:"Eliminar" }}{% endif %}{% empty %}Eliminar{% endfor %}</span>
           </button>
           <button type="button" class="button button-ghost button-compact" data-delete-cancel>
             {% include "core/icon.html" with name="x" %}

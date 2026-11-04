@@ -1467,6 +1467,10 @@ button.topbar-icon:hover {
     visibility 180ms ease;
 }
 
+.action-menu-panel:has(.action-menu-choices) {
+  min-width: 18.5rem;
+}
+
 .action-menu.is-open .action-menu-panel {
   opacity: 1;
   visibility: visible;
@@ -1525,6 +1529,28 @@ button.topbar-icon:hover {
   margin: 0 0 0.75rem;
   color: var(--ink);
   font-size: 0.9375rem;
+}
+
+.action-menu-choices {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  border: 0;
+}
+
+.action-menu-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.action-menu-choice input {
+  margin-top: 0.15rem;
 }
 
 .action-menu-confirm-actions {

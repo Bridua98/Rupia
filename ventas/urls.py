@@ -3,6 +3,7 @@ from django.urls import path
 from core.mantenimiento import mantenimiento_salida
 from ventas.views import (
     AgregarProductoView,
+    AnularVentaView,
     BuscarClientesView,
     BuscarProductosView,
     CancelarVentaView,
@@ -16,9 +17,27 @@ from ventas.views import (
     TimbradoListView,
     TimbradoUpdateView,
     ValidarNumeroView,
+    VentaListView,
 )
 
 urlpatterns = [
+    path("", VentaListView.as_view(), name="venta_list"),
+    path(
+        "imprimir/",
+        mantenimiento_salida(VentaListView, "print").as_view(),
+        name="venta_print",
+    ),
+    path(
+        "exportar.xlsx",
+        mantenimiento_salida(VentaListView, "xlsx").as_view(),
+        name="venta_export_xlsx",
+    ),
+    path(
+        "exportar.pdf",
+        mantenimiento_salida(VentaListView, "pdf").as_view(),
+        name="venta_export_pdf",
+    ),
+    path("<int:pk>/anular/", AnularVentaView.as_view(), name="venta_anular"),
     path("timbrados/", TimbradoListView.as_view(), name="timbrado_list"),
     path(
         "timbrados/imprimir/",

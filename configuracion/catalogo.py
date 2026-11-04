@@ -21,6 +21,7 @@ ACCION_ELIMINAR = Accion("eliminar", "Eliminar")
 ACCION_EXPORTAR = Accion("exportar", "Exportar")
 ACCION_COBRAR = Accion("cobrar", "Cobrar")
 ACCION_CANCELAR = Accion("cancelar", "Cancelar")
+ACCION_ANULAR = Accion("anular", "Anular")
 ACCION_CLAVE = Accion("clave", "Cambiar contraseña")
 
 ACCIONES_MANTENIMIENTO = (
@@ -37,6 +38,11 @@ FORMULARIOS = (
         "punto_de_venta",
         "Punto de venta",
         (ACCION_VER, ACCION_COBRAR, ACCION_CANCELAR),
+    ),
+    Formulario(
+        "ventas",
+        "Ventas",
+        (ACCION_VER, ACCION_ANULAR, ACCION_EXPORTAR),
     ),
     Formulario("personas", "Personas", ACCIONES_MANTENIMIENTO),
     Formulario("cuentas", "Cuentas", ACCIONES_MANTENIMIENTO),
@@ -86,6 +92,7 @@ COLUMNAS_MATRIZ = (
     ACCION_EXPORTAR,
     ACCION_COBRAR,
     ACCION_CANCELAR,
+    ACCION_ANULAR,
     ACCION_CLAVE,
 )
 
