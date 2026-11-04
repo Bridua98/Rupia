@@ -14,6 +14,7 @@ from django.views.generic import CreateView, UpdateView
 from django_tables2 import SingleTableView
 from xhtml2pdf import pisa
 
+from configuracion.permisos import PermisoRequeridoMixin, tiene_permiso
 from core.listado import (
     apply_filters,
     apply_search,
@@ -126,7 +127,10 @@ class ListadoExportMixin:
 
 
 def mantenimiento_salida(list_view_class, kind):
-    class SalidaView(LoginRequiredMixin, View):
+    class SalidaView(LoginRequiredMixin, PermisoRequeridoMixin, View):
+        permiso_formulario = getattr(list_view_class, "permiso_formulario", "")
+        permiso_accion = "exportar"
+
         def get(self, request, *args, **kwargs):
             listado = list_view_class()
             listado.setup(request, *args, **kwargs)
@@ -140,7 +144,9 @@ def mantenimiento_salida(list_view_class, kind):
     return SalidaView
 
 
-class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableView):
+class MantenimientoListView(
+    ListadoExportMixin, LoginRequiredMixin, PermisoRequeridoMixin, SingleTableView
+):
     template_name = "core/mantenimiento_list.html"
     per_page = 10
     search_field = "descripcion"
@@ -157,6 +163,9 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
     force_nueva = False
     selected_override = None
     show_create = True
+    permiso_accion = "ver"
+    form_fields_template = "core/form_fields.html"
+    view_exclude = ()
 
     def get_table_pagination(self, table):
         if not self.per_page:
@@ -224,9 +233,20 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
     def viewing(self):
         if self.creating():
             return False
-        if self.request.GET.get("ver") != "1":
+        if self.panel_pk() is None:
             return False
-        return self.panel_pk() is not None
+        if self.request.GET.get("ver") == "1":
+            return True
+        formulario = getattr(self, "permiso_formulario", "")
+        if formulario and not tiene_permiso(self.request.user, formulario, "modificar"):
+            return True
+        return False
+
+    def puede(self, accion):
+        formulario = getattr(self, "permiso_formulario", "")
+        if not formulario:
+            return True
+        return tiene_permiso(self.request.user, formulario, accion)
 
     def panel_pk(self):
         if self.creating():
@@ -268,8 +288,13 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
         table = super().get_table(**kwargs)
         table.list_query = self.list_query
         table.selection_param = self.selection_param
-        table.update_url_name = getattr(self, "update_url_name", "")
-        table.delete_url_name = getattr(self, "delete_url_name", "")
+        table.update_url_name = (
+            getattr(self, "update_url_name", "") if self.puede("modificar") else ""
+        )
+        table.delete_url_name = (
+            getattr(self, "delete_url_name", "") if self.puede("eliminar") else ""
+        )
+        table.permiso_formulario = getattr(self, "permiso_formulario", "")
         self._visible_pks = [row.record.pk for row in table.paginated_rows]
         return table
 
@@ -325,7 +350,7 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
 
         if viewing and selected:
             record = self._view_record(selected)
-            view_context = build_view_context(record)
+            view_context = self.build_panel_view_context(record)
             view_open = True
             panel_object = record
         elif not viewing:
@@ -347,7 +372,10 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
                 "list_url": reverse(self.list_url_name),
                 "create_url": self.list_query(nueva=1),
                 "create_label": self.create_label,
-                "show_create": self.show_create,
+                "show_create": self.show_create and self.puede("alta"),
+                "form_fields_template": getattr(
+                    self, "form_fields_template", "core/form_fields.html"
+                ),
                 "record_count": self._listado_record_count(),
                 "list_hint": self.list_hint,
                 "query": self.query(),
@@ -368,14 +396,23 @@ class MantenimientoListView(ListadoExportMixin, LoginRequiredMixin, SingleTableV
                     )
                 ),
                 "close_url": self.list_query(),
-                "print_url": self._salida_url(self.print_url_name),
-                "export_xlsx_url": self._salida_url(self.export_xlsx_url_name),
-                "export_pdf_url": self._salida_url(self.export_pdf_url_name),
+                "print_url": (
+                    self._salida_url(self.print_url_name) if self.puede("exportar") else ""
+                ),
+                "export_xlsx_url": (
+                    self._salida_url(self.export_xlsx_url_name) if self.puede("exportar") else ""
+                ),
+                "export_pdf_url": (
+                    self._salida_url(self.export_pdf_url_name) if self.puede("exportar") else ""
+                ),
             }
         )
         context.update(view_context)
         context.update(self._filter_context())
         return context
+
+    def build_panel_view_context(self, record):
+        return build_view_context(record, exclude=getattr(self, "view_exclude", ()))
 
     def get_table_kwargs(self):
         return {
@@ -430,15 +467,21 @@ class MantenimientoWriteMixin:
         return listado.get(self.request)
 
 
-class MantenimientoCreateView(LoginRequiredMixin, MantenimientoWriteMixin, CreateView):
-    pass
+class MantenimientoCreateView(
+    LoginRequiredMixin, PermisoRequeridoMixin, MantenimientoWriteMixin, CreateView
+):
+    permiso_accion = "alta"
 
 
-class MantenimientoUpdateView(LoginRequiredMixin, MantenimientoWriteMixin, UpdateView):
-    pass
+class MantenimientoUpdateView(
+    LoginRequiredMixin, PermisoRequeridoMixin, MantenimientoWriteMixin, UpdateView
+):
+    permiso_accion = "modificar"
 
 
-class MantenimientoDeleteView(LoginRequiredMixin, View):
+class MantenimientoDeleteView(LoginRequiredMixin, PermisoRequeridoMixin, View):
+    permiso_accion = "eliminar"
+
     def post(self, request, pk):
         obj = get_object_or_404(self.model, pk=pk)
         label = str(obj)

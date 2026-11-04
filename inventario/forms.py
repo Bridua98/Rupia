@@ -116,6 +116,7 @@ registrar(
     form=MarcaForm,
     search_fields=("descripcion",),
     create_label="Nueva marca",
+    formulario="marcas",
 )
 registrar(
     "categoria",
@@ -123,6 +124,7 @@ registrar(
     form=CategoriaForm,
     search_fields=("descripcion",),
     create_label="Nueva categoría",
+    formulario="categorias",
 )
 registrar(
     "unidad",
@@ -130,6 +132,7 @@ registrar(
     form=UnidadForm,
     search_fields=("descripcion", "simbolo"),
     create_label="Nueva unidad",
+    formulario="unidades",
 )
 
 

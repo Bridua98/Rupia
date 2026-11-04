@@ -1,7 +1,6 @@
-from urllib.parse import urlencode
-
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.http import FileResponse, Http404
@@ -10,6 +9,7 @@ from django.urls import reverse
 from django.views import View
 from django_tables2 import SingleTableView
 
+from configuracion.permisos import PermisoRequeridoMixin, tiene_permiso
 from core.listado import (
     apply_filters,
     apply_search,
@@ -58,6 +58,7 @@ class MarcaMantenimiento:
     model = Marca
     form_class = MarcaForm
     table_class = MarcaTable
+    permiso_formulario = "marcas"
     page_title = "Marcas"
     eyebrow = "Inventario"
     title = "Marcas"
@@ -99,6 +100,7 @@ class CategoriaMantenimiento:
     model = ItemCategoria
     form_class = CategoriaForm
     table_class = CategoriaTable
+    permiso_formulario = "categorias"
     page_title = "Categorías"
     eyebrow = "Inventario"
     title = "Categorías"
@@ -140,6 +142,7 @@ class UnidadMantenimiento:
     model = UnidadMedida
     form_class = UnidadForm
     table_class = UnidadTable
+    permiso_formulario = "unidades"
     page_title = "Unidades de medida"
     eyebrow = "Inventario"
     title = "Unidades de medida"
@@ -182,6 +185,7 @@ class ItemMantenimiento:
     model = Item
     form_class = ItemForm
     table_class = ItemTable
+    permiso_formulario = "items"
     page_title = "Ítems"
     eyebrow = "Inventario"
     title = "Ítems"
@@ -318,13 +322,19 @@ class ItemDeleteView(ItemMantenimiento, MantenimientoDeleteView):
 
 class ItemImagenView(LoginRequiredMixin, View):
     def get(self, request, nombre):
+        if not (
+            tiene_permiso(request.user, "items", "ver")
+            or tiene_permiso(request.user, "punto_de_venta", "ver")
+        ):
+            raise PermissionDenied("No tenés permiso para esta acción.")
         destino = resolver_imagen(nombre)
         if destino is None:
             raise Http404
         return FileResponse(destino.open("rb"))
 
 
-class PrecioListView(LoginRequiredMixin, SingleTableView):
+class PrecioListView(LoginRequiredMixin, PermisoRequeridoMixin, SingleTableView):
+    permiso_formulario = "precios"
     template_name = "inventario/precios.html"
     table_class = PrecioTable
     model = Item
@@ -399,6 +409,8 @@ class PrecioListView(LoginRequiredMixin, SingleTableView):
         porcentaje = self.ajuste_form.cleaned_data["porcentaje"]
         self.todos_filtrados = bool(self.ajuste_form.cleaned_data.get("todos_filtrados"))
         if request.POST.get("accion") == "aplicar":
+            if not tiene_permiso(request.user, "precios", "modificar"):
+                raise PermissionDenied("No tenés permiso para esta acción.")
             destino = self._objetivo()
             if destino is None:
                 self.ajuste_form.add_error(None, "Elegí al menos un ítem.")
@@ -488,6 +500,7 @@ class PrecioListView(LoginRequiredMixin, SingleTableView):
                 "filters_open": bool(explicit) or self.request.GET.get("filtros") == "1",
                 "active_filter_count": active,
                 "ajuste_form": self.ajuste_form,
+                "puede_ajustar": tiene_permiso(self.request.user, "precios", "modificar"),
             }
         )
         return context
@@ -496,6 +509,7 @@ class PrecioListView(LoginRequiredMixin, SingleTableView):
 class PrecioHistorialMantenimiento:
     model = ItemPrecioHistorial
     table_class = PrecioHistorialTable
+    permiso_formulario = "precios"
     page_title = "Historial de precios"
     eyebrow = "Inventario"
     title = "Historial de precios"

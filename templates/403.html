@@ -1,0 +1,19 @@
+{% extends "app.html" %}
+
+{% block title %}Sin permiso · Rupia{% endblock %}
+
+{% block work %}
+<div class="dash">
+  <header class="dash-head">
+    <p class="eyebrow">Acceso</p>
+    <h1>No tenés permiso para esta acción.</h1>
+    <p class="lede">Pedile a quien administra el sistema que revise tu perfil.</p>
+    <p>
+      <a class="button" href="{% url 'home' %}">
+        {% include "core/icon.html" with name="home" %}
+        <span>Volver al inicio</span>
+      </a>
+    </p>
+  </header>
+</div>
+{% endblock %}

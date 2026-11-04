@@ -13,6 +13,7 @@ class UnidadNegocioMantenimiento:
     model = UnidadNegocio
     form_class = UnidadNegocioForm
     table_class = UnidadNegocioTable
+    permiso_formulario = "unidades_negocio"
     page_title = "Unidades de negocio"
     eyebrow = "Inventario"
     title = "Unidades de negocio"

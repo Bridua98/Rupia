@@ -49,4 +49,5 @@ registrar(
     form=UnidadNegocioForm,
     search_fields=("descripcion", "abreviado"),
     create_label="Nueva unidad de negocio",
+    formulario="unidades_negocio",
 )

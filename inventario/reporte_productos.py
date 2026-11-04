@@ -52,6 +52,7 @@ def _specs_movimiento(view):
 class ReporteProductosListView(MantenimientoListView):
     template_name = "inventario/reporte_productos_list.html"
     model = ItemMovimiento
+    permiso_formulario = "reporte_productos"
     page_title = "Reporte de productos"
     eyebrow = "Inventario"
     title = "Reporte de productos"
