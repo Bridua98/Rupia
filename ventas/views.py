@@ -5,6 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views import View
 
 from core.cantidad import formatear_cantidad
@@ -38,10 +39,13 @@ from ventas.cobro import (
     factura_pide_cliente,
     formatear_porcentaje,
     importes_rapidos,
+    interpretar_secuencial,
+    interpretar_serie,
     lineas_vista,
     liquidar_iva,
     medios_disponibles,
     motivo_pos,
+    numero_ya_usado,
     proximo_numero,
     puede_cobrar,
     punto_de,
@@ -58,6 +62,7 @@ from ventas.models import (
     TipoComprobante,
     Venta,
     VentaDetalle,
+    formatear_numero_comprobante,
 )
 from ventas.tables import TimbradoTable
 
@@ -204,9 +209,7 @@ class PuntoVentaView(LoginRequiredMixin, View):
         else:
             iva_label = "IVA"
         if subtotal > 0 and venta.descuento:
-            descuento_pct = (venta.descuento * Decimal("100") / subtotal).quantize(
-                Decimal("0.01")
-            )
+            descuento_pct = (venta.descuento * Decimal("100") / subtotal).quantize(Decimal("0.01"))
         else:
             descuento_pct = Decimal("0")
         pide_cliente = factura_pide_cliente(venta)
@@ -231,6 +234,17 @@ class PuntoVentaView(LoginRequiredMixin, View):
                 for monto in importes_rapidos(total)
             ],
             "subtotal_entero": int(subtotal),
+            "total_entero": int(total),
+            "numero_establecimiento": (
+                venta.establecimiento or (punto.establecimiento if punto else "")
+            ),
+            "numero_punto": (venta.punto_codigo or (punto.codigo if punto else "")),
+            "numero_secuencial": (
+                f"{venta.secuencial:07d}"
+                if venta.secuencial
+                else (f"{punto.numero_proximo:07d}" if punto else "")
+            ),
+            "timbrado_txt": (punto.timbrado if punto else ""),
             "subtotal_txt": _dinero(subtotal),
             "total_txt": _dinero(total),
             "iva_label": iva_label,
@@ -251,18 +265,74 @@ class PuntoVentaView(LoginRequiredMixin, View):
 class BuscarProductosView(LoginRequiredMixin, View):
     def get(self, request):
         query = request.GET.get("q", "")
+        try:
+            limite = min(20, max(1, int(request.GET.get("limite") or 20)))
+        except (TypeError, ValueError):
+            limite = 20
+        try:
+            offset = max(0, int(request.GET.get("offset") or 0))
+        except (TypeError, ValueError):
+            offset = 0
+        hallados = buscar_productos(query, limite=limite + 1, offset=offset, catalogo=True)
+        hay_mas = len(hallados) > limite
+        hallados = hallados[:limite]
         resultados = []
-        for item in buscar_productos(query):
+        for item in hallados:
             resultados.append(
                 {
                     "id": item.pk,
                     "descripcion": item.descripcion,
+                    "marca": item.marca.descripcion if item.marca_id else "",
                     "codigo": item.codigo_barra or "",
                     "precio": _dinero(item.precio or 0),
                     "unidad": item.unidad_medida.simbolo,
+                    "imagen": reverse("item_imagen", args=[item.imagen]) if item.imagen else "",
                 }
             )
-        return JsonResponse({"resultados": resultados})
+        return JsonResponse(
+            {
+                "resultados": resultados,
+                "hay_mas": hay_mas,
+                "offset": offset,
+                "siguiente": offset + len(resultados),
+            }
+        )
+
+
+class ValidarNumeroView(LoginRequiredMixin, View):
+    def get(self, request):
+        venta = borrador(request.user)
+        punto = punto_de(venta.tipo_comprobante)
+        if punto is None:
+            return JsonResponse(
+                {"ok": False, "error": "No hay un timbrado registrado para ese comprobante."},
+                status=400,
+            )
+        try:
+            establecimiento = interpretar_serie(
+                request.GET.get("establecimiento"),
+                punto.establecimiento,
+                "establecimiento",
+            )
+            codigo = interpretar_serie(request.GET.get("punto"), punto.codigo, "punto")
+            secuencial = interpretar_secuencial(request.GET.get("secuencial"), punto.numero_proximo)
+        except ValidationError as exc:
+            return JsonResponse({"ok": False, "error": _error(exc)}, status=400)
+        if not (punto.numero_desde <= secuencial <= punto.numero_hasta):
+            return JsonResponse(
+                {"ok": False, "error": "Ese número está fuera del rango del timbrado."},
+                status=400,
+            )
+        numero = formatear_numero_comprobante(establecimiento, codigo, secuencial)
+        if numero_ya_usado(punto.timbrado, numero):
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "numero": numero,
+                    "error": "Ya hay un comprobante con ese timbrado y número.",
+                }
+            )
+        return JsonResponse({"ok": True, "numero": numero, "timbrado": punto.timbrado})
 
 
 class BuscarClientesView(LoginRequiredMixin, View):
@@ -336,7 +406,12 @@ class ConfirmarVentaView(LoginRequiredMixin, View):
         try:
             PuntoVentaView()._aplicar(request, venta)
             venta.refresh_from_db()
-            venta = confirmar(venta)
+            venta = confirmar(
+                venta,
+                establecimiento=request.POST.get("numero_establecimiento"),
+                punto_codigo=request.POST.get("numero_punto"),
+                secuencial=request.POST.get("numero_secuencial"),
+            )
         except ValidationError as exc:
             messages.error(request, _error(exc))
             return redirect("punto_de_venta")

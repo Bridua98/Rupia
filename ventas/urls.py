@@ -15,6 +15,7 @@ from ventas.views import (
     TimbradoDeleteView,
     TimbradoListView,
     TimbradoUpdateView,
+    ValidarNumeroView,
 )
 
 urlpatterns = [
@@ -46,6 +47,11 @@ urlpatterns = [
         "punto-de-venta/buscar/",
         BuscarProductosView.as_view(),
         name="punto_de_venta_buscar",
+    ),
+    path(
+        "punto-de-venta/numero/",
+        ValidarNumeroView.as_view(),
+        name="punto_de_venta_numero",
     ),
     path(
         "punto-de-venta/clientes/",

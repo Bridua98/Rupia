@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q, Sum
 from django.utils import timezone
 
@@ -52,6 +52,7 @@ class LiquidacionIva:
 class LineaVista:
     pk: int
     descripcion: str
+    marca: str
     codigo: str
     unidad_id: int
     unidad: str
@@ -337,17 +338,25 @@ def _prorratear_descuento(importes: dict, descuento: Decimal, subtotal: Decimal)
     }
 
 
-def buscar_productos(query: str, *, limite=12):
+def buscar_productos(query: str, *, limite=12, offset=0, catalogo=False):
     query = (query or "").strip()
+    offset = max(0, int(offset or 0))
+    limite = max(1, int(limite or 12))
     productos = Item.objects.filter(activo=True, tipo=TipoItem.PRODUCTO).select_related(
         "marca",
         "categoria",
         "unidad_medida",
     )
     if not query:
-        return productos.none()
+        if catalogo:
+            return list(
+                productos.order_by("marca__descripcion", "descripcion")[
+                    offset : offset + limite
+                ]
+            )
+        return list(productos.none())
     exacto = list(productos.filter(codigo_barra__iexact=query)[:2])
-    if len(exacto) == 1:
+    if len(exacto) == 1 and offset == 0:
         return exacto
     return list(
         productos.filter(
@@ -355,7 +364,7 @@ def buscar_productos(query: str, *, limite=12):
             | Q(codigo_barra__icontains=query)
             | Q(marca__descripcion__icontains=query)
             | Q(categoria__descripcion__icontains=query)
-        ).order_by("descripcion")[:limite]
+        ).order_by("marca__descripcion", "descripcion")[offset : offset + limite]
     )
 
 
@@ -498,9 +507,7 @@ def cambiar_cantidad(detalle, cantidad):
         return None
     detalle.cantidad = cantidad
     detalle.precio = precio_en_unidad(detalle.item, detalle.unidad_medida)
-    detalle.subtotal = importe_linea(
-        detalle.precio, detalle.cantidad, detalle.descuento_porcentaje
-    )
+    detalle.subtotal = importe_linea(detalle.precio, detalle.cantidad, detalle.descuento_porcentaje)
     detalle.save(update_fields=["cantidad", "precio", "subtotal"])
     return detalle
 
@@ -525,9 +532,7 @@ def cambiar_unidad(detalle, unidad):
         return otra
     detalle.unidad_medida = unidad
     detalle.precio = precio_en_unidad(item, unidad)
-    detalle.subtotal = importe_linea(
-        detalle.precio, detalle.cantidad, detalle.descuento_porcentaje
-    )
+    detalle.subtotal = importe_linea(detalle.precio, detalle.cantidad, detalle.descuento_porcentaje)
     detalle.save(update_fields=["unidad_medida", "precio", "subtotal"])
     return detalle
 
@@ -540,9 +545,7 @@ def cambiar_descuento(detalle, porcentaje):
         raise ValidationError("Escribí un descuento en porcentaje.", code="descuento") from exc
     detalle.descuento_porcentaje = porcentaje.quantize(Decimal("0.01"))
     detalle.precio = precio_en_unidad(detalle.item, detalle.unidad_medida)
-    detalle.subtotal = importe_linea(
-        detalle.precio, detalle.cantidad, detalle.descuento_porcentaje
-    )
+    detalle.subtotal = importe_linea(detalle.precio, detalle.cantidad, detalle.descuento_porcentaje)
     detalle.save(update_fields=["descuento_porcentaje", "precio", "subtotal"])
     return detalle
 
@@ -628,7 +631,45 @@ def actualizar_cabecera(
     return venta
 
 
-def confirmar(venta) -> Venta:
+def interpretar_serie(valor, esperado: str, etiqueta: str) -> str:
+    texto = str(valor or "").strip()
+    if not texto:
+        return esperado
+    if not texto.isdigit():
+        raise ValidationError(f"El {etiqueta} solo admite dígitos.", code="numero")
+    texto = texto.zfill(3)
+    if texto != esperado:
+        raise ValidationError(
+            f"La numeración tiene que ser del punto {esperado}.",
+            code="numero",
+        )
+    return texto
+
+
+def interpretar_secuencial(valor, por_defecto: int) -> int:
+    texto = str(valor if valor is not None else "").strip()
+    if not texto:
+        return por_defecto
+    if not texto.isdigit():
+        raise ValidationError("El número de factura solo admite dígitos.", code="numero")
+    return int(texto)
+
+
+def numero_ya_usado(timbrado: str, numero: str) -> bool:
+    if not timbrado or not numero:
+        return False
+    return Venta.objects.filter(timbrado=timbrado, numero_completo=numero).exists()
+
+
+def exigir_numero_libre(timbrado: str, numero: str):
+    if numero_ya_usado(timbrado, numero):
+        raise ValidationError(
+            "Ya hay un comprobante con ese timbrado y número.",
+            code="numero",
+        )
+
+
+def confirmar(venta, *, establecimiento=None, punto_codigo=None, secuencial=None) -> Venta:
     _exige_borrador(venta)
     if not venta.detalles.exists():
         raise ValidationError("Agregá un producto.", code="vacia")
@@ -658,24 +699,38 @@ def confirmar(venta) -> Venta:
         _exige_borrador(venta)
         fecha = timezone.localdate()
         punto = exigir_emision(
-            PuntoExpedicion.objects.select_for_update()
-            .filter(tipo=venta.tipo_comprobante)
-            .first(),
+            PuntoExpedicion.objects.select_for_update().filter(tipo=venta.tipo_comprobante).first(),
             fecha,
         )
         _validar_stock(venta)
-        secuencial = punto.numero_proximo
-        numero = formatear_numero_comprobante(punto.establecimiento, punto.codigo, secuencial)
-        punto.numero_proximo = secuencial + 1
-        punto.save(update_fields=["numero_proximo"])
+        if venta.tipo_comprobante == TipoComprobante.FACTURA:
+            establecimiento = interpretar_serie(
+                establecimiento, punto.establecimiento, "establecimiento"
+            )
+            punto_codigo = interpretar_serie(punto_codigo, punto.codigo, "punto")
+            secuencial = interpretar_secuencial(secuencial, punto.numero_proximo)
+        else:
+            establecimiento = punto.establecimiento
+            punto_codigo = punto.codigo
+            secuencial = punto.numero_proximo
+        if not (punto.numero_desde <= secuencial <= punto.numero_hasta):
+            raise ValidationError(
+                "Ese número está fuera del rango del timbrado.",
+                code="rango",
+            )
+        numero = formatear_numero_comprobante(establecimiento, punto_codigo, secuencial)
+        exigir_numero_libre(punto.timbrado, numero)
+        if secuencial >= punto.numero_proximo:
+            punto.numero_proximo = secuencial + 1
+            punto.save(update_fields=["numero_proximo"])
         venta.fecha = fecha
         venta.estado = EstadoVenta.COBRADA
         venta.punto = punto
         venta.timbrado = punto.timbrado
         venta.vigencia_desde = punto.vigencia_desde
         venta.vigencia_hasta = punto.vigencia_hasta
-        venta.establecimiento = punto.establecimiento
-        venta.punto_codigo = punto.codigo
+        venta.establecimiento = establecimiento
+        venta.punto_codigo = punto_codigo
         venta.secuencial = secuencial
         venta.numero_completo = numero
         venta.emisor_razon_social = punto.emisor_razon_social
@@ -685,7 +740,13 @@ def confirmar(venta) -> Venta:
         venta.emisor_actividad = punto.emisor_actividad
         venta.condicion_venta = CondicionVenta.CONTADO
         venta.importe_recibido = recibido
-        venta.save()
+        try:
+            venta.save()
+        except IntegrityError as exc:
+            raise ValidationError(
+                "Ya hay un comprobante con ese timbrado y número.",
+                code="numero",
+            ) from exc
         _registrar_movimientos(venta)
     return venta
 
@@ -694,6 +755,7 @@ def lineas_vista(venta) -> list[LineaVista]:
     lineas = []
     detalles = venta.detalles.select_related(
         "item",
+        "item__marca",
         "item__unidad_medida",
         "unidad_medida",
     ).prefetch_related("item__unidades__unidad_medida")
@@ -702,6 +764,7 @@ def lineas_vista(venta) -> list[LineaVista]:
             LineaVista(
                 pk=detalle.pk,
                 descripcion=detalle.item.descripcion,
+                marca=detalle.item.marca.descripcion if detalle.item.marca_id else "",
                 codigo=detalle.item.codigo_barra or "",
                 unidad_id=detalle.unidad_medida_id,
                 unidad=detalle.unidad_medida.simbolo,
