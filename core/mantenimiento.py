@@ -24,7 +24,7 @@ from core.listado import (
     listado_query_params,
     search_fields_for,
 )
-from core.vista import build_view_context, view_queryset
+from core.vista import build_view_context, record_anulado, view_queryset
 
 
 def _skip_export(column):
@@ -428,6 +428,7 @@ class MantenimientoListView(
             "row_attrs": {
                 "data-id": lambda record: record.pk,
                 "data-href": lambda record: self.list_query(**{self.selection_param: record.pk}),
+                "class": lambda record: "is-anulado" if record_anulado(record) else "",
                 "aria-selected": lambda record: (
                     "true" if record.pk == self.selected_pk() else "false"
                 ),

@@ -128,6 +128,8 @@ def test_formulario_muestra_cuenta_y_tipos(ingresada):
     assert 'value="FAC_CON"' in content
     assert 'value="FAC_CRE"' in content
     assert 'value="EGRESO"' in content
+    assert "data-compra-guardar" in content
+    assert "data-compra-confirmar" in content
 
 
 @pytest.mark.django_db

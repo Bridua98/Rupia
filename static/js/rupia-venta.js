@@ -48,6 +48,26 @@
     return field ? field.value : "";
   }
 
+  function perteneceACabecera(el) {
+    if (!cabecera || !el) return false;
+    if (el.closest && el.closest("dialog")) return false;
+    if (cabecera.contains(el)) return true;
+    return !!(cabecera.id && el.getAttribute && el.getAttribute("form") === cabecera.id);
+  }
+
+  root.addEventListener("keydown", function (event) {
+    if (event.key !== "Enter") return;
+    var el = event.target;
+    if (el && el.closest && el.closest("[data-pos-guardar], [data-pos-cobrar]")) {
+      event.preventDefault();
+      return;
+    }
+    if (!perteneceACabecera(el)) return;
+    var tag = (el.tagName || "").toLowerCase();
+    if (tag === "textarea") return;
+    event.preventDefault();
+  });
+
   function enCampo(nodo) {
     if (!nodo) return false;
     var tag = (nodo.tagName || "").toLowerCase();

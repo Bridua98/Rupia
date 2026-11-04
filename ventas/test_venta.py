@@ -153,6 +153,8 @@ def test_agregar_por_descripcion_y_codigo(ingresada):
     assert "Nueva venta" in content
     assert 'value="TICKET"' in content
     assert 'value="FACTURA"' in content
+    assert "data-pos-guardar" in content
+    assert "data-pos-cobrar" in content
 
     ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "Bombón"})
     ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-002"})

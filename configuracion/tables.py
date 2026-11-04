@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from configuracion.models import Perfil
 from configuracion.permisos import tiene_permiso
 from core.tables import ActionMenuColumn, mantenimiento_row_actions
+from core.vista import html_bool
 
 User = get_user_model()
 
@@ -44,7 +45,7 @@ class PerfilTable(tables.Table):
         attrs = {"class": "sheet"}
 
     def render_activo(self, value):
-        return "Sí" if value else "No"
+        return html_bool(value)
 
     def render_usuarios(self, record):
         return record.usuarios.count()
@@ -75,4 +76,4 @@ class UsuarioTable(tables.Table):
         return ", ".join(nombres) if nombres else "—"
 
     def render_is_active(self, value):
-        return "Sí" if value else "No"
+        return html_bool(value)

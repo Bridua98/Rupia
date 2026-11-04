@@ -129,6 +129,24 @@ def test_no_anula_dos_veces(ingresada):
 
 
 @pytest.mark.django_db
+def test_ver_venta_pinta_situacion(ingresada):
+    _preparar()
+    venta = _cobrar_ticket(ingresada)
+    content = ingresada.get(f"/ventas/?venta={venta.pk}&ver=1").content.decode()
+    assert "rupia-badge is-vigente" in content
+    assert "view-panel is-anulado" not in content
+
+    ingresada.post(
+        f"/ventas/{venta.pk}/anular/",
+        {"tipo_anulacion": TipoAnulacion.FISICA},
+    )
+    anulada = ingresada.get(f"/ventas/?venta={venta.pk}&ver=1").content.decode()
+    assert "view-panel is-anulado" in anulada
+    assert "rupia-badge is-anulado" in anulada
+    assert "Este registro está anulado." in anulada
+
+
+@pytest.mark.django_db
 def test_reimprime_venta_de_otro_usuario(ingresada, django_user_model):
     _preparar()
     venta = _cobrar_ticket(ingresada)

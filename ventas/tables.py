@@ -3,6 +3,7 @@ from django.urls import reverse
 
 from core.moneda import formatear_guaranies
 from core.tables import ActionMenuColumn
+from core.vista import html_bool, html_situacion
 from ventas.models import EstadoVenta, PuntoExpedicion, TipoAnulacion, TipoComprobante, Venta
 
 
@@ -94,7 +95,7 @@ class TimbradoTable(tables.Table):
         return record.serie
 
     def render_habilitado(self, value):
-        return "Sí" if value else "No"
+        return html_bool(value)
 
 
 class VentaTable(tables.Table):
@@ -139,7 +140,7 @@ class VentaTable(tables.Table):
         return str(value) if value else "—"
 
     def render_estado(self, value, record):
-        return record.get_estado_display()
+        return html_situacion(value, record.get_estado_display())
 
     def render_importe(self, value):
         return formatear_guaranies(value or 0)
