@@ -30,6 +30,27 @@ def test_listado_pide_ingreso(client):
 
 
 @pytest.mark.django_db
+def test_listado_muestra_boton_punto_de_venta(ingresada):
+    content = ingresada.get("/ventas/").content.decode()
+    assert 'button-create" href="/ventas/punto-de-venta/"' in content
+    assert ">Punto de venta</span>" in content
+
+
+@pytest.mark.django_db
+def test_listado_sin_permiso_pos_oculta_boton(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        "backoffice", "backoffice@rupia.local", "Clave-inicial-Rupia-2026"
+    )
+    perfil = Perfil.objects.create(descripcion="Backoffice")
+    for accion in ("ver", "anular", "exportar"):
+        PerfilPermiso.objects.create(perfil=perfil, formulario="ventas", accion=accion)
+    perfil.usuarios.add(user)
+    client.force_login(user)
+    content = client.get("/ventas/").content.decode()
+    assert 'button-create" href="/ventas/punto-de-venta/"' not in content
+
+
+@pytest.mark.django_db
 def test_listado_exige_permiso(client, django_user_model):
     user = django_user_model.objects.create_user(
         "cajero", "cajero@rupia.local", "Clave-inicial-Rupia-2026"

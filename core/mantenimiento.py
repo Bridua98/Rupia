@@ -163,6 +163,11 @@ class MantenimientoListView(
     force_nueva = False
     selected_override = None
     show_create = True
+    stage_action_url_name = ""
+    stage_action_label = ""
+    stage_action_icon = "arrow-right"
+    stage_action_permiso_formulario = ""
+    stage_action_permiso_accion = "ver"
     permiso_accion = "ver"
     form_fields_template = "core/form_fields.html"
     view_exclude = ()
@@ -342,6 +347,16 @@ class MantenimientoListView(
     def _view_record(self, pk):
         return self.get_view_record_queryset().get(pk=pk)
 
+    def _stage_action_url(self):
+        url_name = getattr(self, "stage_action_url_name", "")
+        if not url_name:
+            return ""
+        formulario = getattr(self, "stage_action_permiso_formulario", "")
+        accion = getattr(self, "stage_action_permiso_accion", "ver")
+        if formulario and not tiene_permiso(self.request.user, formulario, accion):
+            return ""
+        return reverse(url_name)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         nueva = self.creating()
@@ -390,6 +405,9 @@ class MantenimientoListView(
                 "create_url": self.list_query(nueva=1),
                 "create_label": self.create_label,
                 "show_create": self.show_create and self.puede("alta"),
+                "stage_action_url": self._stage_action_url(),
+                "stage_action_label": getattr(self, "stage_action_label", ""),
+                "stage_action_icon": getattr(self, "stage_action_icon", "arrow-right"),
                 "form_fields_template": getattr(
                     self, "form_fields_template", "core/form_fields.html"
                 ),
