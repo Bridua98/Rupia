@@ -25,7 +25,7 @@ from core.mantenimiento import (
     MantenimientoListView,
     MantenimientoUpdateView,
 )
-from core.moneda import SIMBOLO, formatear_guaranies, interpretar_guaranies
+from core.moneda import formatear_guaranies, interpretar_guaranies, mostrar_guaranies
 from cuentas.models import Cuenta
 from inventario.models import Item, UnidadMedida
 from personas.models import Persona
@@ -80,7 +80,7 @@ from ventas.tables import TimbradoTable, VentaTable
 
 
 def _dinero(valor) -> str:
-    return f"{SIMBOLO} {formatear_guaranies(valor)}"
+    return mostrar_guaranies(valor)
 
 
 def _numero_visor(venta, punto) -> str:

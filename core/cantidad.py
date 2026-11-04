@@ -3,6 +3,8 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 from core.moneda import SEPARADOR_DECIMAL, SEPARADOR_MILES
 
@@ -20,6 +22,23 @@ def formatear_cantidad(valor, *, decimales=3) -> str:
     if int(frac) == 0:
         return signo + miles
     return signo + miles + SEPARADOR_DECIMAL + frac
+
+
+def html_cantidad(valor, *, decimales=3):
+    if valor is None:
+        return mark_safe("—")
+    numero = Decimal(valor)
+    if numero < 0:
+        tono = "is-neg"
+    elif numero == 0:
+        tono = "is-cero"
+    else:
+        tono = "is-pos"
+    return format_html(
+        '<span class="valor-num {0}" dir="ltr">{1}</span>',
+        tono,
+        formatear_cantidad(numero, decimales=decimales),
+    )
 
 
 def interpretar_cantidad(valor, *, decimales=3) -> str:

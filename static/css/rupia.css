@@ -2328,10 +2328,20 @@ body.is-visor {
   border-top: 2px solid rgba(26, 36, 33, 0.18);
   background: #f4f8f5;
   font-weight: 600;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
 }
 
 .sheet-total th {
   text-align: left;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: #5f6f69;
+}
+
+.sheet.sheet-reporte td {
+  vertical-align: middle;
 }
 
 .reporte-modo {
@@ -2339,6 +2349,12 @@ body.is-visor {
   color: var(--accent);
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+.reporte-leyenda {
+  margin: 0.35rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
 }
 
 .reporte-filtros-resumen {
@@ -2779,13 +2795,82 @@ body.is-visor {
   accent-color: var(--forest);
 }
 
-.sheet-col-moneda {
-  text-align: right;
+.sheet-col-moneda,
+.sheet-col-num,
+.sheet th.sheet-col-moneda,
+.sheet th.sheet-col-num,
+.pos-table td.pos-col-moneda {
+  text-align: left;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.sheet th.sheet-col-moneda {
+.valor-gs {
+  display: inline-grid;
+  grid-template-columns: 0.7em max-content max-content;
+  column-gap: 0.28rem;
+  align-items: baseline;
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.valor-gs.is-texto {
+  display: inline-flex;
+  grid-template-columns: none;
+  column-gap: 0;
+  gap: 0.35rem;
+}
+
+.valor-gs-signo {
   text-align: right;
+}
+
+.valor-gs-simbolo {
+  color: var(--ink-soft);
+  font-weight: 650;
+}
+
+.valor-gs-cifra,
+.valor-num {
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.valor-gs.is-neg,
+.valor-num.is-neg {
+  color: #9b3a32;
+}
+
+.valor-gs.is-neg .valor-gs-simbolo {
+  color: #b15c56;
+}
+
+.rupia-badge.is-entrada {
+  background: #e4f6eb;
+  color: #1f7a4d;
+}
+
+.rupia-badge.is-salida {
+  background: #fde8e6;
+  color: #9b3a32;
+}
+
+.sheet tbody tr.is-salida {
+  background: #fff8f7;
+}
+
+.sheet-total .valor-gs,
+.sheet-total .valor-num {
+  font-weight: 700;
+}
+
+.view-field dd:has(.valor-gs),
+.view-panel .sheet td:has(.valor-gs),
+.view-panel .sheet td:has(.valor-num) {
+  direction: ltr;
 }
 
 .sheet tbody tr:has(input[name="item"]:checked) {

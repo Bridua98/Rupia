@@ -40,8 +40,8 @@
         <tr>
           <td>{{ linea.descripcion }}</td>
           <td>{{ linea.cantidad_txt }} {{ linea.unidad }}</td>
-          <td>Gs. {{ linea.precio_txt }}</td>
-          <td>Gs. {{ linea.subtotal_txt }}</td>
+          <td class="sheet-col-moneda"><span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.precio_txt }}</span></td>
+          <td class="sheet-col-moneda"><span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.subtotal_txt }}</span></td>
         </tr>
       {% endfor %}
     </tbody>

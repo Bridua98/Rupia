@@ -2,6 +2,15 @@ import django_tables2 as tables
 from django.template.loader import render_to_string
 from django.urls import reverse
 
+ATTRS_MONEDA = {
+    "th": {"class": "sheet-col-moneda"},
+    "td": {"class": "sheet-col-moneda"},
+}
+ATTRS_NUM = {
+    "th": {"class": "sheet-col-num"},
+    "td": {"class": "sheet-col-num"},
+}
+
 
 def mantenimiento_row_actions(record, table=None):
     """Opciones estándar de un mantenimiento: Ver, Modificar y Eliminar."""

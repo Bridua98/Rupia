@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.utils import timezone
 
 from core.cantidad import formatear_cantidad
-from core.moneda import SIMBOLO, formatear_guaranies
+from core.moneda import mostrar_guaranies
 from inventario.precios import redondear_guarani
 from ventas.cobro import CERO, total_venta
 from ventas.models import EstadoVenta, Venta, VentaDetalle
@@ -52,7 +52,7 @@ class TableroVentas:
 
 
 def _dinero(valor) -> str:
-    return f"{SIMBOLO} {formatear_guaranies(valor)}"
+    return mostrar_guaranies(valor)
 
 
 def _netos_lineas(venta, lineas) -> dict[int, Decimal]:

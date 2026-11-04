@@ -3,13 +3,27 @@ from decimal import Decimal
 import pytest
 from django.core.exceptions import ValidationError
 
-from core.moneda import MonedaField, formatear_guaranies, interpretar_guaranies
+from core.moneda import (
+    MonedaField,
+    formatear_guaranies,
+    html_guaranies,
+    interpretar_guaranies,
+    mostrar_guaranies,
+)
 
 
 def test_formatea_con_punto_de_miles():
     assert formatear_guaranies(Decimal("8500")) == "8.500"
     assert formatear_guaranies(Decimal("1250000.000")) == "1.250.000"
     assert formatear_guaranies(0) == "0"
+    assert formatear_guaranies(Decimal("-2500")) == "-2.500"
+    assert mostrar_guaranies(Decimal("8500")) == "Gs. 8.500"
+    assert mostrar_guaranies(Decimal("-2500")) == "-Gs. 2.500"
+    html = str(html_guaranies(Decimal("-2500")))
+    assert "valor-gs is-neg" in html
+    assert "Gs." in html
+    assert "2.500" in html
+    assert 'dir="ltr"' in html
 
 
 def test_interpreta_guaranies_con_simbolo_y_sin_el():
