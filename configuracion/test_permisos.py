@@ -64,6 +64,7 @@ def test_menu_filtra_por_ver(client, django_user_model):
     content = response.content.decode()
 
     assert "Punto de venta" in content
+    assert 'href="/ventas/"' not in content
     assert 'href="/personas/"' not in content
     assert "Contraseña" in content
     assert "Cajero" in content

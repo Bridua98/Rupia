@@ -11,6 +11,12 @@ class TipoComprobante(models.TextChoices):
 class EstadoVenta(models.TextChoices):
     EN_CURSO = "EN_CURSO", "En curso"
     COBRADA = "COBRADA", "Cobrada"
+    ANULADA = "ANULADA", "Anulada"
+
+
+class TipoAnulacion(models.TextChoices):
+    FISICA = "FISICA", "Anulación física"
+    REUTILIZABLE = "REUTILIZABLE", "Número reutilizable"
 
 
 class MedioPago(models.TextChoices):
@@ -318,6 +324,28 @@ class Venta(models.Model):
         default=CondicionVenta.CONTADO,
         db_column="vent_condicion",
     )
+    tipo_anulacion = models.CharField(
+        "tipo de anulación",
+        max_length=12,
+        choices=TipoAnulacion.choices,
+        blank=True,
+        db_column="vent_tipo_anulacion",
+    )
+    anulado_en = models.DateTimeField(
+        "anulado en",
+        null=True,
+        blank=True,
+        db_column="vent_anulado_en",
+    )
+    anulado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="vent_anulado_por_id",
+        related_name="ventas_anuladas",
+        verbose_name="anulado por",
+    )
 
     class Meta:
         db_table = "ventas"
@@ -332,7 +360,17 @@ class Venta(models.Model):
             ),
             models.UniqueConstraint(
                 fields=["timbrado", "numero_completo"],
-                condition=models.Q(numero_completo__isnull=False) & ~models.Q(timbrado=""),
+                condition=(
+                    (
+                        models.Q(estado=EstadoVenta.COBRADA)
+                        | models.Q(
+                            estado=EstadoVenta.ANULADA,
+                            tipo_anulacion=TipoAnulacion.FISICA,
+                        )
+                    )
+                    & models.Q(numero_completo__isnull=False)
+                    & ~models.Q(timbrado="")
+                ),
                 name="ventas_timbrado_numero_completo",
             ),
         ]

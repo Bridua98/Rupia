@@ -22,6 +22,7 @@ from ventas.models import (
     EstadoVenta,
     MedioPago,
     PuntoExpedicion,
+    TipoAnulacion,
     TipoComprobante,
     Venta,
     VentaDetalle,
@@ -182,6 +183,55 @@ def cancelar(venta):
     if venta.estado != EstadoVenta.EN_CURSO:
         raise ValidationError("Esa venta ya está cobrada.", code="cobrada")
     venta.delete()
+
+
+def numero_reservado_q():
+    return Q(estado=EstadoVenta.COBRADA) | Q(
+        estado=EstadoVenta.ANULADA,
+        tipo_anulacion=TipoAnulacion.FISICA,
+    )
+
+
+def anular(venta, tipo_anulacion, usuario=None):
+    if tipo_anulacion not in TipoAnulacion.values:
+        raise ValidationError("Elegí cómo anular la venta.", code="tipo")
+    with transaction.atomic():
+        venta = Venta.objects.select_for_update().get(pk=venta.pk)
+        if venta.estado == EstadoVenta.ANULADA:
+            raise ValidationError("Esa venta ya está anulada.", code="anulada")
+        if venta.estado != EstadoVenta.COBRADA:
+            raise ValidationError("Solo se puede anular una venta cobrada.", code="estado")
+        ItemMovimiento.objects.filter(
+            tipo=TipoMovimiento.VENTA,
+            secuencia_origen=venta.numero_completo,
+            es_vigente=True,
+        ).update(es_vigente=False)
+        if tipo_anulacion == TipoAnulacion.REUTILIZABLE:
+            _liberar_numero_proximo(venta)
+        venta.estado = EstadoVenta.ANULADA
+        venta.tipo_anulacion = tipo_anulacion
+        venta.anulado_en = timezone.now()
+        venta.anulado_por = usuario
+        venta.save(
+            update_fields=[
+                "estado",
+                "tipo_anulacion",
+                "anulado_en",
+                "anulado_por",
+            ]
+        )
+    return venta
+
+
+def _liberar_numero_proximo(venta):
+    if not venta.punto_id or venta.secuencial is None:
+        return
+    punto = PuntoExpedicion.objects.select_for_update().filter(pk=venta.punto_id).first()
+    if punto is None:
+        return
+    if punto.numero_proximo == venta.secuencial + 1:
+        punto.numero_proximo = venta.secuencial
+        punto.save(update_fields=["numero_proximo"])
 
 
 def punto_de(tipo) -> PuntoExpedicion | None:
@@ -658,7 +708,11 @@ def interpretar_secuencial(valor, por_defecto: int) -> int:
 def numero_ya_usado(timbrado: str, numero: str) -> bool:
     if not timbrado or not numero:
         return False
-    return Venta.objects.filter(timbrado=timbrado, numero_completo=numero).exists()
+    return Venta.objects.filter(
+        numero_reservado_q(),
+        timbrado=timbrado,
+        numero_completo=numero,
+    ).exists()
 
 
 def exigir_numero_libre(timbrado: str, numero: str):
