@@ -107,7 +107,7 @@ class TimbradoMantenimiento:
     table_class = TimbradoTable
     permiso_formulario = "timbrados"
     page_title = "Timbrados"
-    eyebrow = "Caja"
+    eyebrow = "Gestión"
     title = "Timbrados"
     create_label = "Nuevo timbrado"
     list_hint = "Flechas para moverse. Enter abre el timbrado."

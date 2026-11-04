@@ -13,11 +13,11 @@
     <nav class="app-menu">
       <ul class="app-menu-list">
         {% for entry in menu %}
-          <li{% if entry.children %} class="app-menu-section{% if entry.expanded %} is-open{% endif %}"{% endif %}>
+          <li{% if entry.children %} class="app-menu-section{% if entry.expanded %} is-open{% endif %}{% if entry.active %} has-current{% endif %}"{% endif %}>
             {% if entry.children %}
               <button
                 type="button"
-                class="app-menu-group"
+                class="app-menu-group{% if entry.active %} is-current{% endif %}"
                 data-menu-section-toggle
                 aria-expanded="{% if entry.expanded %}true{% else %}false{% endif %}"
                 aria-controls="menu-section-{{ forloop.counter }}"
@@ -64,7 +64,7 @@
       </a>
       <form method="post" action="{% url 'logout' %}" class="session-logout-form">
         {% csrf_token %}
-        <button type="submit" class="session-logout">
+        <button type="submit" class="session-logout" title="Salir" aria-label="Salir">
           {% include "core/icon.html" with name="logout" %}
           <span>Salir</span>
         </button>

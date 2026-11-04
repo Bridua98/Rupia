@@ -15,7 +15,7 @@ class UnidadNegocioMantenimiento:
     table_class = UnidadNegocioTable
     permiso_formulario = "unidades_negocio"
     page_title = "Unidades de negocio"
-    eyebrow = "Inventario"
+    eyebrow = "Gestión"
     title = "Unidades de negocio"
     create_label = "Nueva unidad de negocio"
     list_hint = "Flechas para moverse. Enter abre la unidad de negocio."

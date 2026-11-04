@@ -41,11 +41,13 @@ def main_menu(request):
         kids = [child for child in children if child is not None]
         if not kids:
             return None
+        current = any(child.get("active") for child in kids)
         return {
             "label": label,
             "icon": icon,
             "children": kids,
-            "expanded": any(child.get("active") for child in kids),
+            "expanded": current,
+            "active": current,
         }
 
     entries = [
@@ -58,10 +60,16 @@ def main_menu(request):
         ),
         item("Personas", url_name="persona_list", icon="users", formulario="personas"),
         group(
-            "Caja",
+            "Gestión",
             [
-                item("Cuentas", url_name="cuenta_list", icon="bank", formulario="cuentas"),
                 item("Timbrados", url_name="timbrado_list", icon="receipt", formulario="timbrados"),
+                item("Cuentas", url_name="cuenta_list", icon="bank", formulario="cuentas"),
+                item(
+                    "Unidades de negocio",
+                    url_name="unidad_negocio_list",
+                    icon="building",
+                    formulario="unidades_negocio",
+                ),
             ],
             icon="cash",
         ),
@@ -80,12 +88,6 @@ def main_menu(request):
                     url_name="unidad_list",
                     icon="scale",
                     formulario="unidades",
-                ),
-                item(
-                    "Unidades de negocio",
-                    url_name="unidad_negocio_list",
-                    icon="building",
-                    formulario="unidades_negocio",
                 ),
                 item("Ítems", url_name="item_list", icon="box", formulario="items"),
                 item("Precios", url_name="precio_list", icon="percent", formulario="precios"),
