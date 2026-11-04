@@ -1,4 +1,5 @@
 import django_tables2 as tables
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -8,6 +9,7 @@ from core.moneda import formatear_guaranies
 from core.tables import ActionMenuColumn
 from core.vista import html_bool
 from inventario.models import (
+    AjusteStock,
     Item,
     ItemCategoria,
     ItemMovimiento,
@@ -320,3 +322,52 @@ class ReporteStockTable(tables.Table):
 
     def render_aviso(self, value):
         return value or "—"
+
+
+def ajuste_stock_row_actions(record, table=None):
+    if table is None:
+        return []
+    actions = [
+        {
+            "label": "Ver",
+            "icon": "eye",
+            "href": table.list_query(**{table.selection_param: record.pk, "ver": 1}),
+        }
+    ]
+    if getattr(table, "update_url_name", ""):
+        actions.append(
+            {
+                "label": "Modificar",
+                "icon": "pencil",
+                "href": reverse(table.update_url_name, args=[record.pk]),
+            }
+        )
+    if getattr(table, "delete_url_name", ""):
+        actions.append(
+            {
+                "label": "Eliminar",
+                "icon": "trash",
+                "delete_url": reverse(table.delete_url_name, args=[record.pk]),
+                "confirm_message": f"¿Eliminar {record}?",
+            }
+        )
+    return actions
+
+
+class AjusteStockTable(tables.Table):
+    numero = tables.Column(verbose_name="N.º", accessor="pk")
+    fecha = tables.Column(verbose_name="Fecha")
+    observacion = tables.Column(verbose_name="Observación")
+    lineas = tables.Column(verbose_name="Líneas", accessor="lineas")
+    acciones = ActionMenuColumn(ajuste_stock_row_actions)
+
+    class Meta:
+        model = AjusteStock
+        fields = ("numero", "fecha", "observacion", "lineas", "acciones")
+        orderable = False
+        template_name = "django_tables2/rupia.html"
+        empty_text = "Todavía no hay ajustes de stock."
+        attrs = {"class": "sheet"}
+
+    def render_fecha(self, value):
+        return value.strftime("%d/%m/%Y") if value else "—"

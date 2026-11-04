@@ -28,6 +28,7 @@ from inventario.models import (
     TipoMovimiento,
 )
 from inventario.precios import redondear_guarani
+from inventario.stock import siguiente_movimiento_id
 from inventario.unidades import convertir_a_base, redondear_cantidad
 from negocio.models import UnidadNegocio
 from personas.consulta import buscar as buscar_padron
@@ -742,18 +743,8 @@ def _secuencia(compra) -> str:
     return f"C{compra.pk}"
 
 
-def _siguiente_movimiento_id():
-    ultimo = (
-        ItemMovimiento.objects.select_for_update()
-        .order_by("-id")
-        .values_list("id", flat=True)
-        .first()
-    )
-    return (ultimo or 0) + 1
-
-
 def _registrar_movimientos(compra):
-    siguiente = _siguiente_movimiento_id()
+    siguiente = siguiente_movimiento_id()
     origen = _secuencia(compra)
     for orden, detalle in enumerate(
         compra.detalles.select_related("item", "unidad_medida"),

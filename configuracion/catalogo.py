@@ -57,6 +57,7 @@ FORMULARIOS = (
     Formulario("unidades", "Unidades de medida", ACCIONES_MANTENIMIENTO),
     Formulario("unidades_negocio", "Unidades de negocio", ACCIONES_MANTENIMIENTO),
     Formulario("items", "Ítems", ACCIONES_MANTENIMIENTO),
+    Formulario("ajustes_stock", "Ajustes de stock", ACCIONES_MANTENIMIENTO),
     Formulario(
         "precios",
         "Precios",

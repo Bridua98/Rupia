@@ -106,7 +106,7 @@ def test_movimiento_y_ajuste_de_stock(item):
         costo=Decimal("7000.000"),
         subtotal=Decimal("70000.000"),
     )
-    ajuste = AjusteStock.objects.create(id=1, fecha="2026-10-28", observacion="Conteo")
+    ajuste = AjusteStock.objects.create(id=1, fecha=date(2026, 10, 28), observacion="Conteo")
     detalle = AjusteStockDetalle.objects.create(
         id=1,
         ajuste=ajuste,

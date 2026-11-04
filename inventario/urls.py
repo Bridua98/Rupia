@@ -4,6 +4,10 @@ from core.mantenimiento import mantenimiento_salida
 from inventario.reporte_productos import ReporteProductosListView
 from inventario.reporte_stock import ReporteStockListView
 from inventario.views import (
+    AjusteStockDeleteView,
+    AjusteStockFormView,
+    AjusteStockItemView,
+    AjusteStockListView,
     CategoriaCreateView,
     CategoriaDeleteView,
     CategoriaListView,
@@ -139,6 +143,38 @@ urlpatterns = [
         "reportes/productos/exportar.pdf",
         mantenimiento_salida(ReporteProductosListView, "pdf").as_view(),
         name="reporte_productos_export_pdf",
+    ),
+    path("ajustes/", AjusteStockListView.as_view(), name="ajuste_stock_list"),
+    path(
+        "ajustes/imprimir/",
+        mantenimiento_salida(AjusteStockListView, "print").as_view(),
+        name="ajuste_stock_print",
+    ),
+    path(
+        "ajustes/exportar.xlsx",
+        mantenimiento_salida(AjusteStockListView, "xlsx").as_view(),
+        name="ajuste_stock_export_xlsx",
+    ),
+    path(
+        "ajustes/exportar.pdf",
+        mantenimiento_salida(AjusteStockListView, "pdf").as_view(),
+        name="ajuste_stock_export_pdf",
+    ),
+    path("ajustes/nuevo/", AjusteStockFormView.as_view(), name="ajuste_stock_create"),
+    path(
+        "ajustes/item/<int:pk>/",
+        AjusteStockItemView.as_view(),
+        name="ajuste_stock_item",
+    ),
+    path(
+        "ajustes/<int:pk>/editar/",
+        AjusteStockFormView.as_view(),
+        name="ajuste_stock_update",
+    ),
+    path(
+        "ajustes/<int:pk>/eliminar/",
+        AjusteStockDeleteView.as_view(),
+        name="ajuste_stock_delete",
     ),
     path("reportes/stock/", ReporteStockListView.as_view(), name="reporte_stock"),
     path(

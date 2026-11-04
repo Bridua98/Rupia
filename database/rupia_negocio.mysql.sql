@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS `items` (
 
 CREATE TABLE IF NOT EXISTS `ajustes_stock` (
   `ajusstoc_id` int unsigned NOT NULL,
-  `ajusstoc_fecha` varchar(45) NOT NULL,
+  `ajusstoc_fecha` date NOT NULL,
   `ajusstoc_observacion` varchar(45) NOT NULL,
   PRIMARY KEY (`ajusstoc_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -152,7 +152,7 @@ CREATE TABLE IF NOT EXISTS `ajustes_stock_detalles` (
   KEY `ajustes_stock_detalles_item_id` (`ajusstocdeta_item_id`),
   KEY `ajustes_stock_detalles_unidmedi_id` (`ajusstocdeta_unidmedi_id`),
   CONSTRAINT `ajustes_stock_detalles_ajusstoc_id_fk` FOREIGN KEY (`ajusstocdeta_ajusstoc_id`)
-    REFERENCES `ajustes_stock` (`ajusstoc_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+    REFERENCES `ajustes_stock` (`ajusstoc_id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `ajustes_stock_detalles_item_id_fk` FOREIGN KEY (`ajusstocdeta_item_id`)
     REFERENCES `items` (`item_id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `ajustes_stock_detalles_unidmedi_id_fk` FOREIGN KEY (`ajusstocdeta_unidmedi_id`)

@@ -75,20 +75,53 @@ class ItemMovimientoAdmin(admin.ModelAdmin):
 class AjusteStockDetalleInline(admin.TabularInline):
     model = AjusteStockDetalle
     extra = 0
-    autocomplete_fields = ("item", "unidad_medida")
+    can_delete = False
+    readonly_fields = (
+        "item",
+        "unidad_medida",
+        "cantidad_anterior",
+        "cantidad_nueva",
+        "cantidad",
+    )
 
 
 @admin.register(AjusteStock)
 class AjusteStockAdmin(admin.ModelAdmin):
     list_display = ("id", "fecha", "observacion")
-    search_fields = ("observacion", "fecha")
+    list_filter = ("fecha",)
+    search_fields = ("observacion",)
     inlines = [AjusteStockDetalleInline]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(AjusteStockDetalle)
 class AjusteStockDetalleAdmin(admin.ModelAdmin):
     list_display = ("id", "ajuste", "item", "cantidad_anterior", "cantidad_nueva", "cantidad")
-    autocomplete_fields = ("ajuste", "item", "unidad_medida")
+    readonly_fields = (
+        "ajuste",
+        "item",
+        "unidad_medida",
+        "cantidad_anterior",
+        "cantidad_nueva",
+        "cantidad",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(ItemPrecioHistorial)

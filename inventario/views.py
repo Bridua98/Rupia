@@ -1,10 +1,13 @@
+from urllib.parse import urlencode
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.db import transaction
-from django.http import FileResponse, Http404
-from django.shortcuts import redirect
+from django.db import IntegrityError, transaction
+from django.db.models import Count
+from django.http import FileResponse, Http404, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 from django_tables2 import SingleTableView
@@ -16,6 +19,7 @@ from core.listado import (
     filter_options,
     filter_specs_for,
     filter_values,
+    search_fields_for,
 )
 from core.mantenimiento import (
     MantenimientoCreateView,
@@ -24,15 +28,18 @@ from core.mantenimiento import (
     MantenimientoUpdateView,
 )
 from inventario.forms import (
+    AjusteStockForm,
     CategoriaForm,
     ItemForm,
     MarcaForm,
     PrecioAjusteForm,
     UnidadForm,
+    ajuste_stock_formset,
     unidades_formset,
 )
 from inventario.imagenes import resolver_imagen
 from inventario.models import (
+    AjusteStock,
     Item,
     ItemCategoria,
     ItemPrecioHistorial,
@@ -43,7 +50,15 @@ from inventario.models import (
     UnidadMedida,
 )
 from inventario.precios import aplicar_ajuste, previsualizar
+from inventario.stock import (
+    eliminar_ajuste,
+    guardar_ajuste,
+    siguiente_id,
+    stock_actual,
+    unidades_con_stock,
+)
 from inventario.tables import (
+    AjusteStockTable,
     CategoriaTable,
     ItemTable,
     MarcaTable,
@@ -555,3 +570,213 @@ class PrecioHistorialMantenimiento:
 
 class PrecioHistorialListView(PrecioHistorialMantenimiento, MantenimientoListView):
     pass
+
+
+class AjusteStockMantenimiento:
+    model = AjusteStock
+    form_class = AjusteStockForm
+    table_class = AjusteStockTable
+    permiso_formulario = "ajustes_stock"
+    page_title = "Ajustes de stock"
+    eyebrow = "Inventario"
+    title = "Ajustes de stock"
+    create_label = "Nuevo ajuste"
+    show_create = True
+    list_hint = "Flechas para moverse. Enter abre el ajuste."
+    search_label = "Buscar"
+    search_placeholder = "Buscar por observación..."
+    search_field = "observacion"
+    search_fields = ("observacion",)
+    filters = (
+        {
+            "name": "fecha_desde",
+            "label": "Desde",
+            "kind": "date",
+            "field": "fecha",
+            "lookup": "gte",
+        },
+        {
+            "name": "fecha_hasta",
+            "label": "Hasta",
+            "kind": "date",
+            "field": "fecha",
+            "lookup": "lte",
+        },
+    )
+    selection_param = "ajuste"
+    record_noun = "ajuste"
+    order_by = ("-fecha", "-pk")
+    list_url_name = "ajuste_stock_list"
+    create_url_name = "ajuste_stock_create"
+    update_url_name = "ajuste_stock_update"
+    delete_url_name = "ajuste_stock_delete"
+    print_url_name = "ajuste_stock_print"
+    export_xlsx_url_name = "ajuste_stock_export_xlsx"
+    export_pdf_url_name = "ajuste_stock_export_pdf"
+    export_basename = "ajustes-stock"
+    back_url_name = "home"
+
+
+class AjusteStockListView(AjusteStockMantenimiento, MantenimientoListView):
+    def creating(self):
+        return False
+
+    def viewing(self):
+        return self.panel_pk() is not None
+
+    def get_queryset(self):
+        queryset = AjusteStock.objects.annotate(lineas=Count("detalles")).order_by(*self.order_by)
+        queryset = apply_search(queryset, self.query(), search_fields_for(self))
+        specs = filter_specs_for(self)
+        return apply_filters(queryset, filter_values(self.request, specs), specs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.puede("alta"):
+            context["create_url"] = reverse("ajuste_stock_create")
+        if context.get("view_open") and context.get("panel_object") and self.puede("modificar"):
+            context["edit_url"] = reverse(
+                "ajuste_stock_update",
+                args=[context["panel_object"].pk],
+            )
+        else:
+            context["edit_url"] = ""
+        return context
+
+
+class AjusteStockFormView(LoginRequiredMixin, PermisoRequeridoMixin, View):
+    permiso_formulario = "ajustes_stock"
+
+    def get_permiso_accion(self):
+        return "modificar" if self.kwargs.get("pk") else "alta"
+
+    def get(self, request, pk=None):
+        ajuste = self._ajuste(pk)
+        form = AjusteStockForm(instance=ajuste)
+        formset = ajuste_stock_formset(ajuste=ajuste)
+        return self._render(request, form, formset, ajuste)
+
+    def post(self, request, pk=None):
+        ajuste = self._ajuste(pk)
+        es_nuevo = ajuste.pk is None
+        form = AjusteStockForm(request.POST, instance=ajuste)
+        formset = ajuste_stock_formset(ajuste=ajuste, data=request.POST)
+        if form.is_valid() and formset.is_valid():
+            try:
+                with transaction.atomic():
+                    if es_nuevo:
+                        ajuste.pk = siguiente_id(AjusteStock)
+                    ajuste = form.save()
+                    formset.instance = ajuste
+                    omitidos = guardar_ajuste(ajuste, formset=formset)
+            except IntegrityError:
+                return self._error_response(
+                    request,
+                    ajuste,
+                    es_nuevo,
+                    "No se pudo guardar el ajuste por un conflicto de numeración. "
+                    "Intentá de nuevo.",
+                )
+            except ValidationError as exc:
+                return self._error_response(
+                    request,
+                    ajuste,
+                    es_nuevo,
+                    exc.messages[0] if exc.messages else "No se pudo guardar el ajuste.",
+                )
+            if omitidos:
+                messages.warning(
+                    request,
+                    "Algunos movimientos tenían unidades no relacionadas y "
+                    "no se contaron en el stock anterior.",
+                )
+            messages.success(request, f"Se guardó {ajuste}.")
+            destino = reverse("ajuste_stock_list")
+            return redirect(f"{destino}?{urlencode({'ajuste': ajuste.pk})}")
+        return self._render(request, form, formset, ajuste)
+
+    def _error_response(self, request, ajuste, es_nuevo, mensaje):
+        if es_nuevo:
+            ajuste = AjusteStock()
+        form = AjusteStockForm(request.POST, instance=ajuste)
+        form.add_error(None, mensaje)
+        formset = ajuste_stock_formset(ajuste=ajuste, data=request.POST)
+        return self._render(request, form, formset, ajuste)
+
+    def _ajuste(self, pk):
+        if pk:
+            return get_object_or_404(AjusteStock, pk=pk)
+        return AjusteStock()
+
+    def _render(self, request, form, formset, ajuste):
+        return render(
+            request,
+            "inventario/ajuste_stock_formulario.html",
+            {
+                "ajuste": ajuste,
+                "form": form,
+                "formset": formset,
+                "page_title": "Ajuste de stock" if ajuste.pk else "Nuevo ajuste de stock",
+                "eyebrow": "Inventario",
+                "title": (
+                    f"Ajuste de stock N.º {ajuste.pk}" if ajuste.pk else "Nuevo ajuste de stock"
+                ),
+                "list_url": reverse("ajuste_stock_list"),
+                "back_url": reverse("ajuste_stock_list"),
+            },
+        )
+
+
+class AjusteStockItemView(LoginRequiredMixin, PermisoRequeridoMixin, View):
+    permiso_formulario = ""
+
+    def dispatch(self, request, *args, **kwargs):
+        if not any(
+            tiene_permiso(request.user, "ajustes_stock", accion)
+            for accion in ("ver", "alta", "modificar")
+        ):
+            raise PermissionDenied("No tenés permiso para esta acción.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, pk):
+        item = get_object_or_404(
+            Item.objects.select_related("unidad_medida").prefetch_related(
+                "unidades__unidad_medida"
+            ),
+            pk=pk,
+            tipo=TipoItem.PRODUCTO,
+            activo=True,
+        )
+        stock_base, omitidos = stock_actual(item)
+        return JsonResponse(
+            {
+                "item": {
+                    "id": item.pk,
+                    "descripcion": item.descripcion,
+                    "unidad_base_id": item.unidad_medida_id,
+                    "unidad_base": item.unidad_medida.simbolo,
+                },
+                "stock_base": stock_base,
+                "unidades": unidades_con_stock(item, stock_base),
+                "aviso": (
+                    "Hay movimientos con unidades no relacionadas; no entraron en el stock."
+                    if omitidos
+                    else ""
+                ),
+            }
+        )
+
+
+class AjusteStockDeleteView(
+    AjusteStockMantenimiento,
+    LoginRequiredMixin,
+    PermisoRequeridoMixin,
+    View,
+):
+    permiso_accion = "eliminar"
+
+    def post(self, request, pk):
+        ajuste = get_object_or_404(AjusteStock, pk=pk)
+        eliminar_ajuste(ajuste)
+        messages.success(request, f"Se eliminó {ajuste}.")
+        return redirect("ajuste_stock_list")

@@ -269,7 +269,7 @@ class ItemMovimiento(models.Model):
 
 class AjusteStock(models.Model):
     id = models.PositiveIntegerField(primary_key=True, db_column="ajusstoc_id")
-    fecha = models.CharField("fecha", max_length=45, db_column="ajusstoc_fecha")
+    fecha = models.DateField("fecha", db_column="ajusstoc_fecha")
     observacion = models.CharField(
         "observación",
         max_length=45,
@@ -290,7 +290,7 @@ class AjusteStockDetalle(models.Model):
     id = models.PositiveIntegerField(primary_key=True, db_column="ajusstocdeta_id")
     ajuste = models.ForeignKey(
         AjusteStock,
-        on_delete=models.RESTRICT,
+        on_delete=models.CASCADE,
         db_column="ajusstocdeta_ajusstoc_id",
         related_name="detalles",
         verbose_name="ajuste",

@@ -5146,3 +5146,71 @@ body.pos-screen .app-stage {
   color: var(--ink-soft);
   font-size: 0.85rem;
 }
+
+/* Ajustes de stock */
+.ajuste-stock-cabecera {
+  max-width: none;
+}
+
+.ajuste-stock-cabecera .item-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ajuste-stock-lineas {
+  margin-top: 1.25rem;
+}
+
+.ajuste-stock-lineas .sheet-wrap {
+  overflow-x: auto;
+}
+
+.ajuste-stock-lineas .sheet th:nth-child(1),
+.ajuste-stock-lineas .sheet td:nth-child(1) {
+  min-width: 20rem;
+}
+
+.ajuste-stock-lineas .sheet th:nth-child(2),
+.ajuste-stock-lineas .sheet td:nth-child(2) {
+  min-width: 12rem;
+}
+
+.ajuste-stock-lineas .sheet th:nth-child(3),
+.ajuste-stock-lineas .sheet td:nth-child(3),
+.ajuste-stock-lineas .sheet th:nth-child(5),
+.ajuste-stock-lineas .sheet td:nth-child(5) {
+  width: 9rem;
+  text-align: right;
+}
+
+.ajuste-stock-lineas .sheet th:nth-child(4),
+.ajuste-stock-lineas .sheet td:nth-child(4) {
+  width: 11rem;
+}
+
+.ajuste-stock-valor {
+  display: inline-block;
+  min-height: 2.65rem;
+  padding: 0.7rem 0.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ajuste-stock-agregar {
+  margin-top: 0.85rem;
+}
+
+.ajuste-stock-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.ajuste-stock-lineas [data-ajuste-fila].is-cargando {
+  opacity: 0.6;
+}
+
+@media (max-width: 720px) {
+  .ajuste-stock-cabecera .item-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

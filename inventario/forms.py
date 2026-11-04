@@ -5,6 +5,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.forms import inlineformset_factory
 from django.urls import reverse
+from django.utils import timezone
 
 from core.cantidad import CantidadField
 from core.forms import RupiaModelForm
@@ -13,6 +14,8 @@ from core.selectors import SelectorAlta, registrar
 from inventario.defecto import asegurar_referenciales_defecto
 from inventario.imagenes import EXTENSIONES, guardar_imagen, liberar_imagen, resolver_imagen
 from inventario.models import (
+    AjusteStock,
+    AjusteStockDetalle,
     Item,
     ItemCategoria,
     ItemUnidad,
@@ -23,6 +26,7 @@ from inventario.models import (
     UnidadMedida,
 )
 from inventario.precios import registrar_cambio_ficha
+from inventario.stock import cantidad_en_unidad, stock_actual
 from negocio.forms import UnidadNegocioForm  # noqa: F401
 
 
@@ -481,4 +485,214 @@ def unidades_formset(*, item=None, data=None, unidad_base=None):
         instance=item if item is not None else Item(),
         prefix="unidades",
         unidad_base=unidad_base,
+    )
+
+
+class AjusteStockForm(RupiaModelForm):
+    fecha = forms.DateField(
+        label="Fecha",
+        initial=timezone.localdate,
+        widget=forms.DateInput(attrs={"type": "date"}),
+        error_messages={
+            "required": "Elegí la fecha.",
+            "invalid": "Elegí una fecha válida.",
+        },
+    )
+    observacion = forms.CharField(
+        label="Observación",
+        max_length=45,
+        error_messages={"required": "Escribí el motivo del ajuste."},
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": " ",
+                "autocomplete": "off",
+                "autofocus": True,
+                "maxlength": "45",
+            }
+        ),
+    )
+
+    class Meta:
+        model = AjusteStock
+        fields = ["fecha", "observacion"]
+
+    def clean_fecha(self):
+        fecha = self.cleaned_data["fecha"]
+        if fecha > timezone.localdate():
+            raise ValidationError("La fecha no puede ser futura.", code="fecha")
+        return fecha
+
+
+class ItemProductoField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return f"{obj.descripcion} · {obj.unidad_medida.simbolo}"
+
+
+class AjusteStockDetalleForm(RupiaModelForm):
+    item = ItemProductoField(
+        label="Ítem",
+        queryset=Item.objects.none(),
+        empty_label="Elegí un producto",
+        error_messages={
+            "required": "Elegí un producto.",
+            "invalid_choice": "Elegí un producto activo.",
+        },
+        widget=forms.Select(attrs={"data-ajuste-item": True}),
+    )
+    unidad_medida = forms.ModelChoiceField(
+        label="Unidad",
+        queryset=UnidadMedida.objects.none(),
+        empty_label="Elegí una unidad",
+        error_messages={
+            "required": "Elegí una unidad.",
+            "invalid_choice": "Esa unidad no está relacionada con el ítem.",
+        },
+        widget=forms.Select(attrs={"data-ajuste-unidad": True}),
+    )
+    cantidad_nueva = CantidadField(
+        label="Cantidad nueva",
+        min_value=Decimal("0"),
+        error_messages={
+            "required": "Escribí la cantidad nueva.",
+            "invalid": "Escribí una cantidad nueva válida.",
+            "min_value": "La cantidad nueva no puede ser negativa.",
+        },
+    )
+
+    class Meta:
+        model = AjusteStockDetalle
+        fields = ["item", "unidad_medida", "cantidad_nueva"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.aviso = ""
+        self.fields["item"].queryset = (
+            Item.objects.filter(tipo=TipoItem.PRODUCTO, activo=True)
+            .select_related("unidad_medida")
+            .order_by("descripcion")
+        )
+        item = self._item()
+        if item is not None:
+            unidades = self._unidades(item)
+        else:
+            unidades = UnidadMedida.objects.order_by("descripcion")
+        self.fields["unidad_medida"].queryset = unidades
+        if not self.is_bound:
+            self._preparar_stock(item)
+
+    def _item(self):
+        if self.is_bound:
+            raw = self.data.get(self.add_prefix("item"))
+            if raw and str(raw).isdigit():
+                return Item.objects.filter(pk=raw).select_related("unidad_medida").first()
+            return None
+        if self.instance.pk and self.instance.item_id:
+            return self.instance.item
+        return None
+
+    def _unidades(self, item):
+        ids = [item.unidad_medida_id]
+        ids.extend(item.unidades.values_list("unidad_medida_id", flat=True))
+        return UnidadMedida.objects.filter(pk__in=ids).order_by("descripcion")
+
+    def _preparar_stock(self, item):
+        if self.instance.cantidad_anterior is None:
+            self.instance.cantidad_anterior = Decimal("0")
+        if self.instance.cantidad is None:
+            self.instance.cantidad = Decimal("0")
+        if item is None or not self.instance.pk:
+            return
+        try:
+            anterior_base, omitidos = stock_actual(
+                item,
+                excluir_ajuste_id=self.instance.ajuste_id,
+            )
+            anterior = cantidad_en_unidad(item, self.instance.unidad_medida, anterior_base)
+        except ValidationError as exc:
+            self.aviso = exc.messages[0]
+            return
+        self.instance.cantidad_anterior = anterior
+        self.instance.cantidad = self.instance.cantidad_nueva - anterior
+        if omitidos:
+            self.aviso = (
+                "Hay movimientos con unidades no relacionadas; no entraron en el stock anterior."
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("DELETE"):
+            return cleaned
+        item = cleaned.get("item")
+        unidad = cleaned.get("unidad_medida")
+        nueva = cleaned.get("cantidad_nueva")
+        if item is None or unidad is None or nueva is None:
+            return cleaned
+        if item.tipo != TipoItem.PRODUCTO or not item.activo:
+            self.add_error("item", "Elegí un producto activo.")
+            return cleaned
+        permitidas = {item.unidad_medida_id}
+        permitidas.update(item.unidades.values_list("unidad_medida_id", flat=True))
+        if unidad.pk not in permitidas:
+            self.add_error("unidad_medida", "Esa unidad no está relacionada con el ítem.")
+            return cleaned
+        try:
+            anterior_base, omitidos = stock_actual(
+                item,
+                excluir_ajuste_id=self.instance.ajuste_id,
+            )
+            anterior = cantidad_en_unidad(item, unidad, anterior_base)
+        except ValidationError as exc:
+            self.add_error("unidad_medida", exc.messages[0])
+            return cleaned
+        self.instance.cantidad_anterior = anterior
+        self.instance.cantidad = nueva - anterior
+        self.aviso = (
+            "Hay movimientos con unidades no relacionadas; no entraron en el stock anterior."
+            if omitidos
+            else ""
+        )
+        return cleaned
+
+
+class AjusteStockDetalleFormSetBase(forms.BaseInlineFormSet):
+    default_error_messages = {
+        "too_few_forms": "Agregá al menos un ítem al ajuste.",
+    }
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        vistos = set()
+        for form in self.forms:
+            cleaned = getattr(form, "cleaned_data", None)
+            if not cleaned or cleaned.get("DELETE"):
+                continue
+            item = cleaned.get("item")
+            if item is None:
+                continue
+            if item.pk in vistos:
+                form.add_error("item", "Ese ítem ya está en el ajuste.")
+            vistos.add(item.pk)
+        if not vistos:
+            raise ValidationError("Agregá al menos un ítem al ajuste.")
+
+
+AjusteStockDetalleFormSet = inlineformset_factory(
+    AjusteStock,
+    AjusteStockDetalle,
+    form=AjusteStockDetalleForm,
+    formset=AjusteStockDetalleFormSetBase,
+    extra=1,
+    can_delete=True,
+    min_num=1,
+    validate_min=True,
+)
+
+
+def ajuste_stock_formset(*, ajuste=None, data=None):
+    return AjusteStockDetalleFormSet(
+        data=data,
+        instance=ajuste if ajuste is not None else AjusteStock(),
+        prefix="detalles",
     )
