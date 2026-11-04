@@ -80,7 +80,11 @@
       <button type="button" class="topbar-icon" data-nav-toggle aria-label="Menú">
         {% include "core/icon.html" with name="menu" %}
       </button>
+      <div class="topbar-context">
+        {% block topbar_context %}{% endblock %}
+      </div>
       <div class="topbar-end">
+        {% block topbar_status %}{% endblock %}
         <span class="topbar-icon" aria-hidden="true">{% include "core/icon.html" with name="bell" %}</span>
         <span class="session-avatar session-avatar-top" aria-hidden="true">{% include "core/icon.html" with name="user" %}</span>
       </div>
@@ -105,9 +109,18 @@
     var toggle = document.querySelector("[data-nav-toggle]");
     var shell = document.querySelector(".app-shell");
     if (!toggle || !shell) return;
+    if (document.body.classList.contains("pos-screen") && localStorage.getItem("rupia-nav-collapsed") === "1") {
+      shell.classList.add("is-nav-collapsed");
+    }
     toggle.addEventListener("click", function () {
       var narrow = window.matchMedia("(max-width: 860px)").matches;
       shell.classList.toggle(narrow ? "is-nav-open" : "is-nav-collapsed");
+      if (!narrow) {
+        localStorage.setItem(
+          "rupia-nav-collapsed",
+          shell.classList.contains("is-nav-collapsed") ? "1" : "0"
+        );
+      }
       toggle.setAttribute(
         "aria-expanded",
         shell.classList.contains("is-nav-open") || !shell.classList.contains("is-nav-collapsed")

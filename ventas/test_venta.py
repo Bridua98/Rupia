@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
@@ -19,7 +20,7 @@ from inventario.models import (
 )
 from negocio.models import UnidadNegocio
 from personas.models import Genero, Persona, TipoDocumento
-from ventas.cobro import agregar_producto, cambiar_cantidad, liquidar_iva
+from ventas.cobro import agregar_producto, cambiar_cantidad, liquidar_iva, medios_disponibles
 from ventas.models import EstadoVenta, MedioPago, PuntoExpedicion, TipoComprobante, Venta
 
 
@@ -211,7 +212,36 @@ def test_descuento_y_vuelto_efectivo(ingresada):
     )
     content = ingresada.get("/ventas/punto-de-venta/").content.decode()
     assert "Gs. 10.000" in content
-    assert "Gs. 20.000" in content
+    assert 'value="20.000"' in content
+    assert "Cobrar (F12)" in content
+    assert "Guardar / Suspender (F5)" in content
+
+
+@pytest.mark.django_db
+def test_descuento_por_linea(ingresada):
+    _preparar()
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    detalle = Venta.objects.get(estado=EstadoVenta.EN_CURSO).detalles.get()
+    ingresada.post(
+        f"/ventas/punto-de-venta/lineas/{detalle.pk}/",
+        {"accion": "descuento", "descuento": "10"},
+    )
+    detalle.refresh_from_db()
+    assert detalle.descuento_porcentaje == Decimal("10.00")
+    assert detalle.subtotal == Decimal("10800")
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "Gs. 10.800" in content
+
+
+@pytest.mark.django_db
+def test_guardar_suspende_y_vuelve_al_inicio(ingresada):
+    _preparar()
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    response = ingresada.post("/ventas/punto-de-venta/", {"guardar": "1"})
+    assert response.status_code == 302
+    assert response.url == "/"
+    venta = Venta.objects.get(estado=EstadoVenta.EN_CURSO)
+    assert venta.detalles.count() == 1
 
 
 @pytest.mark.django_db
@@ -226,7 +256,7 @@ def test_tarjeta_sin_vuelto(ingresada):
     venta = Venta.objects.get(estado=EstadoVenta.EN_CURSO)
     assert venta.importe_recibido == Decimal("12000")
     content = ingresada.get("/ventas/punto-de-venta/").content.decode()
-    assert "Gs. 0" in content or "Gs. 0" in content.replace("\xa0", " ")
+    assert "Vuelto" not in content
 
 
 @pytest.mark.django_db
@@ -426,3 +456,167 @@ def test_liquidacion_iva_cierra_con_total(usuario):
     assert iva.gravadas_10 + iva.iva_10 + iva.gravadas_5 + iva.iva_5 + iva.exentas == iva.total
     assert iva.iva_10 == Decimal("900")
     assert iva.iva_5 == Decimal("900")
+
+
+def _ocasional(**extra):
+    datos = {
+        "tipo_documento": TipoDocumento.CEDULA,
+        "documento": "1111111",
+        "razon_social": "Cliente Ocasional",
+        "genero": Genero.SIN_DEFINIR,
+        "direccion": "Sin dirección",
+        "es_cliente": True,
+    }
+    datos.update(extra)
+    return Persona.objects.create(**datos)
+
+
+FICHA_ANDE = {
+    "ruc": "80009735",
+    "tipo_documento": TipoDocumento.RUC,
+    "documento": "80009735-1",
+    "razon_social": "ANDE",
+    "fecha_nacimiento": None,
+    "label": "ANDE (80009735-1)",
+}
+
+
+@pytest.mark.django_db
+def test_borrador_asigna_cliente_ocasional_si_existe(ingresada):
+    _preparar()
+    _ocasional()
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    venta = Venta.objects.get(estado=EstadoVenta.EN_CURSO)
+    assert venta.cliente.razon_social == "Cliente Ocasional"
+    assert "Cliente (opcional)" in content
+    assert "Cobrar (F12)" in content
+    assert "Cliente Ocasional" in content
+    assert "Opciones adicionales" not in content
+
+
+@pytest.mark.django_db
+def test_borrador_queda_sin_cliente_si_no_hay_ocasional(ingresada):
+    _preparar()
+    ingresada.get("/ventas/punto-de-venta/")
+    venta = Venta.objects.get(estado=EstadoVenta.EN_CURSO)
+    assert venta.cliente_id is None
+
+
+@pytest.mark.django_db
+@patch("ventas.cobro.buscar_padron")
+def test_buscar_clientes_mezcla_locales_y_padron(buscar_mock, ingresada):
+    _preparar()
+    local = _cliente()
+    buscar_mock.return_value = [FICHA_ANDE]
+    data = ingresada.get("/ventas/punto-de-venta/clientes/?q=cliente").json()
+    labels = [item["label"] for item in data["resultados"]]
+    assert str(local) in labels
+    padron = [item for item in data["resultados"] if item["origen"] == "padron"]
+    assert any(item["ruc"] == "80009735" for item in padron)
+
+
+@pytest.mark.django_db
+@patch("ventas.cobro.consultar_ruc")
+def test_alta_desde_padron_crea_cliente_y_lo_asigna(consultar_mock, ingresada):
+    _preparar()
+    consultar_mock.return_value = FICHA_ANDE
+    ingresada.get("/ventas/punto-de-venta/")
+    response = ingresada.post(
+        "/ventas/punto-de-venta/clientes/",
+        {"ruc": "80009735"},
+        HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+    )
+    assert response.status_code == 200
+    persona = Persona.objects.get(documento="80009735-1")
+    assert persona.es_cliente is True
+    assert persona.razon_social == "ANDE"
+    venta = Venta.objects.get(estado=EstadoVenta.EN_CURSO)
+    assert venta.cliente_id == persona.pk
+    assert response.json()["id"] == persona.pk
+
+
+@pytest.mark.django_db
+@patch("ventas.cobro.consultar_ruc")
+def test_alta_desde_padron_reutiliza_documento_existente(consultar_mock, ingresada):
+    _preparar()
+    existente = Persona.objects.create(
+        tipo_documento=TipoDocumento.RUC,
+        documento="80009735-1",
+        razon_social="ANDE Vieja",
+        genero=Genero.SIN_DEFINIR,
+        direccion="Centro",
+        es_proveedor=True,
+        es_cliente=False,
+    )
+    consultar_mock.return_value = FICHA_ANDE
+    ingresada.get("/ventas/punto-de-venta/")
+    ingresada.post("/ventas/punto-de-venta/clientes/", {"ruc": "80009735"})
+    existente.refresh_from_db()
+    assert Persona.objects.filter(documento="80009735-1").count() == 1
+    assert existente.es_cliente is True
+    assert Venta.objects.get(estado=EstadoVenta.EN_CURSO).cliente_id == existente.pk
+
+
+@pytest.mark.django_db
+def test_factura_sigue_pidiendo_cliente(ingresada):
+    _preparar()
+    item = Item.objects.get(codigo_barra="PROD-001")
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
+    response = ingresada.post(
+        "/ventas/punto-de-venta/confirmar/",
+        {"tipo_comprobante": TipoComprobante.FACTURA, "consumidor_final": "1"},
+    )
+    assert response.url == "/ventas/punto-de-venta/"
+    assert Venta.objects.filter(estado=EstadoVenta.COBRADA).count() == 0
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "La factura pide un cliente." in content
+
+
+@pytest.mark.django_db
+def test_medios_de_cobro_siguen_a_las_cuentas(ingresada):
+    _preparar()
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert 'value="EFECTIVO"' in content
+    assert "El efectivo se acredita en" in content
+    assert "CAJA01" in content
+    assert 'value="TARJETA"' not in content
+    assert 'value="TRANSFERENCIA"' not in content
+    assert "Buscar cliente por nombre, RUC o cédula" in content
+    _tarjeta()
+    Cuenta.objects.create(
+        descripcion="Banco Itau",
+        nombre_corto="ITAU",
+        es_banco=True,
+        es_tarjeta=False,
+        numero="001",
+    )
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert 'value="TARJETA"' in content
+    assert 'value="TRANSFERENCIA"' in content
+    assert medios_disponibles() == [
+        (MedioPago.EFECTIVO, "Efectivo"),
+        (MedioPago.TARJETA, "Tarjeta"),
+        (MedioPago.TRANSFERENCIA, "Transferencia"),
+    ]
+
+
+@pytest.mark.django_db
+def test_cambiar_a_efectivo_usa_la_caja_aunque_venga_otra_cuenta(ingresada):
+    caja, _item = _preparar()
+    tarjeta = _tarjeta()
+    ingresada.get("/ventas/punto-de-venta/")
+    ingresada.post(
+        "/ventas/punto-de-venta/",
+        {"medio": MedioPago.TARJETA, "cuenta_cobro": tarjeta.pk, "caja": caja.pk},
+    )
+    response = ingresada.post(
+        "/ventas/punto-de-venta/",
+        {"medio": MedioPago.EFECTIVO, "cuenta_cobro": tarjeta.pk, "caja": caja.pk},
+    )
+    assert response.status_code == 302
+    venta = Venta.objects.get(estado=EstadoVenta.EN_CURSO)
+    assert venta.medio == MedioPago.EFECTIVO
+    assert venta.cuenta_cobro_id == caja.pk
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "Elegí la cuenta de cobro." not in content
+    assert "El efectivo se acredita en" in content

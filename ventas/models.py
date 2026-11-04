@@ -386,6 +386,13 @@ class VentaDetalle(models.Model):
         decimal_places=3,
         db_column="ventdeta_subtotal",
     )
+    descuento_porcentaje = models.DecimalField(
+        "descuento %",
+        max_digits=6,
+        decimal_places=2,
+        default=0,
+        db_column="ventdeta_descuento_porcentaje",
+    )
 
     class Meta:
         db_table = "ventas_detalles"
