@@ -1,0 +1,15 @@
+<article class="dash-card dash-list">
+  <p class="eyebrow">{{ titulo }}</p>
+  {% if filas %}
+    <ul>
+      {% for fila in filas %}
+        <li>
+          <span>{{ fila.nombre }}</span>
+          <strong>{{ fila.importe_txt }}</strong>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="dash-empty">Sin ventas cobradas hoy</p>
+  {% endif %}
+</article>

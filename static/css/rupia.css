@@ -4398,3 +4398,103 @@ body.pos-screen .app-stage {
 .factura-page {
   max-width: 42rem;
 }
+
+.dash {
+  display: grid;
+  gap: 1.35rem;
+  max-width: 72rem;
+}
+
+.dash-head .lede {
+  max-width: 36rem;
+}
+
+.dash-kpis,
+.dash-cortes {
+  display: grid;
+  gap: 1rem;
+}
+
+.dash-kpis {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dash-cortes {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dash-card {
+  min-width: 0;
+  padding: 1rem 1.05rem 1.05rem;
+  border: 1px solid #e3ebe6;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.dash-card .eyebrow {
+  color: var(--gold);
+}
+
+.dash-value {
+  margin: 0.55rem 0 0;
+  color: var(--forest);
+  font-family: var(--serif);
+  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+  font-weight: 560;
+  line-height: 1.2;
+}
+
+.dash-value-name {
+  font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+}
+
+.dash-meta,
+.dash-empty {
+  margin: 0.35rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
+.dash-empty {
+  margin-top: 0.7rem;
+}
+
+.dash-list ul {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dash-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #edf3ef;
+}
+
+.dash-list li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.dash-list li span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dash-list li strong {
+  flex: none;
+  color: var(--forest);
+  font-weight: 650;
+}
+
+@media (max-width: 860px) {
+  .dash-kpis,
+  .dash-cortes {
+    grid-template-columns: 1fr;
+  }
+}
