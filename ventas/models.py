@@ -331,9 +331,9 @@ class Venta(models.Model):
                 name="ventas_una_en_curso_por_usuario",
             ),
             models.UniqueConstraint(
-                fields=["numero_completo"],
-                condition=models.Q(numero_completo__isnull=False),
-                name="ventas_numero_completo",
+                fields=["timbrado", "numero_completo"],
+                condition=models.Q(numero_completo__isnull=False) & ~models.Q(timbrado=""),
+                name="ventas_timbrado_numero_completo",
             ),
         ]
 

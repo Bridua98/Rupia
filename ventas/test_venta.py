@@ -172,6 +172,7 @@ def test_agregar_por_descripcion_y_codigo(ingresada):
     content = ingresada.get("/ventas/punto-de-venta/").content.decode()
     assert "Bombón de helado sabor frutillas" in content
     assert "Leche descremada" in content
+    assert "Genérica" in content
     assert "Gs. 20.500" in content
 
 
@@ -634,8 +635,7 @@ def test_medios_de_cobro_siguen_a_las_cuentas(ingresada):
     _preparar()
     content = ingresada.get("/ventas/punto-de-venta/").content.decode()
     assert 'value="EFECTIVO"' in content
-    assert "El efectivo se acredita en" in content
-    assert "CAJA01" in content
+    assert "Monto recibido" in content
     assert 'value="TARJETA"' not in content
     assert 'value="TRANSFERENCIA"' not in content
     assert "Buscar cliente por nombre, RUC o cédula" in content
@@ -676,4 +676,135 @@ def test_cambiar_a_efectivo_usa_la_caja_aunque_venga_otra_cuenta(ingresada):
     assert venta.cuenta_cobro_id == caja.pk
     content = ingresada.get("/ventas/punto-de-venta/").content.decode()
     assert "Elegí la cuenta de cobro." not in content
-    assert "El efectivo se acredita en" in content
+    assert "Monto recibido" in content
+
+
+@pytest.mark.django_db
+def test_pos_muestra_buscador_modal_y_atajos(ingresada):
+    _preparar()
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "data-pos-modal-productos" in content
+    assert "Agregar por código" in content
+    assert "Atajos" in content
+    assert "data-pos-modal-codigo" in content
+    assert "Monto recibido" in content
+    data = ingresada.get("/ventas/punto-de-venta/buscar/?q=").json()
+    descripciones = [item["descripcion"] for item in data["resultados"]]
+    assert "Bombón de helado sabor frutillas" in descripciones
+    assert data["resultados"][0]["marca"] == "Genérica"
+    assert data["hay_mas"] is False
+    assert "Buscar por nombre, marca" in content
+
+
+@pytest.mark.django_db
+def test_buscar_productos_por_marca_y_pagina(ingresada):
+    _preparar()
+    por_marca = ingresada.get("/ventas/punto-de-venta/buscar/?q=Genérica").json()
+    assert por_marca["resultados"]
+    assert all(item["marca"] == "Genérica" for item in por_marca["resultados"])
+    for indice in range(21):
+        _item(
+            descripcion=f"Producto extra {indice:02d}",
+            codigo_barra=f"EXTRA-{indice:02d}",
+            precio=Decimal("1000"),
+        )
+    primera = ingresada.get("/ventas/punto-de-venta/buscar/?q=&limite=20&offset=0").json()
+    assert len(primera["resultados"]) == 20
+    assert primera["hay_mas"] is True
+    segunda = ingresada.get(
+        f"/ventas/punto-de-venta/buscar/?q=&limite=20&offset={primera['siguiente']}"
+    ).json()
+    assert segunda["resultados"]
+    ids = {item["id"] for item in primera["resultados"]}
+    assert ids.isdisjoint({item["id"] for item in segunda["resultados"]})
+
+
+@pytest.mark.django_db
+def test_pos_muestra_numero_segun_comprobante(ingresada):
+    _preparar()
+    ticket = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    start = ticket.find("data-pos-proximo")
+    assert start != -1, ticket[ticket.find("Nueva venta"): ticket.find("Nueva venta") + 400]
+    assert "001-001-0000124" in ticket[start:start + 80]
+    assert "Caja abierta" not in ticket
+    assert "Descuento" not in ticket
+    cliente = _cliente()
+    ingresada.post(
+        "/ventas/punto-de-venta/",
+        {"tipo_comprobante": TipoComprobante.FACTURA, "cliente": cliente.pk},
+    )
+    factura = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    start = factura.find("data-pos-proximo")
+    assert start != -1
+    assert "001-002-0000124" in factura[start : start + 80]
+
+
+@pytest.mark.django_db
+def test_factura_muestra_numeracion_y_permite_elegirla(ingresada):
+    _preparar()
+    cliente = _cliente()
+    item = Item.objects.get(codigo_barra="PROD-001")
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
+    ingresada.post(
+        "/ventas/punto-de-venta/",
+        {"tipo_comprobante": TipoComprobante.FACTURA, "cliente": cliente.pk},
+    )
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "Numeración de factura" in content
+    assert 'value="0000124"' in content
+    assert "Timbrado 87654321" in content
+    response = ingresada.post(
+        "/ventas/punto-de-venta/confirmar/",
+        {
+            "tipo_comprobante": TipoComprobante.FACTURA,
+            "cliente": cliente.pk,
+            "numero_establecimiento": "001",
+            "numero_punto": "002",
+            "numero_secuencial": "130",
+        },
+    )
+    factura = Venta.objects.get(
+        tipo_comprobante=TipoComprobante.FACTURA, estado=EstadoVenta.COBRADA
+    )
+    assert response.url == f"/ventas/{factura.pk}/factura/"
+    assert factura.numero_completo == "001-002-0000130"
+    assert factura.timbrado == "87654321"
+    assert PuntoExpedicion.objects.get(tipo=TipoComprobante.FACTURA).numero_proximo == 131
+
+
+@pytest.mark.django_db
+def test_no_repite_timbrado_con_numero_completo(ingresada):
+    _preparar()
+    cliente = _cliente()
+    item = Item.objects.get(codigo_barra="PROD-001")
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
+    ingresada.post(
+        "/ventas/punto-de-venta/confirmar/",
+        {
+            "tipo_comprobante": TipoComprobante.FACTURA,
+            "cliente": cliente.pk,
+            "numero_secuencial": "124",
+        },
+    )
+    assert Venta.objects.filter(estado=EstadoVenta.COBRADA).count() == 1
+    _stock(item, "20")
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
+    response = ingresada.post(
+        "/ventas/punto-de-venta/confirmar/",
+        {
+            "tipo_comprobante": TipoComprobante.FACTURA,
+            "cliente": cliente.pk,
+            "numero_establecimiento": "001",
+            "numero_punto": "002",
+            "numero_secuencial": "124",
+        },
+    )
+    assert response.url == "/ventas/punto-de-venta/"
+    assert Venta.objects.filter(estado=EstadoVenta.COBRADA).count() == 1
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "Ya hay un comprobante con ese timbrado y número." in content
+    consulta = ingresada.get(
+        "/ventas/punto-de-venta/numero/?establecimiento=001&punto=002&secuencial=124"
+    ).json()
+    assert consulta["ok"] is False
+    assert "timbrado y número" in consulta["error"]

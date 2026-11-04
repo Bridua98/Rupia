@@ -3309,13 +3309,20 @@ body.pos-screen .app-stage {
   flex: 1;
   min-height: 0;
   gap: 0.9rem;
+  align-items: start;
   align-content: start;
 }
 
 @container (min-width: 820px) {
   .pos {
     grid-template-columns: minmax(0, 1fr) 24.5rem;
+    align-items: stretch;
     align-content: stretch;
+  }
+
+  .pos > .pos-sale,
+  .pos > .pos-side {
+    min-height: 0;
   }
 }
 
@@ -3356,7 +3363,7 @@ body.pos-screen .app-stage {
 }
 
 .pos-side {
-  overflow: auto;
+  overflow: hidden;
 }
 
 .pos-sale {
@@ -3376,11 +3383,30 @@ body.pos-screen .app-stage {
 
 .pos-sale-head {
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 0.7rem 1rem;
 }
 
 .pos-sale-title {
   min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.pos-sale-num {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pos-sale-num strong {
+  display: inline;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-variant-numeric: tabular-nums;
+}
+
+.pos-sale-date {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .pos-sale-mark {
@@ -3424,19 +3450,39 @@ body.pos-screen .app-stage {
   position: relative;
 }
 
-.pos-atajos summary {
+.pos-search-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.pos-search-actions .pos-atajos {
+  display: flex;
+  align-items: stretch;
+}
+
+.pos-atajos summary,
+.pos-code {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.4rem 0.75rem;
+  height: 2.7rem;
+  padding: 0 0.8rem;
   border: 1px solid #dce8e1;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #f7faf8;
   color: var(--accent);
   cursor: pointer;
   list-style: none;
+  font: inherit;
   font-size: 0.88rem;
-  font-weight: 600;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.pos-atajos summary {
+  height: 2.7rem;
 }
 
 .pos-atajos summary::-webkit-details-marker {
@@ -3472,6 +3518,23 @@ body.pos-screen .app-stage {
 
 .pos-search-row {
   margin-top: 0.85rem;
+  align-items: center;
+}
+
+.pos-search-row .pos-search {
+  margin: 0;
+}
+
+.pos-code kbd,
+.pos-atajos summary kbd {
+  margin-left: 0.15rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .pos-search,
@@ -3485,10 +3548,28 @@ body.pos-screen .app-stage {
   position: relative;
   flex: 1;
   min-width: 0;
-  padding: 0.55rem 0.8rem;
+  box-sizing: border-box;
+  height: 2.7rem;
+  padding: 0 0.8rem;
   border: 1px solid #dce8e1;
   border-radius: 12px;
   background: #f7faf8;
+  cursor: pointer;
+}
+
+.pos-search input {
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  line-height: 1.25;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.pos-search input::-webkit-search-decoration,
+.pos-search input::-webkit-search-cancel-button {
+  display: none;
 }
 
 .pos-search input,
@@ -3505,15 +3586,7 @@ body.pos-screen .app-stage {
 }
 
 .pos-code {
-  padding: 0.55rem 0.85rem;
-  border: 1px solid #dce8e1;
-  border-radius: 12px;
   background: #e7f4ec;
-  color: var(--accent);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
 }
 
 .pos-table-wrap {
@@ -3604,7 +3677,16 @@ body.pos-screen .app-stage {
 }
 
 .pos-remove {
-  color: var(--danger);
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  background: #f4f7f5;
+  color: #6b7a73;
+}
+
+.pos-remove:hover {
+  background: #eef1ef;
+  color: var(--forest);
 }
 
 .pos-inline {
@@ -3685,11 +3767,17 @@ body.pos-screen .app-stage {
   padding: 0;
   border: 0;
   background: transparent;
+  min-height: 0;
 }
 
 .pos-side #pos-cabecera {
   display: grid;
   gap: 0.7rem;
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  overflow: auto;
+  padding-right: 0.1rem;
 }
 
 .pos-card {
@@ -3780,9 +3868,36 @@ body.pos-screen .app-stage {
   background: #f7faf8;
 }
 
-.pos-recibido input {
-  width: 7rem;
+.pos-recibido {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  padding: 0.7rem 0.8rem;
+}
+
+.pos-recibido-monto {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.pos-recibido input,
+.pos-recibido-monto input {
+  width: 100%;
+  min-width: 0;
   text-align: right;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.pos-recibido-hint {
+  margin: 0.4rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
 }
 
 .pos-rapidos {
@@ -3818,12 +3933,25 @@ body.pos-screen .app-stage {
 }
 
 .pos-vuelto {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-top: 0.65rem;
-  padding: 0.55rem 0.7rem;
+  padding: 0.7rem 0.8rem;
   border-radius: 10px;
   background: #e7f4ec;
   color: var(--accent);
   font-weight: 650;
+}
+
+.pos-vuelto strong {
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pos-vuelto.is-faltante {
+  background: #fdf4f3;
+  color: #9b3a32;
 }
 
 .pos-cliente-lookup {
@@ -4007,16 +4135,219 @@ body.pos-screen .app-stage {
   resize: vertical;
 }
 
+.pos-factura-num {
+  margin-top: 0.9rem;
+  padding: 0.85rem 0.8rem 1rem;
+  border: 1px solid #dce8e1;
+  border-radius: 14px;
+  background: #f4faf6;
+  text-align: center;
+}
+
+.pos-factura-num-label,
+.pos-factura-confirm-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.pos-factura-num-timbrado {
+  margin: 0.25rem 0 0.55rem;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
+.pos-factura-num-big {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  font-size: 1.55rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.pos-factura-num-big input {
+  width: 3.1rem;
+  padding: 0.2rem 0;
+  border: 0;
+  border-bottom: 2px solid var(--accent);
+  background: transparent;
+  color: var(--forest);
+  font: inherit;
+  text-align: center;
+}
+
+.pos-factura-num-big input[data-pos-num-sec] {
+  width: 7.2rem;
+}
+
+.pos-factura-num-msg {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+}
+
+.pos-factura-num-msg.is-ok {
+  color: var(--accent);
+}
+
+.pos-factura-num-msg.is-warn {
+  color: #9b3a32;
+}
+
+.pos-factura-confirm-num {
+  margin: 0.4rem 0 0.8rem;
+  color: var(--forest);
+  font-size: 2.1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+.pos-modal {
+  width: min(46rem, calc(100% - 1.5rem));
+  max-height: min(40rem, calc(100% - 2rem));
+  padding: 0;
+  border: 1px solid #dce8e1;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 48px rgba(16, 40, 33, 0.18);
+}
+
+.pos-modal::backdrop {
+  background: rgba(16, 40, 33, 0.35);
+}
+
+.pos-modal-sm {
+  width: min(26rem, calc(100% - 1.5rem));
+}
+
+.pos-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 0.85rem 1rem 0.5rem;
+}
+
+.pos-modal-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.pos-modal-close {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: #f4f7f5;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.pos-modal-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 1rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #dce8e1;
+  border-radius: 12px;
+  background: #f7faf8;
+}
+
+.pos-modal-search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 1.02rem;
+}
+
+.pos-modal-list {
+  max-height: min(22rem, 70vh);
+  overflow: auto;
+  margin: 0.7rem 0 0;
+  padding: 0.3rem 0.55rem 0.7rem;
+  list-style: none;
+}
+
+.pos-modal-list li {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.65rem 0.7rem;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.pos-modal-list li strong,
+.pos-modal-list li small {
+  display: block;
+}
+
+.pos-modal-list li small {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+
+.pos-modal-list li:hover,
+.pos-modal-list li.is-on {
+  background: #e7f4ec;
+}
+
+.pos-modal-list li.is-empty {
+  display: block;
+  cursor: default;
+  color: var(--ink-soft);
+}
+
+.pos-modal-list img,
+.pos-modal-list .pos-thumb {
+  width: 2.4rem;
+  height: 2.4rem;
+}
+
+.pos-codigo-form {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0 1rem 1rem;
+}
+
+.pos-codigo-form .button {
+  margin: 0;
+}
+
+.pos-modal-factura {
+  padding-bottom: 1rem;
+  text-align: center;
+}
+
+.pos-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0 1rem;
+}
+
 .pos-cobrar {
-  position: sticky;
-  bottom: 0;
   z-index: 2;
   width: 100%;
   margin: 0;
   min-height: 3rem;
+  flex: 0 0 auto;
   border-radius: 12px;
   font-size: 1.05rem;
-  box-shadow: 0 -10px 16px var(--canvas);
 }
 
 .pos-side .field {
@@ -4037,6 +4368,15 @@ body.pos-screen .app-stage {
 @container (max-width: 819px) {
   .pos-search-row {
     flex-wrap: wrap;
+  }
+
+  .pos-search-actions {
+    width: 100%;
+  }
+
+  .pos-search-actions .pos-code,
+  .pos-search-actions .pos-atajos {
+    flex: 1;
   }
 
   .pos-table-wrap {
