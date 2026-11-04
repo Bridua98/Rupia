@@ -3,11 +3,42 @@ from django.db.models import Prefetch
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 from core.cantidad import formatear_cantidad
 from core.moneda import formatear_guaranies
 
 _MONEDA = ("precio", "costo", "subtotal")
+_VIGENTE = {"CONFIRMADA", "COBRADA"}
+_ANULADO = {"ANULADA"}
+
+
+def html_bool(value):
+    if value:
+        return format_html(
+            '<span class="rupia-check is-on" title="Sí" aria-label="Sí">'
+            '<svg class="icon" width="14" height="14" viewBox="0 0 18 18" fill="none" '
+            'stroke="currentColor" stroke-width="2.2" stroke-linecap="round" '
+            'stroke-linejoin="round" aria-hidden="true" focusable="false">'
+            '<path d="M4 9.5l3.2 3.2L14 5.5"/></svg></span>'
+        )
+    return mark_safe('<span class="rupia-check is-off" title="No" aria-label="No"></span>')
+
+
+def html_situacion(codigo, etiqueta):
+    clave = str(codigo or "").upper()
+    if clave in _ANULADO:
+        tono = "anulado"
+    elif clave in _VIGENTE:
+        tono = "vigente"
+    else:
+        tono = "otro"
+    return format_html('<span class="rupia-badge is-{}">{}</span>', tono, etiqueta)
+
+
+def record_anulado(record) -> bool:
+    estado = getattr(record, "estado", None)
+    return str(estado or "").upper() in _ANULADO
 
 
 def _es_moneda(field):
@@ -31,13 +62,16 @@ def format_value(record, field):
         return str(value)
 
     if isinstance(field, models.BooleanField):
-        return "Sí" if value else "No"
+        return html_bool(value)
 
     if field.choices:
         if value is None or value == "":
             return "—"
         getter = getattr(record, f"get_{name}_display", None)
-        return getter() if getter else str(value)
+        etiqueta = getter() if getter else str(value)
+        if name == "estado":
+            return html_situacion(value, etiqueta)
+        return etiqueta
 
     if isinstance(field, models.DateTimeField):
         if value is None:
@@ -179,4 +213,5 @@ def build_view_context(record, *, exclude=()):
         "view_record": record,
         "view_fields": record_header_fields(record, exclude=exclude),
         "view_tables": build_detail_tables(record),
+        "view_anulado": record_anulado(record),
     }

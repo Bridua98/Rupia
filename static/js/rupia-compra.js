@@ -48,6 +48,26 @@
     return !!(radio && radio.value && radio.value.indexOf("FAC_") === 0);
   }
 
+  function perteneceACabecera(el) {
+    if (!cabecera || !el) return false;
+    if (el.closest && el.closest("dialog")) return false;
+    if (cabecera.contains(el)) return true;
+    return !!(cabecera.id && el.getAttribute && el.getAttribute("form") === cabecera.id);
+  }
+
+  root.addEventListener("keydown", function (event) {
+    if (event.key !== "Enter") return;
+    var el = event.target;
+    if (el && el.closest && el.closest("[data-compra-guardar], [data-compra-confirmar]")) {
+      event.preventDefault();
+      return;
+    }
+    if (!perteneceACabecera(el)) return;
+    var tag = (el.tagName || "").toLowerCase();
+    if (tag === "textarea") return;
+    event.preventDefault();
+  });
+
   function abrirDialogo(dialogo, foco) {
     if (!dialogo) return;
     if (typeof dialogo.showModal === "function") dialogo.showModal();

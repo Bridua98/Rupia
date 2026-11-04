@@ -1999,6 +1999,85 @@ button.topbar-icon:hover {
   word-break: break-word;
 }
 
+.rupia-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 2px solid #c5d2cb;
+  border-radius: 5px;
+  background: #fff;
+  vertical-align: middle;
+}
+
+.rupia-check.is-on {
+  border-color: #1f7a4d;
+  background: #1f7a4d;
+  color: #fff;
+}
+
+.rupia-check.is-on .icon {
+  stroke: #fff;
+}
+
+.rupia-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.rupia-badge.is-vigente {
+  background: #e4f6eb;
+  color: #1f7a4d;
+}
+
+.rupia-badge.is-anulado {
+  background: #fde8e6;
+  color: #9b3a32;
+}
+
+.rupia-badge.is-otro {
+  background: #eef2f0;
+  color: var(--ink-soft);
+}
+
+.view-anulado-banner {
+  margin: 0 0 0.85rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 8px;
+  background: #fde8e6;
+  color: #9b3a32;
+  font-weight: 700;
+}
+
+.view-panel.is-anulado h2,
+.view-panel.is-anulado .view-field dd,
+.view-panel.is-anulado .sheet td {
+  text-decoration: line-through;
+}
+
+.view-panel.is-anulado .rupia-badge,
+.view-panel.is-anulado .rupia-check,
+.view-panel.is-anulado .view-anulado-banner {
+  text-decoration: none;
+}
+
+.sheet tbody tr.is-anulado td {
+  color: #9b3a32;
+  text-decoration: line-through;
+}
+
+.sheet tbody tr.is-anulado .rupia-badge,
+.sheet tbody tr.is-anulado .rupia-check,
+.sheet tbody tr.is-anulado .sheet-col-acciones {
+  text-decoration: none;
+}
+
 .view-panel-empty {
   margin: 0;
 }

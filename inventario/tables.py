@@ -6,6 +6,7 @@ from django.utils.safestring import mark_safe
 from core.cantidad import formatear_cantidad
 from core.moneda import formatear_guaranies
 from core.tables import ActionMenuColumn
+from core.vista import html_bool
 from inventario.models import (
     Item,
     ItemCategoria,
@@ -227,7 +228,7 @@ class PrecioHistorialTable(tables.Table):
         return format(value, "f").rstrip("0").replace(".", ",")
 
     def render_segun_costo(self, value):
-        return "Sí" if value else "No"
+        return html_bool(value)
 
 
 class ReporteProductosDetalleTable(tables.Table):
