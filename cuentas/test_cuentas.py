@@ -7,8 +7,6 @@ from pypdf import PdfReader
 from cuentas.models import Cuenta
 
 
-
-
 def _payload(**extra):
     base = {
         "descripcion": "Caja principal",

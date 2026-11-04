@@ -8,8 +8,6 @@ from pypdf import PdfReader
 from inventario.models import Item, ItemCategoria, Marca, TipoItem, UnidadMedida
 
 
-
-
 @pytest.mark.django_db
 def test_listado_pide_ingreso(client):
     response = client.get("/inventario/categorias/")

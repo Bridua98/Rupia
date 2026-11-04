@@ -12,8 +12,6 @@ from personas.consulta import buscar, consultar_ruc, ficha_persona
 from personas.models import Genero, Persona, TipoDocumento
 
 
-
-
 def crear_persona(**overrides):
     datos = {
         "tipo_documento": TipoDocumento.CEDULA,

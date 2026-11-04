@@ -21,8 +21,6 @@ from inventario.reporte_stock import stock_desde_movimientos
 from negocio.models import UnidadNegocio
 
 
-
-
 def _unidad_negocio():
     unidad, _ = UnidadNegocio.objects.get_or_create(
         abreviado="DEP",

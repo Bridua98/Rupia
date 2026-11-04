@@ -16,8 +16,6 @@ from inventario.unidades import convertir_a_base
 from negocio.models import UnidadNegocio
 
 
-
-
 def _foraneos(*, simbolo="kg"):
     marca = Marca.objects.create(descripcion="Genérica")
     categoria = ItemCategoria.objects.create(descripcion="Alimentos")
