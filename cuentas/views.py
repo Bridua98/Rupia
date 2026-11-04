@@ -15,7 +15,7 @@ class CuentaMantenimiento:
     table_class = CuentaTable
     permiso_formulario = "cuentas"
     page_title = "Cuentas"
-    eyebrow = "Caja"
+    eyebrow = "Gestión"
     title = "Cuentas"
     create_label = "Nueva cuenta"
     list_hint = "Flechas para moverse. Enter abre la cuenta."

@@ -40,6 +40,7 @@ def test_el_menu_muestra_timbrados(ingresada):
     content = ingresada.get("/").content.decode()
     assert 'href="/ventas/timbrados/"' in content
     assert "Timbrados" in content
+    assert "Gestión" in content
 
 
 @pytest.mark.django_db
