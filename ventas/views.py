@@ -71,6 +71,15 @@ def _dinero(valor) -> str:
     return f"{SIMBOLO} {formatear_guaranies(valor)}"
 
 
+def _numero_visor(venta, punto) -> str:
+    establecimiento = venta.establecimiento or (punto.establecimiento if punto else "")
+    codigo = venta.punto_codigo or (punto.codigo if punto else "")
+    secuencial = venta.secuencial or (punto.numero_proximo if punto else None)
+    if establecimiento and codigo and secuencial:
+        return formatear_numero_comprobante(establecimiento, codigo, secuencial)
+    return proximo_numero(venta.tipo_comprobante)
+
+
 def _error(exc: ValidationError) -> str:
     if hasattr(exc, "message") and exc.message:
         return str(exc.message)
@@ -225,6 +234,7 @@ class PuntoVentaView(LoginRequiredMixin, View):
             "factura_pide_cliente": pide_cliente,
             "emision_motivo": motivo_pos(venta),
             "proximo_numero": proximo_numero(venta.tipo_comprobante),
+            "numero_visor": _numero_visor(venta, punto),
             "punto": punto,
             "subtotal": subtotal,
             "total": total,

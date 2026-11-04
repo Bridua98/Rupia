@@ -635,8 +635,7 @@ def test_medios_de_cobro_siguen_a_las_cuentas(ingresada):
     _preparar()
     content = ingresada.get("/ventas/punto-de-venta/").content.decode()
     assert 'value="EFECTIVO"' in content
-    assert "El efectivo se acredita en" in content
-    assert "CAJA01" in content
+    assert "Monto recibido" in content
     assert 'value="TARJETA"' not in content
     assert 'value="TRANSFERENCIA"' not in content
     assert "Buscar cliente por nombre, RUC o cédula" in content
@@ -677,7 +676,7 @@ def test_cambiar_a_efectivo_usa_la_caja_aunque_venga_otra_cuenta(ingresada):
     assert venta.cuenta_cobro_id == caja.pk
     content = ingresada.get("/ventas/punto-de-venta/").content.decode()
     assert "Elegí la cuenta de cobro." not in content
-    assert "El efectivo se acredita en" in content
+    assert "Monto recibido" in content
 
 
 @pytest.mark.django_db
@@ -718,6 +717,26 @@ def test_buscar_productos_por_marca_y_pagina(ingresada):
     assert segunda["resultados"]
     ids = {item["id"] for item in primera["resultados"]}
     assert ids.isdisjoint({item["id"] for item in segunda["resultados"]})
+
+
+@pytest.mark.django_db
+def test_pos_muestra_numero_segun_comprobante(ingresada):
+    _preparar()
+    ticket = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    start = ticket.find("data-pos-proximo")
+    assert start != -1, ticket[ticket.find("Nueva venta"): ticket.find("Nueva venta") + 400]
+    assert "001-001-0000124" in ticket[start:start + 80]
+    assert "Caja abierta" not in ticket
+    assert "Descuento" not in ticket
+    cliente = _cliente()
+    ingresada.post(
+        "/ventas/punto-de-venta/",
+        {"tipo_comprobante": TipoComprobante.FACTURA, "cliente": cliente.pk},
+    )
+    factura = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    start = factura.find("data-pos-proximo")
+    assert start != -1
+    assert "001-002-0000124" in factura[start : start + 80]
 
 
 @pytest.mark.django_db

@@ -324,6 +324,14 @@
     return est + "-" + pto + "-" + sec;
   }
 
+  function pintarProximo() {
+    var visor = root.querySelector("[data-pos-proximo]");
+    if (!visor) return;
+    if (esFactura() && (numEst || numPto || numSec)) {
+      visor.textContent = numeroFactura();
+    }
+  }
+
   function pintarNumeroMsg(nodo, ok, texto) {
     if (!nodo) return;
     nodo.hidden = !texto;
@@ -359,10 +367,12 @@
     if (!campo) return;
     campo.addEventListener("input", function () {
       campo.value = String(campo.value || "").replace(/\D/g, "");
+      pintarProximo();
       clearTimeout(numeroTimer);
       numeroTimer = setTimeout(validarNumero, 220);
     });
   });
+  pintarProximo();
 
   function pintarVuelto() {
     if (!vueltoBox || !recibido) return;

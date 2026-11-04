@@ -4,30 +4,6 @@
 {% block title %}Punto de venta · Rupia{% endblock %}
 {% block body_class %}app pos-screen{% endblock %}
 
-{% block topbar_context %}
-  {% if punto and punto.emisor_razon_social %}
-    <span class="topbar-place">
-      {% include "core/icon.html" with name="pin" %}
-      {{ punto.emisor_razon_social }}
-    </span>
-  {% endif %}
-  <label class="topbar-caja">
-    {% include "core/icon.html" with name="cash" %}
-    <select name="caja" form="pos-cabecera" aria-label="Caja">
-      <option value="">Elegí una caja</option>
-      {% for caja in cajas %}
-        <option value="{{ caja.pk }}"{% if venta.caja_id == caja.pk %} selected{% endif %}>{{ caja.nombre_corto }}</option>
-      {% endfor %}
-    </select>
-  </label>
-{% endblock %}
-
-{% block topbar_status %}
-  {% if venta.caja_id %}
-    <span class="pos-status"><span aria-hidden="true"></span>Caja abierta</span>
-  {% endif %}
-{% endblock %}
-
 {% block work %}
 <div
   class="pos"
@@ -44,7 +20,7 @@
         <span class="pos-sale-mark" aria-hidden="true">{% include "core/icon.html" with name="bag" %}</span>
         <div>
           <h1>Nueva venta</h1>
-          <p>N.º {% if proximo_numero %}{{ proximo_numero }}{% else %}—{% endif %}</p>
+          <p class="pos-sale-num">N.º <strong data-pos-proximo>{% if numero_visor %}{{ numero_visor }}{% else %}—{% endif %}</strong></p>
         </div>
       </div>
       <div class="pos-sale-date">
@@ -80,7 +56,6 @@
             <li><kbd>F3</kbd> Buscar productos</li>
             <li><kbd>F5</kbd> Guardar / Suspender</li>
             <li><kbd>F8</kbd> Buscar cliente</li>
-            <li><kbd>F9</kbd> Descuento</li>
             <li><kbd>F12</kbd> Cobrar</li>
             <li><kbd>Esc</kbd> Cancelar venta</li>
           </ul>
@@ -95,7 +70,6 @@
             <th>Producto</th>
             <th>Precio</th>
             <th>Cant.</th>
-            <th>Descuento</th>
             <th>Importe</th>
             <th><span class="sr-only">Quitar</span></th>
           </tr>
@@ -136,14 +110,6 @@
                   <button type="submit" name="accion" value="mas" aria-label="Más">+</button>
                 </form>
               </td>
-              <td>
-                <form method="post" action="{% url 'punto_de_venta_linea' linea.pk %}" class="pos-line-discount">
-                  {% csrf_token %}
-                  <input type="hidden" name="accion" value="descuento">
-                  <input type="text" name="descuento" value="{{ linea.descuento_txt }}" inputmode="decimal" aria-label="Descuento de la línea" onchange="this.form.submit()">
-                  <span>%</span>
-                </form>
-              </td>
               <td>Gs. {{ linea.subtotal_txt }}</td>
               <td>
                 <form method="post" action="{% url 'punto_de_venta_linea' linea.pk %}">
@@ -154,7 +120,7 @@
             </tr>
           {% empty %}
             <tr>
-              <td class="pos-empty" colspan="6">Buscá un producto para empezar la venta.</td>
+              <td class="pos-empty" colspan="5">Buscá un producto para empezar la venta.</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -179,18 +145,12 @@
   <aside class="pos-side">
     <form method="post" action="{% url 'punto_de_venta' %}" id="pos-cabecera">
       {% csrf_token %}
+      {% if venta.caja_id %}<input type="hidden" name="caja" value="{{ venta.caja_id }}">{% endif %}
+      <input type="hidden" name="descuento" value="{{ descuento_txt }}">
       <section class="pos-card pos-summary">
         <div class="pos-row">
           <span>Subtotal</span>
           <strong>{{ subtotal_txt }}</strong>
-        </div>
-        <div class="pos-row pos-discount">
-          <span>Descuento</span>
-          <span class="pos-discount-fields">
-            <input type="text" name="descuento_pct" value="{{ descuento_pct_txt }}" inputmode="decimal" aria-label="Descuento porcentual" data-pos-descuento-pct>
-            <span>%</span>
-            <input type="text" name="descuento" value="{{ descuento_txt }}" inputmode="numeric" aria-label="Descuento en guaraníes" data-pos-descuento>
-          </span>
         </div>
         <div class="pos-row">
           <span>{{ iva_label }}</span>
@@ -217,13 +177,9 @@
           {% endfor %}
         </div>
         {% if venta.medio == "EFECTIVO" %}
-          <p class="pos-destino">
-            {% if venta.caja_id %}
-              El efectivo se acredita en <strong>{{ venta.caja.nombre_corto }}</strong>.
-            {% else %}
-              Elegí una caja para cobrar en efectivo.
-            {% endif %}
-          </p>
+          {% if not venta.caja_id %}
+            <p class="pos-destino">Elegí una caja para cobrar en efectivo.</p>
+          {% endif %}
         {% else %}
           <label class="field">
             <span>Cuenta de cobro</span>
@@ -252,7 +208,6 @@
               >
             </span>
           </label>
-          <p class="pos-recibido-hint">Enter calcula el vuelto. Los miles van con punto (100.000).</p>
           {% if rapidos %}
             <div class="pos-rapidos">
               {% for monto in rapidos %}

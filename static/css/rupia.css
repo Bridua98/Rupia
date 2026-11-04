@@ -3309,13 +3309,20 @@ body.pos-screen .app-stage {
   flex: 1;
   min-height: 0;
   gap: 0.9rem;
+  align-items: start;
   align-content: start;
 }
 
 @container (min-width: 820px) {
   .pos {
     grid-template-columns: minmax(0, 1fr) 24.5rem;
+    align-items: stretch;
     align-content: stretch;
+  }
+
+  .pos > .pos-sale,
+  .pos > .pos-side {
+    min-height: 0;
   }
 }
 
@@ -3376,11 +3383,30 @@ body.pos-screen .app-stage {
 
 .pos-sale-head {
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 0.7rem 1rem;
 }
 
 .pos-sale-title {
   min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.pos-sale-num {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pos-sale-num strong {
+  display: inline;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-variant-numeric: tabular-nums;
+}
+
+.pos-sale-date {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .pos-sale-mark {
@@ -3426,9 +3452,14 @@ body.pos-screen .app-stage {
 
 .pos-search-actions {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: 0.5rem;
   flex: 0 0 auto;
+}
+
+.pos-search-actions .pos-atajos {
+  display: flex;
+  align-items: stretch;
 }
 
 .pos-atajos summary,
@@ -3487,7 +3518,11 @@ body.pos-screen .app-stage {
 
 .pos-search-row {
   margin-top: 0.85rem;
-  align-items: stretch;
+  align-items: center;
+}
+
+.pos-search-row .pos-search {
+  margin: 0;
 }
 
 .pos-code kbd,
@@ -3513,7 +3548,9 @@ body.pos-screen .app-stage {
   position: relative;
   flex: 1;
   min-width: 0;
-  padding: 0.55rem 0.8rem;
+  box-sizing: border-box;
+  height: 2.7rem;
+  padding: 0 0.8rem;
   border: 1px solid #dce8e1;
   border-radius: 12px;
   background: #f7faf8;
@@ -3521,7 +3558,18 @@ body.pos-screen .app-stage {
 }
 
 .pos-search input {
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  line-height: 1.25;
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.pos-search input::-webkit-search-decoration,
+.pos-search input::-webkit-search-cancel-button {
+  display: none;
 }
 
 .pos-search input,
@@ -3719,6 +3767,7 @@ body.pos-screen .app-stage {
   padding: 0;
   border: 0;
   background: transparent;
+  min-height: 0;
 }
 
 .pos-side #pos-cabecera {
@@ -3726,6 +3775,7 @@ body.pos-screen .app-stage {
   gap: 0.7rem;
   flex: 1;
   min-height: 0;
+  margin: 0;
   overflow: auto;
   padding-right: 0.1rem;
 }
