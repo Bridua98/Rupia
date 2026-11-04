@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db.models import Prefetch
 
+from core.cantidad import formatear_cantidad
 from core.listado import (
     apply_filters,
     apply_search,
@@ -19,14 +20,12 @@ from inventario.models import (
     Marca,
     TasaIva,
     TipoItem,
-    TipoMovimiento,
     UnidadMedida,
 )
+from inventario.movimientos import TIPOS_SALIDA
 from inventario.tables import ReporteStockTable
 from inventario.unidades import convertir_a_base, redondear_cantidad
 from negocio.models import UnidadNegocio
-
-TIPOS_SALIDA = frozenset({TipoMovimiento.VENTA, TipoMovimiento.AJUSTE_NEGATIVO})
 
 
 @dataclass
@@ -222,6 +221,11 @@ class ReporteStockListView(MantenimientoListView):
             row = []
             for column in columns:
                 value = column.accessor.resolve(record)
-                row.append("" if value is None else value)
+                if value is None:
+                    row.append("")
+                elif column.name == "stock":
+                    row.append(formatear_cantidad(value))
+                else:
+                    row.append(value)
             rows.append(row)
         return headers, rows

@@ -32,9 +32,9 @@
             {% if forloop.first %}
               <th scope="row">Total</th>
             {% elif column.name == "cantidad" %}
-              <td>{{ table.reporte_totales.cantidad }}</td>
+              <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.cantidad_html }}</td>
             {% elif column.name == "subtotal" %}
-              <td>{{ table.reporte_totales.subtotal }}</td>
+              <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.subtotal_html }}</td>
             {% else %}
               <td></td>
             {% endif %}

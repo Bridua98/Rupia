@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 from django.core.exceptions import ValidationError
 
-from core.cantidad import CantidadField, formatear_cantidad, interpretar_cantidad
+from core.cantidad import CantidadField, formatear_cantidad, html_cantidad, interpretar_cantidad
 
 
 def test_formatea_con_coma_decimal_y_punto_de_miles():
@@ -11,6 +11,11 @@ def test_formatea_con_coma_decimal_y_punto_de_miles():
     assert formatear_cantidad(Decimal("12")) == "12"
     assert formatear_cantidad(Decimal("1000")) == "1.000"
     assert formatear_cantidad(Decimal("1250.5")) == "1.250,500"
+    assert formatear_cantidad(Decimal("-2")) == "-2"
+    html = str(html_cantidad(Decimal("-2")))
+    assert "valor-num is-neg" in html
+    assert "-2" in html
+    assert 'dir="ltr"' in html
 
 
 def test_interpreta_cantidad_paraguaya():

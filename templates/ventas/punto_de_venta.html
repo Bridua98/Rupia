@@ -102,7 +102,7 @@
                   </div>
                 </div>
               </td>
-              <td>Gs. {{ linea.precio_txt }}</td>
+              <td class="pos-col-moneda"><span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.precio_txt }}</span></td>
               <td>
                 <form method="post" action="{% url 'punto_de_venta_linea' linea.pk %}" class="pos-stepper">
                   {% csrf_token %}
@@ -111,7 +111,7 @@
                   <button type="submit" name="accion" value="mas" aria-label="Más">+</button>
                 </form>
               </td>
-              <td>Gs. {{ linea.subtotal_txt }}</td>
+              <td class="pos-col-moneda"><span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.subtotal_txt }}</span></td>
               <td>
                 <form method="post" action="{% url 'punto_de_venta_linea' linea.pk %}">
                   {% csrf_token %}
@@ -151,15 +151,15 @@
       <section class="pos-card pos-summary">
         <div class="pos-row">
           <span>Subtotal</span>
-          <strong>{{ subtotal_txt }}</strong>
+          <strong class="valor-gs is-texto" dir="ltr">{{ subtotal_txt }}</strong>
         </div>
         <div class="pos-row">
           <span>{{ iva_label }}</span>
-          <strong>{{ iva_txt }}</strong>
+          <strong class="valor-gs is-texto" dir="ltr">{{ iva_txt }}</strong>
         </div>
         <div class="pos-total">
           <span>TOTAL A PAGAR</span>
-          <strong>{{ total_txt }}</strong>
+          <strong class="valor-gs is-texto" dir="ltr">{{ total_txt }}</strong>
         </div>
       </section>
 

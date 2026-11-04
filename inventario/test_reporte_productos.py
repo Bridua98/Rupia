@@ -3,7 +3,6 @@ from decimal import Decimal
 from io import BytesIO
 
 import pytest
-from django.urls import reverse
 from openpyxl import load_workbook
 
 from inventario.models import (
@@ -17,8 +16,6 @@ from inventario.models import (
     UnidadMedida,
 )
 from negocio.models import UnidadNegocio
-
-
 
 
 def _unidad_negocio():
@@ -56,12 +53,12 @@ def _gasto(descripcion, marca, categoria, unidad):
     )
 
 
-def _movimiento(item, unidad, *, pk, cantidad, subtotal, fecha=None):
+def _movimiento(item, unidad, *, pk, cantidad, subtotal, fecha=None, tipo=TipoMovimiento.VENTA):
     return ItemMovimiento.objects.create(
         id=pk,
         item=item,
         unidad_medida=unidad,
-        tipo=TipoMovimiento.VENTA,
+        tipo=tipo,
         fecha_movimiento=fecha or date(2026, 10, 1),
         cantidad=Decimal(cantidad),
         precio=Decimal("1000"),
@@ -182,3 +179,75 @@ def test_excel_incluye_fila_total(ingresada):
     hoja = libro.active
     ultima = hoja.max_row
     assert hoja.cell(ultima, 1).value == "Total"
+    assert hoja.cell(2, 7).value == "-2"
+    assert hoja.cell(2, 10).value == "-Gs. 2.000"
+    assert hoja.cell(ultima, 7).value == "-2"
+    assert hoja.cell(ultima, 10).value == "-Gs. 2.000"
+
+
+@pytest.mark.django_db
+def test_entradas_positivas_salidas_negativas_y_gs_a_la_izquierda(ingresada):
+    marca = Marca.objects.create(descripcion="M")
+    categoria = ItemCategoria.objects.create(descripcion="C")
+    unidad = UnidadMedida.objects.create(descripcion="Unidad", simbolo="UND")
+    producto = _producto("Prod Mix", marca, categoria, unidad)
+    _movimiento(
+        producto,
+        unidad,
+        pk=50,
+        cantidad="5",
+        subtotal="5000",
+        tipo=TipoMovimiento.COMPRA,
+    )
+    _movimiento(
+        producto,
+        unidad,
+        pk=51,
+        cantidad="2",
+        subtotal="2000",
+        tipo=TipoMovimiento.VENTA,
+    )
+
+    response = ingresada.get("/inventario/reportes/productos/")
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "valor-gs is-pos" in content
+    assert "valor-gs is-neg" in content
+    assert "valor-num is-pos" in content
+    assert "valor-num is-neg" in content
+    assert "rupia-badge is-entrada" in content
+    assert "rupia-badge is-salida" in content
+    assert 'class="valor-gs-simbolo">Gs.</span>' in content
+    assert "5.000" in content
+    assert "2.000" in content
+    assert "sheet-col-moneda" in content
+    assert 'dir="ltr"' in content
+
+    totales = content.split("sheet-total")[1]
+    assert "valor-num is-pos" in totales
+    assert "3" in totales
+    assert "3.000" in totales
+
+
+@pytest.mark.django_db
+def test_agrupado_compensa_entrada_y_salida(ingresada):
+    marca = Marca.objects.create(descripcion="Unica")
+    categoria = ItemCategoria.objects.create(descripcion="Cat")
+    unidad = UnidadMedida.objects.create(descripcion="Unidad", simbolo="UND")
+    producto = _producto("Item Mix", marca, categoria, unidad)
+    _movimiento(
+        producto, unidad, pk=60, cantidad="10", subtotal="10000", tipo=TipoMovimiento.COMPRA
+    )
+    _movimiento(
+        producto, unidad, pk=61, cantidad="4", subtotal="4000", tipo=TipoMovimiento.VENTA
+    )
+
+    response = ingresada.get("/inventario/reportes/productos/?agrupar=item")
+
+    content = response.content.decode()
+    cuerpo = content.split("<tbody>")[1].split("</tbody>")[0]
+    assert "Item Mix" in cuerpo
+    assert "valor-num is-pos" in cuerpo
+    assert ">6</span>" in cuerpo or ">6<" in cuerpo
+    assert "6.000" in content

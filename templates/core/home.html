@@ -18,7 +18,7 @@
     <article class="dash-card">
       <p class="eyebrow">Ventas del día</p>
       {% if tablero.ventas_dia_cantidad %}
-        <p class="dash-value">{{ tablero.ventas_dia_importe_txt }}</p>
+        <p class="dash-value valor-gs is-texto" dir="ltr">{{ tablero.ventas_dia_importe_txt }}</p>
         <p class="dash-meta">{{ tablero.ventas_dia_cantidad }} comprobante{{ tablero.ventas_dia_cantidad|pluralize:"s" }}</p>
       {% else %}
         <p class="dash-empty">Sin ventas cobradas hoy</p>
@@ -28,7 +28,7 @@
     <article class="dash-card">
       <p class="eyebrow">Última venta</p>
       {% if tablero.ultima %}
-        <p class="dash-value">{{ tablero.ultima.importe_txt }}</p>
+        <p class="dash-value valor-gs is-texto" dir="ltr">{{ tablero.ultima.importe_txt }}</p>
         <p class="dash-meta">{{ tablero.ultima.numero }} · {{ tablero.ultima.fecha|date:"d/m/Y" }}</p>
         <p class="dash-meta">{{ tablero.ultima.cliente }}</p>
       {% else %}
