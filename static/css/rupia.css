@@ -4796,6 +4796,123 @@ body.pos-screen .app-stage {
   max-width: 42rem;
 }
 
+.ticket-print .ticket-page {
+  max-width: 52rem;
+}
+
+.ticket-print-hint {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
+.ticket-roll {
+  width: 80mm;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 4mm 3.5mm 8mm;
+  background: #fff;
+  color: #111;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.ticket-empresa {
+  text-align: center;
+}
+
+.ticket-empresa p {
+  margin: 0.12rem 0 0;
+}
+
+.ticket-empresa-nombre {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.ticket-sep {
+  height: 0;
+  margin: 0.55rem 0;
+  border-top: 1px dashed #333;
+}
+
+.ticket-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.15rem 0;
+}
+
+.ticket-items {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ticket-items th,
+.ticket-items td {
+  padding: 0.2rem 0;
+  border: 0;
+  font-weight: 400;
+  vertical-align: top;
+}
+
+.ticket-items thead th {
+  border-bottom: 1px dashed #333;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.ticket-cant {
+  width: 18%;
+  text-align: left;
+}
+
+.ticket-desc {
+  width: auto;
+  padding-right: 0.4rem;
+  overflow-wrap: anywhere;
+}
+
+.ticket-monto {
+  width: 34%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ticket-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin: 0.15rem 0 0;
+  font-size: 14px;
+}
+
+.ticket-total strong {
+  font-weight: 700;
+}
+
+@media print {
+  body.ticket-print,
+  body.ticket-print .print-page {
+    width: 80mm;
+    max-width: 80mm;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+  }
+
+  body.ticket-print .ticket-roll {
+    width: 74mm;
+    padding: 0;
+  }
+}
+
 .dash {
   display: grid;
   gap: 1.35rem;

@@ -1,55 +1,60 @@
 {% extends "base.html" %}
 
 {% block title %}Ticket {{ venta.numero_completo }} · Rupia{% endblock %}
-{% block body_class %}print-view{% endblock %}
+{% block body_class %}print-view ticket-print{% endblock %}
+{% block extra_head %}
+<style>
+  @page {
+    size: 80mm auto;
+    margin: 3mm;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<article class="print-page ticket-page">
+<article class="print-page ticket-page" data-ticket-formato="80mm">
   <header class="print-toolbar">
     <a class="back" href="{% url 'punto_de_venta' %}">
       {% include "core/icon.html" with name="back" %}
       <span>Volver</span>
     </a>
+    <p class="ticket-print-hint">Papel 80 mm</p>
     <button type="button" class="button" onclick="window.print()">
       {% include "core/icon.html" with name="print" %}
       <span>Imprimir</span>
     </button>
   </header>
-  <p class="eyebrow">Rupia</p>
-  <h1>Ticket</h1>
-  <p>{{ venta.emisor_razon_social }}</p>
-  <p>RUC {{ venta.emisor_ruc }}</p>
-  <p>{{ venta.emisor_direccion }}</p>
-  {% if venta.emisor_telefono %}<p>Tel. {{ venta.emisor_telefono }}</p>{% endif %}
-  <p>Timbrado {{ venta.timbrado }}</p>
-  <p>Vigencia {{ venta.vigencia_desde|date:"d/m/Y" }} al {{ venta.vigencia_hasta|date:"d/m/Y" }}</p>
-  <p>N° {{ venta.numero_completo }}</p>
-  <p>{{ venta.fecha|date:"d/m/Y" }} · Contado</p>
-  <p>{% if venta.cliente %}{{ venta.cliente }}{% else %}Consumidor final{% endif %}</p>
-  <table class="sheet print-table">
-    <thead>
-      <tr>
-        <th scope="col">Producto</th>
-        <th scope="col">Cant.</th>
-        <th scope="col">Precio</th>
-        <th scope="col">Subtotal</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for linea in lineas %}
+  <div class="ticket-roll">
+    <header class="ticket-empresa">
+      <p class="ticket-empresa-nombre">{{ venta.emisor_razon_social|default:"Nombre de la empresa" }}</p>
+      {% if venta.emisor_direccion %}<p>{{ venta.emisor_direccion }}</p>{% endif %}
+      {% if venta.emisor_telefono %}<p>Tel. {{ venta.emisor_telefono }}</p>{% endif %}
+    </header>
+    <p class="ticket-sep"></p>
+    <p class="ticket-meta"><span>N° venta</span><span>{{ venta.numero_completo }}</span></p>
+    <p class="ticket-meta"><span>Fecha</span><span>{{ venta.fecha|date:"d/m/Y" }}</span></p>
+    <p class="ticket-meta"><span>Hora</span><span>{{ hora_txt }}</span></p>
+    <p class="ticket-sep"></p>
+    <table class="ticket-items">
+      <thead>
         <tr>
-          <td>{{ linea.descripcion }}</td>
-          <td>{{ linea.cantidad_txt }} {{ linea.unidad }}</td>
-          <td>Gs. {{ linea.precio_txt }}</td>
-          <td>Gs. {{ linea.subtotal_txt }}</td>
+          <th scope="col" class="ticket-cant">Cant.</th>
+          <th scope="col" class="ticket-desc">Descripción</th>
+          <th scope="col" class="ticket-monto">Monto</th>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  <p>Subtotal {{ subtotal_txt }}</p>
-  {% if iva.descuento %}<p>Descuento {{ descuento_txt }}</p>{% endif %}
-  <p><strong>Total {{ total_txt }}</strong></p>
-  <p>{{ venta.get_medio_display }} · Recibido {{ recibido_txt }}</p>
-  <p>Vuelto {{ vuelto_txt }}</p>
+      </thead>
+      <tbody>
+        {% for linea in lineas %}
+          <tr>
+            <td class="ticket-cant">{{ linea.cantidad_txt }}</td>
+            <td class="ticket-desc">{{ linea.descripcion }}</td>
+            <td class="ticket-monto">{{ linea.subtotal_txt }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="ticket-sep"></p>
+    <p class="ticket-total"><span>Total</span><strong>{{ total_txt }}</strong></p>
+  </div>
 </article>
 {% endblock %}
