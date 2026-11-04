@@ -3900,6 +3900,21 @@ body.pos-screen .app-stage {
   font-size: 0.85rem;
 }
 
+.pos-cliente-actual.is-warn {
+  border-color: #d4a3a0;
+  background: #fdf4f3;
+}
+
+.pos-cliente-search.is-required {
+  border: 1px solid #d4a3a0;
+  border-radius: 12px;
+  background: #fff8f7;
+}
+
+.pos-hint.is-warn {
+  color: #9b3a32;
+}
+
 .pos-cliente-search-lg {
   min-height: 3.15rem;
   margin-top: 0.65rem;

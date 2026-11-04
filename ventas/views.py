@@ -31,17 +31,19 @@ from ventas.cobro import (
     cambiar_unidad,
     cancelar,
     cliente_ocasional,
-    comprobantes_emitibles,
+    comprobantes_pos,
     confirmar,
     cuentas_para_medio,
+    exigir_cliente_factura,
+    factura_pide_cliente,
     formatear_porcentaje,
     importes_rapidos,
     lineas_vista,
     liquidar_iva,
     medios_disponibles,
-    motivo_emision,
+    motivo_pos,
     proximo_numero,
-    puede_emitir,
+    puede_cobrar,
     punto_de,
     quitar_linea,
     subtotal_venta,
@@ -144,12 +146,13 @@ class PuntoVentaView(LoginRequiredMixin, View):
         venta = borrador(request.user)
         try:
             self._aplicar(request, venta)
+            if request.POST.get("guardar"):
+                exigir_cliente_factura(venta)
+                messages.success(request, "La venta quedó guardada.")
+                return redirect("home")
         except ValidationError as exc:
             messages.error(request, _error(exc))
             return redirect("punto_de_venta")
-        if request.POST.get("guardar"):
-            messages.success(request, "La venta quedó guardada.")
-            return redirect("home")
         return redirect("punto_de_venta")
 
     def _aplicar(self, request, venta):
@@ -206,15 +209,7 @@ class PuntoVentaView(LoginRequiredMixin, View):
             )
         else:
             descuento_pct = Decimal("0")
-        emitibles = comprobantes_emitibles()
-        tipos_emitibles = {tipo for tipo, _etiqueta in emitibles}
-        if venta.tipo_comprobante not in tipos_emitibles:
-            comprobantes = [
-                (venta.tipo_comprobante, venta.get_tipo_comprobante_display()),
-                *emitibles,
-            ]
-        else:
-            comprobantes = emitibles
+        pide_cliente = factura_pide_cliente(venta)
         return {
             "venta": venta,
             "lineas": lineas,
@@ -222,9 +217,10 @@ class PuntoVentaView(LoginRequiredMixin, View):
             "cajas": cajas(),
             "cuentas_cobro": cuentas_para_medio(venta.medio, venta.caja),
             "medios": medios_disponibles(venta.medio),
-            "comprobantes": comprobantes,
-            "puede_emitir": puede_emitir(punto),
-            "emision_motivo": motivo_emision(punto),
+            "comprobantes": comprobantes_pos(),
+            "puede_cobrar": puede_cobrar(venta),
+            "factura_pide_cliente": pide_cliente,
+            "emision_motivo": motivo_pos(venta),
             "proximo_numero": proximo_numero(venta.tipo_comprobante),
             "punto": punto,
             "subtotal": subtotal,
