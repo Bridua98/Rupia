@@ -9,6 +9,7 @@ def test_login_muestra_el_formulario(client):
     content = response.content.decode()
     assert "Ingresar" in content
     assert "css/rupia.css" in content
+    assert "favicon.svg" in content
     assert "csrfmiddlewaretoken" in content
     assert "Clave-inicial-Rupia-2026" not in content
 
@@ -53,8 +54,10 @@ def test_login_entra_y_cierra_sesion(client, django_user_model):
     assert response.url == "/"
     home = client.get("/")
     assert home.status_code == 200
-    assert "Hola, ada." in home.content.decode()
-    assert "Abrir administración" not in home.content.decode()
+    content = home.content.decode()
+    assert "Hola, ada." in content
+    assert "Abrir administración" not in content
+    assert "Salir" in content
 
     logout = client.post("/logout/")
     assert logout.status_code == 302
