@@ -222,6 +222,31 @@ def punto_para(tipo) -> PuntoExpedicion | None:
     return punto
 
 
+def comprobantes_pos():
+    return list(TipoComprobante.choices)
+
+
+def factura_pide_cliente(venta) -> bool:
+    return venta.tipo_comprobante == TipoComprobante.FACTURA and venta.cliente_id is None
+
+
+def exigir_cliente_factura(venta):
+    if factura_pide_cliente(venta):
+        raise ValidationError("La factura pide un cliente.", code="cliente")
+
+
+def motivo_pos(venta) -> str:
+    if factura_pide_cliente(venta):
+        return "La factura pide un cliente."
+    return motivo_emision(punto_de(venta.tipo_comprobante))
+
+
+def puede_cobrar(venta) -> bool:
+    if factura_pide_cliente(venta):
+        return False
+    return puede_emitir(punto_de(venta.tipo_comprobante))
+
+
 def comprobantes_emitibles():
     return [
         (tipo, etiqueta)
@@ -611,8 +636,7 @@ def confirmar(venta) -> Venta:
         raise ValidationError("Elegí una caja.", code="caja")
     if venta.cuenta_cobro_id is None:
         raise ValidationError("Elegí la cuenta de cobro.", code="cuenta")
-    if venta.tipo_comprobante == TipoComprobante.FACTURA and venta.cliente_id is None:
-        raise ValidationError("La factura pide un cliente.", code="cliente")
+    exigir_cliente_factura(venta)
     descuento = redondear_guarani(venta.descuento or CERO)
     subtotal = subtotal_venta(venta)
     if descuento > subtotal:

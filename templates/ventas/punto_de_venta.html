@@ -29,7 +29,7 @@
 {% endblock %}
 
 {% block work %}
-<div class="pos" data-pos data-subtotal="{{ subtotal_entero }}">
+<div class="pos" data-pos data-subtotal="{{ subtotal_entero }}"{% if factura_pide_cliente %} data-pos-factura-sin-cliente="1"{% endif %}>
   <section class="pos-sale">
     <header class="pos-sale-head">
       <div class="pos-sale-title">
@@ -150,7 +150,7 @@
     </div>
 
     <div class="pos-sale-actions">
-      <button class="button button-ghost" type="submit" form="pos-cabecera" name="guardar" value="1" data-pos-guardar>
+      <button class="button button-ghost" type="submit" form="pos-cabecera" name="guardar" value="1" data-pos-guardar{% if factura_pide_cliente %} disabled{% endif %}>
         {% include "core/icon.html" with name="pause" %}
         Guardar / Suspender (F5)
       </button>
@@ -247,17 +247,17 @@
       <section class="pos-card pos-cliente" data-pos-cliente>
         <h2>
           {% include "core/icon.html" with name="user" %}
-          Cliente (opcional)
+          {% if venta.tipo_comprobante == "FACTURA" %}Cliente{% else %}Cliente (opcional){% endif %}
         </h2>
         <input type="hidden" name="cliente" value="{{ venta.cliente_id|default:'' }}">
-        <div class="pos-cliente-actual">
+        <div class="pos-cliente-actual{% if factura_pide_cliente %} is-warn{% endif %}">
           <span class="pos-cliente-actual-icon" aria-hidden="true">{% include "core/icon.html" with name="user" %}</span>
           <div>
             {% if venta.cliente_id %}
               <strong>{{ venta.cliente.razon_social }}</strong>
               <span>{{ venta.cliente.get_tipo_documento_display }} {{ venta.cliente.documento }}</span>
             {% else %}
-              <strong>Consumidor final</strong>
+              <strong>{% if venta.tipo_comprobante == "FACTURA" %}Sin cliente{% else %}Consumidor final{% endif %}</strong>
               <span>{% if venta.tipo_comprobante == "FACTURA" %}La factura pide un cliente.{% else %}Predeterminado para ticket{% endif %}</span>
             {% endif %}
           </div>
@@ -268,7 +268,7 @@
           {% endif %}
         </div>
         <div class="pos-cliente-lookup">
-          <label class="pos-cliente-search pos-cliente-search-lg">
+          <label class="pos-cliente-search pos-cliente-search-lg{% if factura_pide_cliente %} is-required{% endif %}">
             {% include "core/icon.html" with name="search" %}
             <input type="search" value="{{ cliente_label }}" placeholder="Buscar cliente por nombre, RUC o cédula..." autocomplete="off" aria-label="Buscar cliente" data-pos-cliente-q>
           </label>
@@ -291,7 +291,7 @@
           {% endfor %}
         </div>
         {% if emision_motivo %}
-          <p class="pos-hint">{{ emision_motivo }}</p>
+          <p class="pos-hint{% if factura_pide_cliente %} is-warn{% endif %}">{{ emision_motivo }}</p>
         {% endif %}
         <details class="pos-obs"{% if venta.observacion %} open{% endif %}>
           <summary>
@@ -308,7 +308,7 @@
       type="submit"
       form="pos-cabecera"
       formaction="{% url 'punto_de_venta_confirmar' %}"
-      {% if not puede_emitir %}disabled{% endif %}
+      {% if not puede_cobrar %}disabled{% endif %}
       data-pos-cobrar
     >
       {% include "core/icon.html" with name="card" %}

@@ -162,7 +162,10 @@ def test_agregar_por_descripcion_y_codigo(ingresada):
 
     pagina = ingresada.get("/ventas/punto-de-venta/")
     assert pagina.status_code == 200
-    assert "Nueva venta" in pagina.content.decode()
+    content = pagina.content.decode()
+    assert "Nueva venta" in content
+    assert 'value="TICKET"' in content
+    assert 'value="FACTURA"' in content
 
     ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "Bombón"})
     ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-002"})
@@ -389,7 +392,7 @@ def test_factura_deshabilitada_no_impide_ticket(ingresada):
     cliente = _cliente()
     content = ingresada.get("/ventas/punto-de-venta/").content.decode()
     assert 'value="TICKET"' in content
-    assert 'value="FACTURA"' not in content
+    assert 'value="FACTURA"' in content
     ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
     response = ingresada.post("/ventas/punto-de-venta/confirmar/")
     venta = Venta.objects.get(estado=EstadoVenta.COBRADA)
@@ -570,6 +573,60 @@ def test_factura_sigue_pidiendo_cliente(ingresada):
     assert Venta.objects.filter(estado=EstadoVenta.COBRADA).count() == 0
     content = ingresada.get("/ventas/punto-de-venta/").content.decode()
     assert "La factura pide un cliente." in content
+
+
+@pytest.mark.django_db
+def test_factura_se_ofrece_aunque_falte_timbrado(ingresada):
+    _punto(TipoComprobante.TICKET)
+    _caja()
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert 'value="TICKET"' in content
+    assert 'value="FACTURA"' in content
+    ingresada.post(
+        "/ventas/punto-de-venta/",
+        {"tipo_comprobante": TipoComprobante.FACTURA, "consumidor_final": "1"},
+    )
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "La factura pide un cliente." in content
+    assert "disabled" in content
+
+
+@pytest.mark.django_db
+def test_guardar_factura_sin_cliente_no_sale(ingresada):
+    _preparar()
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    response = ingresada.post(
+        "/ventas/punto-de-venta/",
+        {
+            "guardar": "1",
+            "tipo_comprobante": TipoComprobante.FACTURA,
+            "consumidor_final": "1",
+        },
+    )
+    assert response.url == "/ventas/punto-de-venta/"
+    assert Venta.objects.filter(estado=EstadoVenta.EN_CURSO).exists()
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "La factura pide un cliente." in content
+
+
+@pytest.mark.django_db
+def test_guardar_factura_con_cliente_suspende(ingresada):
+    _preparar()
+    cliente = _cliente()
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    response = ingresada.post(
+        "/ventas/punto-de-venta/",
+        {
+            "guardar": "1",
+            "tipo_comprobante": TipoComprobante.FACTURA,
+            "cliente": cliente.pk,
+        },
+    )
+    assert response.status_code == 302
+    assert response.url == "/"
+    venta = Venta.objects.get(estado=EstadoVenta.EN_CURSO)
+    assert venta.tipo_comprobante == TipoComprobante.FACTURA
+    assert venta.cliente_id == cliente.pk
 
 
 @pytest.mark.django_db

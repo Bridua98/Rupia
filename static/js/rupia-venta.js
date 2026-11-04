@@ -121,11 +121,58 @@
       if (cabecera) cabecera.submit();
     });
   });
+  function esFactura() {
+    var radio = cabecera && cabecera.querySelector("input[name='tipo_comprobante']:checked");
+    return !!(radio && radio.value === "FACTURA");
+  }
+
+  function faltaClienteFactura() {
+    return esFactura() && clienteId && !String(clienteId.value || "").trim();
+  }
+
+  function avisarClienteFactura() {
+    if (!clienteQ) return;
+    clienteQ.setCustomValidity("La factura pide un cliente.");
+    clienteQ.reportValidity();
+    clienteQ.focus();
+  }
+
+  function bloquearSiFaltaCliente(event) {
+    if (!faltaClienteFactura()) {
+      if (clienteQ) clienteQ.setCustomValidity("");
+      return;
+    }
+    event.preventDefault();
+    avisarClienteFactura();
+  }
+
   if (cabecera) {
     cabecera.querySelectorAll("input[name='medio'], input[name='tipo_comprobante'], input[name='consumidor_final']").forEach(function (el) {
-      el.addEventListener("change", function () { cabecera.submit(); });
+      el.addEventListener("change", function () {
+        if (el.name === "tipo_comprobante" && el.value === "FACTURA") {
+          var consumidor = cabecera.querySelector("[data-pos-consumidor], input[name='consumidor_final']");
+          if (consumidor) {
+            consumidor.checked = false;
+            if (consumidor.type === "hidden") consumidor.remove();
+          }
+        }
+        cabecera.submit();
+      });
+    });
+    cabecera.addEventListener("submit", function (event) {
+      var accion = (event.submitter && event.submitter.getAttribute("name")) || "";
+      var cobrar = event.submitter && event.submitter.hasAttribute("data-pos-cobrar");
+      if ((accion === "guardar" || cobrar) && faltaClienteFactura()) {
+        event.preventDefault();
+        avisarClienteFactura();
+      }
     });
   }
+
+  var guardarBtn = root.querySelector("[data-pos-guardar]");
+  var cobrarBtn = root.querySelector("[data-pos-cobrar]");
+  if (guardarBtn) guardarBtn.addEventListener("click", bloquearSiFaltaCliente);
+  if (cobrarBtn) cobrarBtn.addEventListener("click", bloquearSiFaltaCliente);
 
   if (descuentoPct && descuentoGs) {
     descuentoPct.addEventListener("input", function () {
@@ -274,6 +321,10 @@
     }
     if (event.key === "F5") {
       event.preventDefault();
+      if (faltaClienteFactura()) {
+        avisarClienteFactura();
+        return;
+      }
       var guardar = root.querySelector("[data-pos-guardar]");
       if (guardar) guardar.click();
       return;
@@ -296,6 +347,10 @@
     }
     if (event.key === "F12") {
       event.preventDefault();
+      if (faltaClienteFactura()) {
+        avisarClienteFactura();
+        return;
+      }
       var cobrar = root.querySelector("[data-pos-cobrar]");
       if (cobrar && !cobrar.disabled) cobrar.click();
       return;
