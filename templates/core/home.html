@@ -3,11 +3,54 @@
 {% block title %}Inicio · Rupia{% endblock %}
 
 {% block work %}
-<p class="eyebrow">Sesión activa</p>
-<h1>Hola, {{ user.get_username }}.</h1>
-{% if user.is_staff %}
-  <p class="lede">Personas y stock se administran desde el panel.</p>
-{% else %}
-  <p class="lede">Tu sesión quedó abierta.</p>
-{% endif %}
+<div class="dash">
+  <header class="dash-head">
+    <p class="eyebrow">Sesión activa</p>
+    <h1>Hola, {{ user.get_username }}.</h1>
+    {% if user.is_staff %}
+      <p class="lede">Personas y stock se administran desde el panel.</p>
+    {% else %}
+      <p class="lede">Tu sesión quedó abierta.</p>
+    {% endif %}
+  </header>
+
+  <section class="dash-kpis" aria-label="Resumen de ventas">
+    <article class="dash-card">
+      <p class="eyebrow">Ventas del día</p>
+      {% if tablero.ventas_dia_cantidad %}
+        <p class="dash-value">{{ tablero.ventas_dia_importe_txt }}</p>
+        <p class="dash-meta">{{ tablero.ventas_dia_cantidad }} comprobante{{ tablero.ventas_dia_cantidad|pluralize:"s" }}</p>
+      {% else %}
+        <p class="dash-empty">Sin ventas cobradas hoy</p>
+      {% endif %}
+    </article>
+
+    <article class="dash-card">
+      <p class="eyebrow">Última venta</p>
+      {% if tablero.ultima %}
+        <p class="dash-value">{{ tablero.ultima.importe_txt }}</p>
+        <p class="dash-meta">{{ tablero.ultima.numero }} · {{ tablero.ultima.fecha|date:"d/m/Y" }}</p>
+        <p class="dash-meta">{{ tablero.ultima.cliente }}</p>
+      {% else %}
+        <p class="dash-empty">Sin ventas cobradas</p>
+      {% endif %}
+    </article>
+
+    <article class="dash-card">
+      <p class="eyebrow">Producto más vendido</p>
+      {% if tablero.producto %}
+        <p class="dash-value dash-value-name">{{ tablero.producto.descripcion }}</p>
+        <p class="dash-meta">{{ tablero.producto.cantidad_txt }} · {{ tablero.producto.importe_txt }}</p>
+      {% else %}
+        <p class="dash-empty">Sin ventas cobradas hoy</p>
+      {% endif %}
+    </article>
+  </section>
+
+  <section class="dash-cortes" aria-label="Ventas del día por grupo">
+    {% include "core/dash_corte.html" with titulo="Por categoría" filas=tablero.categorias %}
+    {% include "core/dash_corte.html" with titulo="Por marca" filas=tablero.marcas %}
+    {% include "core/dash_corte.html" with titulo="Por unidad de negocio" filas=tablero.unidades %}
+  </section>
+</div>
 {% endblock %}
