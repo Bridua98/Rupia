@@ -12,6 +12,7 @@
   data-total="{{ total_entero }}"
   data-buscar="{% url 'punto_de_venta_buscar' %}"
   data-numero-url="{% url 'punto_de_venta_numero' %}"
+  {% if persona_nueva_url %}data-persona-nueva="{{ persona_nueva_url }}"{% endif %}
   {% if factura_pide_cliente %}data-pos-factura-sin-cliente="1"{% endif %}
 >
   <section class="pos-sale">

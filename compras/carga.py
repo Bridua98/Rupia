@@ -16,6 +16,7 @@ from compras.models import (
 )
 from core.cantidad import formatear_cantidad
 from core.moneda import formatear_guaranies
+from core.timbrado import interpretar_timbrado
 from cuentas.models import Cuenta
 from inventario.models import (
     Item,
@@ -103,7 +104,11 @@ def costo_en_base(item, unidad, costo) -> Decimal:
 
 def unidades_del_item(item):
     vistas = [{"id": item.unidad_medida_id, "simbolo": item.unidad_medida.simbolo}]
+    vistos = {item.unidad_medida_id}
     for relacion in item.unidades.all():
+        if relacion.unidad_medida_id in vistos:
+            continue
+        vistos.add(relacion.unidad_medida_id)
         vistas.append({"id": relacion.unidad_medida_id, "simbolo": relacion.unidad_medida.simbolo})
     return vistas
 
@@ -487,7 +492,10 @@ def actualizar_cabecera(
         campos.append("observacion")
     if compra.es_factura:
         if timbrado is not None:
-            compra.timbrado = str(timbrado).strip()
+            texto = str(timbrado).strip()
+            if texto and (not texto.isdigit() or len(texto) > 8):
+                interpretar_timbrado(texto)
+            compra.timbrado = texto
             campos.append("timbrado")
         if establecimiento is not None and str(establecimiento).strip():
             compra.establecimiento = _serie(establecimiento, "establecimiento")
@@ -525,6 +533,8 @@ def _serie(valor, etiqueta: str) -> str:
         raise ValidationError(f"Escribí el {etiqueta}.", code="numero")
     if not texto.isdigit():
         raise ValidationError(f"El {etiqueta} solo admite dígitos.", code="numero")
+    if len(texto) > 3:
+        raise ValidationError(f"El {etiqueta} tiene tres dígitos.", code="numero")
     return texto.zfill(3)
 
 
@@ -534,6 +544,8 @@ def _secuencial(valor) -> int:
         raise ValidationError("Escribí el número de factura.", code="numero")
     if not texto.isdigit():
         raise ValidationError("El número de factura solo admite dígitos.", code="numero")
+    if len(texto) > 7:
+        raise ValidationError("El número de factura admite hasta 7 dígitos.", code="numero")
     return int(texto)
 
 
@@ -689,8 +701,7 @@ def _validar_item_compra(item):
 def _validar_documento(compra):
     if not compra.es_factura:
         return
-    if not (compra.timbrado or "").strip():
-        raise ValidationError("Escribí el timbrado.", code="timbrado")
+    compra.timbrado = interpretar_timbrado(compra.timbrado)
     if not compra.establecimiento or not compra.punto_codigo or compra.secuencial is None:
         raise ValidationError("Escribí el número de factura.", code="numero")
     compra.numero_completo = formatear_numero_factura(

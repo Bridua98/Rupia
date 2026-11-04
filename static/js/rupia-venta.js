@@ -503,15 +503,35 @@
     });
   }
 
+  function personaNuevaUrl() {
+    return root.getAttribute("data-persona-nueva") || "";
+  }
+
+  function abrirNuevaPersona() {
+    var base = personaNuevaUrl();
+    if (!base) return;
+    var url = new URL(base, window.location.origin);
+    var q = clienteQ ? clienteQ.value.trim() : "";
+    if (q) {
+      if (/^\d[\d.-]*$/.test(q)) url.searchParams.set("documento", q);
+      else url.searchParams.set("razon_social", q);
+    }
+    window.open(url.toString(), "rupia_persona", "popup=yes,width=960,height=780");
+  }
+
   function pintarCliente(items) {
-    clienteItems = items;
-    clienteActivo = items.length ? 0 : -1;
+    var q = clienteQ ? clienteQ.value.trim() : "";
+    clienteItems = (items || []).slice();
+    if (personaNuevaUrl() && q) {
+      clienteItems.push({ nueva: true, label: "Nueva persona" });
+    }
+    clienteActivo = clienteItems.length ? 0 : -1;
     clienteSuggest.innerHTML = "";
-    if (!clienteQ.value.trim()) {
+    if (!q) {
       clienteSuggest.hidden = true;
       return;
     }
-    if (!items.length) {
+    if (!clienteItems.length) {
       var vacio = document.createElement("li");
       vacio.className = "is-empty";
       vacio.textContent = "No hay coincidencias en clientes ni en el padrón.";
@@ -519,17 +539,27 @@
       clienteSuggest.hidden = false;
       return;
     }
-    items.forEach(function (item, index) {
+    clienteItems.forEach(function (item, index) {
       var li = document.createElement("li");
-      var titulo = document.createElement("strong");
-      titulo.textContent = item.label || "";
-      li.appendChild(titulo);
-      var meta = item.documento || item.ruc || "";
-      if (item.origen === "padron") meta = (meta ? meta + " · " : "") + "Crear cliente";
-      if (meta) {
-        var detalle = document.createElement("small");
-        detalle.textContent = meta;
-        li.appendChild(detalle);
+      if (item.nueva) {
+        li.className = "is-action";
+        var tituloNueva = document.createElement("strong");
+        tituloNueva.textContent = item.label;
+        li.appendChild(tituloNueva);
+        var ayuda = document.createElement("small");
+        ayuda.textContent = "Abrir la ficha para cargar un cliente.";
+        li.appendChild(ayuda);
+      } else {
+        var titulo = document.createElement("strong");
+        titulo.textContent = item.label || "";
+        li.appendChild(titulo);
+        var meta = item.documento || item.ruc || "";
+        if (item.origen === "padron") meta = (meta ? meta + " · " : "") + "Crear cliente";
+        if (meta) {
+          var detalle = document.createElement("small");
+          detalle.textContent = meta;
+          li.appendChild(detalle);
+        }
       }
       li.tabIndex = 0;
       if (index === clienteActivo) li.classList.add("is-on");
@@ -547,6 +577,10 @@
 
   function elegirCliente(item) {
     if (!item) return;
+    if (item.nueva) {
+      abrirNuevaPersona();
+      return;
+    }
     var check = clienteBox.querySelector("[data-pos-consumidor], input[name='consumidor_final']");
     if (check) {
       check.checked = false;

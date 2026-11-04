@@ -3970,6 +3970,17 @@ body.pos-screen .app-stage {
   color: var(--ink);
 }
 
+.pos-stepper input {
+  width: 6.4rem;
+  padding: 0.1rem 0.2rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+}
+
 .pos-stepper button[value="mas"] {
   background: var(--accent);
   border-color: var(--accent);
@@ -4044,6 +4055,11 @@ body.pos-screen .app-stage {
 
 .pos-suggest li.is-empty:hover {
   background: transparent;
+}
+
+.pos-suggest li.is-action {
+  margin-top: 0.15rem;
+  border-top: 1px dashed var(--line);
 }
 
 .pos-sale-actions {
@@ -4484,8 +4500,10 @@ body.pos-screen .app-stage {
   text-align: center;
 }
 
-.pos-factura-num-big input[data-pos-num-sec] {
-  width: 7.2rem;
+.pos-factura-num-big input[data-pos-num-sec],
+.pos-factura-num-big input[data-compra-num-sec] {
+  width: 9.8rem;
+  flex: 0 0 9.8rem;
 }
 
 .pos-factura-num-msg {
