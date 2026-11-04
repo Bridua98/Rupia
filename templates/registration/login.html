@@ -6,20 +6,24 @@
 {% block content %}
 <main class="login-shell">
   <section class="login-aside" aria-label="Rupia">
-    <div class="mark" aria-hidden="true"><span>R</span></div>
-    <div class="aside-copy">
+    <span class="login-aside-gem" aria-hidden="true">{% include "core/rupee.html" with class="rupee-watermark" %}</span>
+    <div class="login-brand">
+      {% include "core/rupee.html" with class="rupee-hero" %}
       <p class="kicker">Rupia</p>
-      <p class="display">El acceso<br>es personal.</p>
-      <div class="rule" aria-hidden="true"></div>
     </div>
-    <p class="aside-foot">Solo personal autorizado.</p>
-    <span class="folio" aria-hidden="true">01</span>
+    <div class="aside-copy">
+      <p class="display">Claridad<br>para vender.</p>
+      <p class="aside-lead">Caja, inventario y personas en un mismo lugar, con calma y control.</p>
+    </div>
+    <p class="aside-foot">Acceso restringido al personal autorizado.</p>
   </section>
 
   <section class="login-main">
     <div class="login-card">
+      <div class="login-card-mark" aria-hidden="true">{% include "core/rupee.html" %}</div>
       <p class="eyebrow">Sesión</p>
       <h1>Ingresar</h1>
+      <p class="login-lede">Escribí tu usuario y tu contraseña para continuar.</p>
 
       <form method="post" action="{% url 'login' %}" novalidate>
         {% csrf_token %}
