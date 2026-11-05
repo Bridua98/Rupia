@@ -61,6 +61,11 @@ FORMULARIOS = (
         "Disponibilidad",
         (ACCION_VER, ACCION_EXPORTAR),
     ),
+    Formulario(
+        "reporte_gastos",
+        "Informe de gastos",
+        (ACCION_VER, ACCION_EXPORTAR),
+    ),
     Formulario("timbrados", "Timbrados", ACCIONES_MANTENIMIENTO),
     Formulario("marcas", "Marcas", ACCIONES_MANTENIMIENTO),
     Formulario("categorias", "Categorías", ACCIONES_MANTENIMIENTO),

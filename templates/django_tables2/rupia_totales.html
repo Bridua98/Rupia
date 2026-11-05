@@ -33,6 +33,10 @@
               <th scope="row">Total</th>
             {% elif column.name == "cantidad" %}
               <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.cantidad_html }}</td>
+            {% elif column.name == "gravado" %}
+              <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.gravado_html }}</td>
+            {% elif column.name == "iva" %}
+              <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.iva_html }}</td>
             {% elif column.name == "subtotal" %}
               <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.subtotal_html }}</td>
             {% else %}

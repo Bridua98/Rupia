@@ -1,9 +1,10 @@
 import django_tables2 as tables
 from django.urls import reverse
+from django.utils.html import format_html
 
 from compras.models import Compra, EstadoCompra
 from core.moneda import html_guaranies
-from core.tables import ATTRS_MONEDA, ActionMenuColumn
+from core.tables import ATTRS_MONEDA, ATTRS_NUM, ActionMenuColumn
 from core.vista import html_situacion
 
 
@@ -84,3 +85,86 @@ class CompraTable(tables.Table):
 
     def render_importe(self, value):
         return html_guaranies(value or 0)
+
+
+class ReporteGastosDetalleTable(tables.Table):
+    fecha = tables.Column(verbose_name="Fecha")
+    comprobante = tables.Column(verbose_name="Comprobante")
+    tipo_comprobante = tables.Column(verbose_name="Tipo")
+    proveedor = tables.Column(verbose_name="Proveedor")
+    timbrado = tables.Column(verbose_name="Timbrado")
+    cuenta = tables.Column(verbose_name="Cuenta")
+    unidad_negocio = tables.Column(verbose_name="Unidad de negocio")
+    producto = tables.Column(verbose_name="Producto")
+    tipo_item = tables.Column(verbose_name="Clase")
+    tasa_iva = tables.Column(verbose_name="IVA %", attrs=ATTRS_NUM)
+    gravado = tables.Column(verbose_name="Gravado", attrs=ATTRS_MONEDA)
+    iva = tables.Column(verbose_name="IVA", attrs=ATTRS_MONEDA)
+    subtotal = tables.Column(verbose_name="Total", attrs=ATTRS_MONEDA)
+
+    class Meta:
+        fields = (
+            "fecha",
+            "comprobante",
+            "tipo_comprobante",
+            "proveedor",
+            "timbrado",
+            "cuenta",
+            "unidad_negocio",
+            "producto",
+            "tipo_item",
+            "tasa_iva",
+            "gravado",
+            "iva",
+            "subtotal",
+        )
+        orderable = False
+        template_name = "django_tables2/rupia_totales.html"
+        empty_text = "No hay gastos para los filtros elegidos."
+        attrs = {"class": "sheet sheet-reporte sheet-gastos"}
+
+    def render_fecha(self, value):
+        return value.strftime("%d/%m/%Y")
+
+    def render_tipo_item(self, value):
+        clase = "is-salida" if value == "Gasto" else "is-entrada"
+        return format_html('<span class="rupia-badge {}">{}</span>', clase, value)
+
+    def render_tasa_iva(self, value):
+        return f"{value}%"
+
+    def render_gravado(self, value):
+        return html_guaranies(value)
+
+    def render_iva(self, value):
+        return html_guaranies(value)
+
+    def render_subtotal(self, value):
+        return html_guaranies(value)
+
+
+class ReporteGastosAgrupadoTable(tables.Table):
+    etiqueta = tables.Column(verbose_name="Agrupación")
+    detalle = tables.Column(verbose_name="Detalle")
+    lineas = tables.Column(verbose_name="Líneas", attrs=ATTRS_NUM)
+    gravado = tables.Column(verbose_name="Gravado", attrs=ATTRS_MONEDA)
+    iva = tables.Column(verbose_name="IVA", attrs=ATTRS_MONEDA)
+    subtotal = tables.Column(verbose_name="Total", attrs=ATTRS_MONEDA)
+
+    class Meta:
+        orderable = False
+        template_name = "django_tables2/rupia_totales.html"
+        empty_text = "No hay gastos para los filtros elegidos."
+        attrs = {"class": "sheet sheet-reporte sheet-gastos-agrupado"}
+
+    def render_detalle(self, value):
+        return value or "—"
+
+    def render_gravado(self, value):
+        return html_guaranies(value)
+
+    def render_iva(self, value):
+        return html_guaranies(value)
+
+    def render_subtotal(self, value):
+        return html_guaranies(value)
