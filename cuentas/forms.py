@@ -1,8 +1,11 @@
 from django import forms
+from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from core.forms import RupiaModelForm
-from core.selectors import registrar
-from cuentas.models import Cuenta
+from core.moneda import MonedaField
+from core.selectors import SelectorAlta, registrar
+from cuentas.models import Cuenta, EstadoTransferencia, Transferencia
 
 
 class CuentaForm(RupiaModelForm):
@@ -83,3 +86,86 @@ registrar(
     create_label="Nueva cuenta",
     formulario="cuentas",
 )
+
+
+class TransferenciaForm(RupiaModelForm):
+    fecha = forms.DateField(
+        label="Fecha",
+        initial=timezone.localdate,
+        error_messages={"required": "Elegí la fecha.", "invalid": "Elegí una fecha válida."},
+        widget=forms.DateInput(
+            format="%Y-%m-%d",
+            attrs={"type": "date", "placeholder": " ", "autocomplete": "off", "autofocus": True},
+        ),
+    )
+    cuenta_origen = SelectorAlta(
+        clave="cuenta",
+        label="Cuenta de salida",
+        required_message="Elegí la cuenta de salida.",
+    )
+    importe_salida = MonedaField(
+        label="Importe de salida",
+        error_messages={"required": "Escribí el importe de salida."},
+    )
+    cuenta_destino = SelectorAlta(
+        clave="cuenta",
+        label="Cuenta de entrada",
+        required_message="Elegí la cuenta de entrada.",
+    )
+    importe_entrada = MonedaField(
+        label="Importe de entrada",
+        error_messages={"required": "Escribí el importe de entrada."},
+    )
+    comprobante = forms.CharField(
+        label="Comprobante",
+        max_length=80,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": " ",
+                "autocomplete": "off",
+                "maxlength": "80",
+            }
+        ),
+    )
+
+    class Meta:
+        model = Transferencia
+        fields = ["fecha", "cuenta_origen", "cuenta_destino", "comprobante"]
+
+    field_order = [
+        "fecha",
+        "cuenta_origen",
+        "importe_salida",
+        "cuenta_destino",
+        "importe_entrada",
+        "comprobante",
+    ]
+
+    def clean(self):
+        cleaned = super().clean()
+        origen = cleaned.get("cuenta_origen")
+        destino = cleaned.get("cuenta_destino")
+        if origen and destino and origen.pk == destino.pk:
+            raise ValidationError("La cuenta de salida y la de entrada tienen que ser distintas.")
+        salida = cleaned.get("importe_salida")
+        entrada = cleaned.get("importe_entrada")
+        if salida is not None and salida <= 0:
+            self.add_error("importe_salida", "El importe tiene que ser mayor a cero.")
+        if entrada is not None and entrada <= 0:
+            self.add_error("importe_entrada", "El importe tiene que ser mayor a cero.")
+        if (
+            salida is not None
+            and entrada is not None
+            and salida > 0
+            and entrada > 0
+            and salida != entrada
+        ):
+            raise ValidationError("El importe de salida y el de entrada tienen que coincidir.")
+        cleaned["importe"] = salida
+        return cleaned
+
+    def save(self, commit=True):
+        self.instance.importe = self.cleaned_data["importe"]
+        self.instance.estado = EstadoTransferencia.CONFIRMADA
+        return super().save(commit)
