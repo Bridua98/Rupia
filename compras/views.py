@@ -47,7 +47,6 @@ from compras.models import (
 from compras.tables import CompraTable
 from configuracion.permisos import PermisoRequeridoMixin, tiene_permiso
 from core.cantidad import formatear_cantidad, interpretar_cantidad
-from core.timbrado import interpretar_timbrado
 from core.listado import (
     apply_filters,
     apply_search,
@@ -56,7 +55,8 @@ from core.listado import (
     search_fields_for,
 )
 from core.mantenimiento import MantenimientoListView
-from core.moneda import formatear_guaranies, interpretar_guaranies, mostrar_guaranies
+from core.moneda import SIMBOLO, formatear_guaranies, interpretar_guaranies
+from core.timbrado import interpretar_timbrado
 from cuentas.models import Cuenta
 from inventario.models import Item, TipoItem, UnidadMedida
 from negocio.models import UnidadNegocio

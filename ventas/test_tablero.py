@@ -12,8 +12,6 @@ from ventas.models import EstadoVenta, TipoComprobante, Venta
 from ventas.tablero import tablero_inicio
 
 
-
-
 def _hoy():
     return timezone.localdate()
 

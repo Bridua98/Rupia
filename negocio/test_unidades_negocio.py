@@ -8,8 +8,6 @@ from inventario.models import Item, ItemCategoria, Marca, TipoItem, UnidadMedida
 from negocio.models import UnidadNegocio
 
 
-
-
 def _payload(**extra):
     base = {"descripcion": "Depósito central", "abreviado": "DEP", "accion": "guardar"}
     base.update(extra)

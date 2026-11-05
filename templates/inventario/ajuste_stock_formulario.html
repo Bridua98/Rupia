@@ -1,0 +1,222 @@
+{% extends "app.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }} · Rupia{% endblock %}
+
+{% block work %}
+<div
+  class="ledger"
+  data-ajuste-stock
+  data-item-url="{% url 'ajuste_stock_item' 0 %}"
+>
+  <div class="ledger-main">
+    <a class="back" href="{{ back_url }}">
+      {% include "core/icon.html" with name="back" %}
+      <span>Volver</span>
+    </a>
+
+    <div class="stage-head">
+      <div>
+        <p class="eyebrow">{{ eyebrow }}</p>
+        <h1>{{ title }}</h1>
+        <p class="hint">
+          El stock anterior se calcula con los movimientos vigentes y se vuelve a
+          calcular al guardar.
+        </p>
+      </div>
+    </div>
+
+    <form method="post" class="ajuste-stock-form" novalidate>
+      {% csrf_token %}
+      {% for hidden in form.hidden_fields %}
+        {{ hidden }}
+      {% endfor %}
+      {% for error in form.non_field_errors %}
+        <p class="field-error">{{ error }}</p>
+      {% endfor %}
+
+      <section class="item-form-card ajuste-stock-cabecera" aria-labelledby="ajuste-stock-cabecera">
+        <header class="item-form-card-head">
+          {% include "core/icon.html" with name="calendar" %}
+          <h2 id="ajuste-stock-cabecera">Datos del ajuste</h2>
+        </header>
+        <div class="item-form-grid">
+          {% include "core/form_field.html" with field=form.fecha %}
+          {% include "core/form_field.html" with field=form.observacion %}
+        </div>
+      </section>
+
+      <section class="ajuste-stock-lineas" aria-labelledby="ajuste-stock-lineas">
+        <div class="stage-head">
+          <div>
+            <h2 id="ajuste-stock-lineas">Detalle</h2>
+          </div>
+        </div>
+        {{ formset.management_form }}
+        {% for error in formset.non_form_errors %}
+          <p class="field-error">{{ error }}</p>
+        {% endfor %}
+
+        <div class="sheet-wrap">
+          <table class="sheet sheet-form">
+            <caption class="sr-only">Detalle del ajuste</caption>
+            <thead>
+              <tr>
+                <th scope="col">Ítem</th>
+                <th scope="col">Unidad</th>
+                <th scope="col">Stock anterior</th>
+                <th scope="col">Cantidad nueva</th>
+                <th scope="col">Diferencia</th>
+                <th class="sheet-col-acciones"><span class="sr-only">Quitar</span></th>
+              </tr>
+            </thead>
+            <tbody data-ajuste-filas>
+              {% for detalle_form in formset %}
+                <tr class="{% if detalle_form.errors %}has-error{% endif %}" data-ajuste-fila>
+                  <td>
+                    {% for hidden in detalle_form.hidden_fields %}
+                      {{ hidden }}
+                    {% endfor %}
+                    <div class="field{% if detalle_form.item.errors %} has-error{% endif %}">
+                      {{ detalle_form.item }}
+                      <label class="sr-only" for="{{ detalle_form.item.id_for_label }}">
+                        Ítem
+                      </label>
+                      {% for error in detalle_form.item.errors %}
+                        <p class="field-error">{{ error }}</p>
+                      {% endfor %}
+                    </div>
+                  </td>
+                  <td>
+                    <div class="field{% if detalle_form.unidad_medida.errors %} has-error{% endif %}">
+                      {{ detalle_form.unidad_medida }}
+                      <label class="sr-only" for="{{ detalle_form.unidad_medida.id_for_label }}">
+                        Unidad
+                      </label>
+                      {% for error in detalle_form.unidad_medida.errors %}
+                        <p class="field-error">{{ error }}</p>
+                      {% endfor %}
+                    </div>
+                  </td>
+                  <td>
+                    <span class="ajuste-stock-valor" data-ajuste-anterior>
+                      {{ detalle_form.instance.cantidad_anterior|default:"0" }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="field{% if detalle_form.cantidad_nueva.errors %} has-error{% endif %}">
+                      {{ detalle_form.cantidad_nueva }}
+                      <label class="sr-only" for="{{ detalle_form.cantidad_nueva.id_for_label }}">
+                        Cantidad nueva
+                      </label>
+                      {% for error in detalle_form.cantidad_nueva.errors %}
+                        <p class="field-error">{{ error }}</p>
+                      {% endfor %}
+                    </div>
+                  </td>
+                  <td>
+                    <span class="ajuste-stock-valor" data-ajuste-diferencia>
+                      {{ detalle_form.instance.cantidad|default:"0" }}
+                    </span>
+                  </td>
+                  <td class="sheet-col-acciones">
+                    {% if detalle_form.DELETE %}
+                      {{ detalle_form.DELETE }}
+                      <button
+                        type="button"
+                        class="text-button text-button-danger"
+                        data-ajuste-quitar
+                        aria-label="Quitar"
+                      >
+                        {% include "core/icon.html" with name="trash" %}
+                      </button>
+                    {% endif %}
+                    {% for error in detalle_form.non_field_errors %}
+                      <p class="field-error">{{ error }}</p>
+                    {% endfor %}
+                    <p class="field-error" data-ajuste-aviso hidden></p>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <template data-ajuste-vacia>
+          <tr data-ajuste-fila>
+            <td>
+              {% for hidden in formset.empty_form.hidden_fields %}
+                {{ hidden }}
+              {% endfor %}
+              <div class="field">
+                {{ formset.empty_form.item }}
+                <label class="sr-only" for="{{ formset.empty_form.item.id_for_label }}">
+                  Ítem
+                </label>
+              </div>
+            </td>
+            <td>
+              <div class="field">
+                {{ formset.empty_form.unidad_medida }}
+                <label class="sr-only" for="{{ formset.empty_form.unidad_medida.id_for_label }}">
+                  Unidad
+                </label>
+              </div>
+            </td>
+            <td>
+              <span class="ajuste-stock-valor" data-ajuste-anterior>0</span>
+            </td>
+            <td>
+              <div class="field">
+                {{ formset.empty_form.cantidad_nueva }}
+                <label
+                  class="sr-only"
+                  for="{{ formset.empty_form.cantidad_nueva.id_for_label }}"
+                >
+                  Cantidad nueva
+                </label>
+              </div>
+            </td>
+            <td>
+              <span class="ajuste-stock-valor" data-ajuste-diferencia>0</span>
+            </td>
+            <td class="sheet-col-acciones">
+              {{ formset.empty_form.DELETE }}
+              <button
+                type="button"
+                class="text-button text-button-danger"
+                data-ajuste-quitar
+                aria-label="Quitar"
+              >
+                {% include "core/icon.html" with name="trash" %}
+              </button>
+              <p class="field-error" data-ajuste-aviso hidden></p>
+            </td>
+          </tr>
+        </template>
+
+        <button type="button" class="text-button ajuste-stock-agregar" data-ajuste-agregar>
+          {% include "core/icon.html" with name="plus" %}
+          <span>Agregar detalle</span>
+        </button>
+      </section>
+
+      <div class="actions ajuste-stock-acciones">
+        <a class="button button-ghost" href="{{ list_url }}">
+          {% include "core/icon.html" with name="x" %}
+          <span>Cancelar</span>
+        </a>
+        <button type="submit" class="button">
+          {% include "core/icon.html" with name="check" %}
+          <span>Guardar ajuste</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/rupia-cantidad.js' %}"></script>
+<script src="{% static 'js/rupia-ajuste-stock.js' %}"></script>
+{% endblock %}

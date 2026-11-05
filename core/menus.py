@@ -106,6 +106,12 @@ def main_menu(request):
                     formulario="reporte_productos",
                 ),
                 item("Stock", url_name="reporte_stock", icon="layers", formulario="reporte_stock"),
+                item(
+                    "Ajustes de stock",
+                    url_name="ajuste_stock_list",
+                    icon="check",
+                    formulario="ajustes_stock",
+                ),
             ],
             icon="box",
         ),

@@ -12,7 +12,7 @@ from core.moneda import formatear_guaranies
 from cuentas.models import Cuenta
 from inventario.models import Item, ItemMovimiento, TipoItem, TipoMovimiento
 from inventario.precios import redondear_guarani
-from inventario.reporte_stock import stock_desde_movimientos
+from inventario.stock import siguiente_movimiento_id, stock_desde_movimientos
 from inventario.unidades import convertir_a_base, redondear_cantidad
 from personas.consulta import buscar as buscar_padron
 from personas.consulta import consultar_ruc
@@ -882,18 +882,8 @@ def _validar_stock(venta):
             )
 
 
-def _siguiente_movimiento_id():
-    ultimo = (
-        ItemMovimiento.objects.select_for_update()
-        .order_by("-id")
-        .values_list("id", flat=True)
-        .first()
-    )
-    return (ultimo or 0) + 1
-
-
 def _registrar_movimientos(venta):
-    siguiente = _siguiente_movimiento_id()
+    siguiente = siguiente_movimiento_id()
     for orden, detalle in enumerate(venta.detalles.select_related("item"), start=1):
         costo = detalle.item.ultimo_costo if detalle.item.ultimo_costo is not None else CERO
         ItemMovimiento.objects.create(

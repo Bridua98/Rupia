@@ -6,8 +6,6 @@ from django.utils import timezone
 from ventas.models import PuntoExpedicion, TipoComprobante
 
 
-
-
 def _hoy():
     return timezone.localdate()
 

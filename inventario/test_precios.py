@@ -15,8 +15,6 @@ from inventario.precios import aplicar_ajuste, calcular_precio_nuevo
 from negocio.models import UnidadNegocio
 
 
-
-
 def _foraneos():
     marca = Marca.objects.create(descripcion="Genérica")
     categoria = ItemCategoria.objects.create(descripcion="Alimentos")

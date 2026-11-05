@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
-from django.core.exceptions import ValidationError
 from django.db.models import Prefetch
 
 from core.cantidad import formatear_cantidad
@@ -22,9 +21,8 @@ from inventario.models import (
     TipoItem,
     UnidadMedida,
 )
-from inventario.movimientos import TIPOS_SALIDA
+from inventario.stock import stock_desde_movimientos
 from inventario.tables import ReporteStockTable
-from inventario.unidades import convertir_a_base, redondear_cantidad
 from negocio.models import UnidadNegocio
 
 
@@ -37,21 +35,6 @@ class FilaReporteStock:
     unidad: str
     stock: Decimal
     aviso: str = ""
-
-
-def stock_desde_movimientos(item, movimientos) -> tuple[Decimal, bool]:
-    total = Decimal("0")
-    omitidos = False
-    for movimiento in movimientos:
-        try:
-            cantidad_base = convertir_a_base(item, movimiento.unidad_medida, movimiento.cantidad)
-        except ValidationError:
-            omitidos = True
-            continue
-        if movimiento.tipo in TIPOS_SALIDA:
-            cantidad_base = -cantidad_base
-        total += cantidad_base
-    return redondear_cantidad(total), omitidos
 
 
 class ReporteStockListView(MantenimientoListView):

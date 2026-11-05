@@ -8,8 +8,6 @@ from pypdf import PdfReader
 from inventario.models import Item, ItemCategoria, Marca, TipoItem, UnidadMedida
 
 
-
-
 def _payload(**extra):
     base = {"descripcion": "Unidad", "simbolo": "UND", "accion": "guardar"}
     base.update(extra)

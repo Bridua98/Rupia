@@ -24,8 +24,6 @@ from ventas.cobro import agregar_producto, cambiar_cantidad, liquidar_iva, medio
 from ventas.models import EstadoVenta, MedioPago, PuntoExpedicion, TipoComprobante, Venta
 
 
-
-
 def _hoy():
     return timezone.localdate()
 
