@@ -51,6 +51,11 @@ FORMULARIOS = (
     ),
     Formulario("personas", "Personas", ACCIONES_MANTENIMIENTO),
     Formulario("cuentas", "Cuentas", ACCIONES_MANTENIMIENTO),
+    Formulario(
+        "reporte_disponibilidad",
+        "Disponibilidad",
+        (ACCION_VER, ACCION_EXPORTAR),
+    ),
     Formulario("timbrados", "Timbrados", ACCIONES_MANTENIMIENTO),
     Formulario("marcas", "Marcas", ACCIONES_MANTENIMIENTO),
     Formulario("categorias", "Categorías", ACCIONES_MANTENIMIENTO),
