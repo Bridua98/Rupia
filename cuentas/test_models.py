@@ -1,7 +1,10 @@
+from datetime import date
+from decimal import Decimal
+
 import pytest
 from django.core.exceptions import ValidationError
 
-from cuentas.models import Cuenta
+from cuentas.models import Cuenta, Transferencia
 
 
 @pytest.mark.django_db
@@ -49,3 +52,21 @@ def test_tarjeta_es_un_banco():
 
     assert cuenta.tipo_caja() == "Tarjeta"
     assert cuenta.numero == "4111111111111111"
+
+
+@pytest.mark.django_db
+def test_transferencia_exige_cuentas_distintas(django_user_model):
+    caja = Cuenta.objects.create(descripcion="Caja principal", nombre_corto="CAJA")
+    usuario = django_user_model.objects.create_user("ada", "ada@rupia.local", "x")
+    transferencia = Transferencia(
+        fecha=date(2026, 11, 4),
+        cuenta_origen=caja,
+        cuenta_destino=caja,
+        importe=Decimal("1000"),
+        usuario=usuario,
+    )
+
+    with pytest.raises(ValidationError) as error:
+        transferencia.full_clean()
+
+    assert "La cuenta de salida y la de entrada tienen que ser distintas." in error.value.messages

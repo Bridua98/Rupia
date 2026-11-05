@@ -2,14 +2,14 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 
-from django.db.models import DecimalField, F, Sum, Value
+from django.db.models import DecimalField, F, Q, Sum, Value
 from django.db.models.functions import Coalesce
 
 from compras.models import Compra, EstadoCompra, TipoCompra
 from core.listado import filter_specs_for, filter_values
 from core.mantenimiento import MantenimientoListView
 from core.moneda import html_guaranies, mostrar_guaranies
-from cuentas.models import Cuenta
+from cuentas.models import Cuenta, EstadoTransferencia, Transferencia
 from cuentas.tables import DisponibilidadDetalleTable, DisponibilidadResumenTable
 from ventas.models import EstadoVenta, Venta
 
@@ -19,6 +19,7 @@ VISTA_CUENTA = "cuenta"
 ORIGEN_VENTA = "Venta"
 ORIGEN_COMPRA = "Compra"
 ORIGEN_EGRESO = "Egreso"
+ORIGEN_TRANSFERENCIA = "Transferencia"
 
 VISTA_CHOICES = (
     (VISTA_DETALLE, "Detalle"),
@@ -100,8 +101,13 @@ def _origen_compra(compra):
     return ORIGEN_COMPRA
 
 
+def _comprobante_transferencia(transferencia):
+    texto = (transferencia.comprobante or "").strip()
+    return texto or f"Transferencia {transferencia.pk}"
+
+
 def movimientos_caja(cuenta_id=None):
-    """Ventas cobradas y compras al contado o egresos confirmados, con importe."""
+    """Ventas cobradas, compras al contado o egresos y transferencias entre cuentas."""
     ventas = (
         Venta.objects.filter(estado=EstadoVenta.COBRADA, cuenta_cobro_id__isnull=False)
         .select_related("cuenta_cobro")
@@ -116,9 +122,15 @@ def movimientos_caja(cuenta_id=None):
         .select_related("cuenta")
         .annotate(importe=_importe_compra())
     )
+    transferencias = Transferencia.objects.filter(
+        estado=EstadoTransferencia.CONFIRMADA
+    ).select_related("cuenta_origen", "cuenta_destino")
     if cuenta_id:
         ventas = ventas.filter(cuenta_cobro_id=cuenta_id)
         compras = compras.filter(cuenta_id=cuenta_id)
+        transferencias = transferencias.filter(
+            Q(cuenta_origen_id=cuenta_id) | Q(cuenta_destino_id=cuenta_id)
+        )
 
     filas = []
     for venta in ventas:
@@ -151,6 +163,38 @@ def movimientos_caja(cuenta_id=None):
                 "clave": f"c-{compra.pk}",
             }
         )
+    for transferencia in transferencias:
+        comprobante = _comprobante_transferencia(transferencia)
+        if not cuenta_id or transferencia.cuenta_origen_id == cuenta_id:
+            filas.append(
+                {
+                    "cuenta_id": transferencia.cuenta_origen_id,
+                    "cuenta": transferencia.cuenta_origen.descripcion,
+                    "fecha": transferencia.fecha,
+                    "comprobante": comprobante,
+                    "origen": ORIGEN_TRANSFERENCIA,
+                    "debe": CERO,
+                    "haber": transferencia.importe or CERO,
+                    "orden": 2,
+                    "origen_id": transferencia.pk,
+                    "clave": f"t-{transferencia.pk}-s",
+                }
+            )
+        if not cuenta_id or transferencia.cuenta_destino_id == cuenta_id:
+            filas.append(
+                {
+                    "cuenta_id": transferencia.cuenta_destino_id,
+                    "cuenta": transferencia.cuenta_destino.descripcion,
+                    "fecha": transferencia.fecha,
+                    "comprobante": comprobante,
+                    "origen": ORIGEN_TRANSFERENCIA,
+                    "debe": transferencia.importe or CERO,
+                    "haber": CERO,
+                    "orden": 3,
+                    "origen_id": transferencia.pk,
+                    "clave": f"t-{transferencia.pk}-e",
+                }
+            )
     filas.sort(key=lambda fila: (fila["cuenta"], fila["fecha"], fila["orden"], fila["origen_id"]))
     return filas
 
@@ -251,8 +295,9 @@ class ReporteDisponibilidadListView(MantenimientoListView):
     create_label = ""
     show_create = False
     list_hint = (
-        "Movimientos de caja, banco y tarjeta: ventas cobradas en el debe y compras "
-        "al contado o egresos en el haber. El saldo anterior es el de antes de la fecha desde."
+        "Movimientos de caja, banco y tarjeta: ventas cobradas y entradas de transferencias "
+        "en el debe, compras al contado, egresos y salidas de transferencias en el haber. "
+        "El saldo anterior es el de antes de la fecha desde."
     )
     search_label = "Buscar"
     search_placeholder = "Buscar por cuenta, comprobante u origen..."

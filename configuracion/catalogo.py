@@ -52,6 +52,11 @@ FORMULARIOS = (
     Formulario("personas", "Personas", ACCIONES_MANTENIMIENTO),
     Formulario("cuentas", "Cuentas", ACCIONES_MANTENIMIENTO),
     Formulario(
+        "transferencias",
+        "Transferencias",
+        (ACCION_VER, ACCION_ALTA, ACCION_ANULAR, ACCION_EXPORTAR),
+    ),
+    Formulario(
         "reporte_disponibilidad",
         "Disponibilidad",
         (ACCION_VER, ACCION_EXPORTAR),
