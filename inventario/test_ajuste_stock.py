@@ -23,6 +23,7 @@ from inventario.models import (
     TipoMovimiento,
     UnidadMedida,
 )
+from inventario.stock import guardar_ajuste
 from negocio.models import UnidadNegocio
 
 
@@ -119,14 +120,19 @@ def test_menu_muestra_ajustes_de_stock(ingresada):
 
 @pytest.mark.django_db
 def test_formulario_alta_renderiza(ingresada):
+    fecha = timezone.localdate().isoformat()
+
     response = ingresada.get("/inventario/ajustes/nuevo/")
 
     content = response.content.decode()
     assert response.status_code == 200
     assert "data-ajuste-stock" in content
-    assert "detalles-TOTAL_FORMS" in content
+    assert f'<input type="date" name="fecha" value="{fecha}"' in content
+    assert 'name="detalles-TOTAL_FORMS" value="0"' in content
     assert "Agregar detalle" in content
     assert "Guardar ajuste" in content
+    tbody = content.split("<tbody data-ajuste-filas>")[1].split("</tbody>")[0]
+    assert tbody.strip() == ""
 
 
 @pytest.mark.django_db
@@ -141,8 +147,11 @@ def test_formulario_edicion_renderiza(ingresada):
     content = response.content.decode()
     assert response.status_code == 200
     assert f"Ajuste de stock N.º {ajuste.pk}" in content
+    assert f'<input type="date" name="fecha" value="{ajuste.fecha.isoformat()}"' in content
     assert "Producto" in content
     assert "detalles-INITIAL_FORMS" in content
+    tbody = content.split("<tbody data-ajuste-filas>")[1].split("</tbody>")[0]
+    assert tbody.count("<tr") == 1
 
 
 @pytest.mark.django_db
@@ -261,8 +270,47 @@ def test_eliminacion_desactiva_movimientos_y_borra_detalles(ingresada):
 def test_exige_al_menos_un_detalle(ingresada):
     response = ingresada.post("/inventario/ajustes/nuevo/", _datos([]))
 
+    content = response.content.decode()
     assert response.status_code == 200
-    assert "Agregá al menos un ítem al ajuste." in response.content.decode()
+    assert "Agregá al menos un ítem al ajuste." in content
+    assert 'name="detalles-TOTAL_FORMS" value="0"' in content
+    tbody = content.split("<tbody data-ajuste-filas>")[1].split("</tbody>")[0]
+    assert tbody.strip() == ""
+    assert not AjusteStock.objects.exists()
+
+
+@pytest.mark.django_db
+def test_el_servicio_rechaza_un_ajuste_sin_detalles():
+    ajuste = AjusteStock.objects.create(
+        id=1,
+        fecha=timezone.localdate(),
+        observacion="Vacío",
+    )
+
+    with pytest.raises(ValidationError) as error:
+        guardar_ajuste(ajuste)
+
+    assert error.value.code == "vacia"
+    assert not AjusteStockDetalle.objects.exists()
+
+
+@pytest.mark.django_db
+def test_error_de_cabecera_no_duplica_la_fila(ingresada):
+    item = _producto("Producto")
+    _movimiento(item, "10", pk=1)
+    data = _datos(
+        [{"item": item, "cantidad": "8"}],
+        observacion="",
+    )
+
+    response = ingresada.post("/inventario/ajustes/nuevo/", data)
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "Escribí el motivo del ajuste." in content
+    assert 'name="detalles-TOTAL_FORMS" value="1"' in content
+    tbody = content.split("<tbody data-ajuste-filas>")[1].split("</tbody>")[0]
+    assert tbody.count("<tr") == 1
     assert not AjusteStock.objects.exists()
 
 

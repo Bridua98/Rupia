@@ -173,6 +173,8 @@ def guardar_ajuste(ajuste, *, formset=None) -> bool:
         detalles = list(
             ajuste.detalles.select_related("item", "unidad_medida", "item__unidad_medida")
         )
+        if not detalles:
+            raise ValidationError("Agregá al menos un ítem al ajuste.", code="vacia")
         ids = sorted({detalle.item_id for detalle in detalles})
         if ids:
             list(Item.objects.select_for_update().filter(pk__in=ids).order_by("pk"))
