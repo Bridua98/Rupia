@@ -1,0 +1,29 @@
+<article class="dash-card dash-kpi{% if indicador.tono %} is-{{ indicador.tono }}{% endif %}">
+  <p class="eyebrow">{{ indicador.etiqueta }}</p>
+  <p class="dash-value valor-gs is-texto" dir="ltr">{{ indicador.valor_txt }}</p>
+  {% if indicador.meta %}
+    <p class="dash-meta">{{ indicador.meta }}</p>
+  {% endif %}
+  {% if indicador.serie and not indicador.serie.vacia %}
+    <svg class="dash-spark" viewBox="0 0 140 42" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <polygon points="{{ indicador.serie.area }}"></polygon>
+      <polyline points="{{ indicador.serie.puntos }}"></polyline>
+    </svg>
+  {% endif %}
+  {% if indicador.periodo or indicador.anio %}
+    <div class="dash-deltas">
+      {% if indicador.periodo %}
+        <span class="dash-delta is-{{ indicador.periodo.sentido }}">
+          <small>Periodo anterior</small>
+          {{ indicador.periodo.texto }}
+        </span>
+      {% endif %}
+      {% if indicador.anio %}
+        <span class="dash-delta is-{{ indicador.anio.sentido }}">
+          <small>Año anterior</small>
+          {{ indicador.anio.texto }}
+        </span>
+      {% endif %}
+    </div>
+  {% endif %}
+</article>
