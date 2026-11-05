@@ -55,7 +55,7 @@ from core.listado import (
     search_fields_for,
 )
 from core.mantenimiento import MantenimientoListView
-from core.moneda import SIMBOLO, formatear_guaranies, interpretar_guaranies
+from core.moneda import SIMBOLO, formatear_guaranies, interpretar_guaranies, mostrar_guaranies
 from core.timbrado import interpretar_timbrado
 from cuentas.models import Cuenta
 from inventario.models import Item, TipoItem, UnidadMedida
