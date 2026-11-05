@@ -4,11 +4,13 @@ from decimal import Decimal
 import pytest
 from django.utils import timezone
 
+from compras.models import Compra, CompraDetalle, EstadoCompra, TipoCompra
+from cuentas.models import Cuenta
 from inventario.models import Item, ItemCategoria, Marca, TasaIva, TipoItem, UnidadMedida
 from negocio.models import UnidadNegocio
 from personas.models import Genero, Persona, TipoDocumento
 from ventas.cobro import agregar_producto, cambiar_cantidad
-from ventas.models import EstadoVenta, TipoComprobante, Venta
+from ventas.models import EstadoVenta, MedioPago, TipoComprobante, Venta
 from ventas.tablero import tablero_inicio
 
 
@@ -187,6 +189,10 @@ def test_inicio_muestra_el_tablero(client, usuario):
     assert "Hola, ada." in vacio
     assert "Ventas del día" in vacio
     assert "Sin ventas cobradas hoy" in vacio
+    assert "Disponibilidad" in vacio
+    assert "Liquidez" in vacio
+    assert "Informes de gestión" in vacio
+    assert "Venta vs compras · hoy" in vacio
     assert "Por categoría" in vacio
     assert "Por marca" in vacio
     assert "Por unidad de negocio" in vacio
@@ -198,3 +204,76 @@ def test_inicio_muestra_el_tablero(client, usuario):
     assert "Bombón de helado" in con_venta
     assert "Alimentos" in con_venta
     assert "Depósito" in con_venta
+
+
+def _cuenta():
+    return Cuenta.objects.create(descripcion="Caja tablero", nombre_corto="TABLERO")
+
+
+def _cobrar_en_caja(usuario, item, cuenta, *, fecha=None):
+    venta = _cobrar(usuario, item, fecha=fecha)
+    venta.caja = cuenta
+    venta.cuenta_cobro = cuenta
+    venta.medio = MedioPago.EFECTIVO
+    venta.save(update_fields=["caja", "cuenta_cobro", "medio"])
+    return venta
+
+
+def _compra_confirmada(
+    usuario,
+    item,
+    cuenta,
+    *,
+    importe,
+    tipo=TipoCompra.FACTURA_CONTADO,
+    numero="001-001-0000007",
+):
+    compra = Compra.objects.create(
+        fecha=_hoy(),
+        estado=EstadoCompra.CONFIRMADA,
+        tipo=tipo,
+        cuenta=cuenta if tipo != TipoCompra.FACTURA_CREDITO else None,
+        usuario=usuario,
+        numero_completo=numero,
+        timbrado="12345678",
+    )
+    CompraDetalle.objects.create(
+        compra=compra,
+        item=item,
+        unidad_medida=item.unidad_medida,
+        cantidad=Decimal("1"),
+        costo=importe,
+        tasa_iva=TasaIva.DIEZ,
+        subtotal=importe,
+    )
+    return compra
+
+
+@pytest.mark.django_db
+def test_tablero_muestra_disponibilidad_compras_y_liquidez(usuario):
+    cuenta = _cuenta()
+    item = _item(ultimo_costo=Decimal("5000"))
+    _cobrar_en_caja(usuario, item, cuenta)
+    _compra_confirmada(usuario, item, cuenta, importe=Decimal("4000"))
+    _compra_confirmada(
+        usuario,
+        item,
+        cuenta,
+        importe=Decimal("2000"),
+        tipo=TipoCompra.FACTURA_CREDITO,
+        numero="001-001-0000008",
+    )
+
+    tablero = tablero_inicio()
+
+    assert tablero.ventas_dia_importe == Decimal("12000")
+    assert tablero.compras_hoy.valor == Decimal("6000")
+    assert tablero.disponibilidad.valor == Decimal("8000")
+    assert tablero.cuentas[0].nombre == "Caja tablero"
+    assert tablero.comparacion_dia.diferencia == Decimal("6000")
+    assert tablero.comparacion_mes.compras == Decimal("6000")
+    assert tablero.por_pagar.valor == Decimal("2000")
+    assert tablero.liquidez.valor == Decimal("8000")
+    assert tablero.resultado_mes.valor == Decimal("6000")
+    assert tablero.margen.valor == Decimal("7000")
+    assert tablero.flujo_mes.valor == Decimal("8000")

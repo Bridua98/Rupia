@@ -1,0 +1,22 @@
+<article class="dash-card dash-compare">
+  <p class="eyebrow">{{ titulo }}</p>
+  <div class="dash-compare-row">
+    <span>Ventas</span>
+    <strong class="valor-gs is-texto" dir="ltr">{{ comparacion.ventas_txt }}</strong>
+  </div>
+  <div class="dash-bar" aria-hidden="true">
+    <span class="dash-bar-fill is-ventas" style="width: {{ comparacion.ventas_ancho }}%"></span>
+  </div>
+  <div class="dash-compare-row">
+    <span>Compras</span>
+    <strong class="valor-gs is-texto" dir="ltr">{{ comparacion.compras_txt }}</strong>
+  </div>
+  <div class="dash-bar" aria-hidden="true">
+    <span class="dash-bar-fill is-compras" style="width: {{ comparacion.compras_ancho }}%"></span>
+  </div>
+  <p class="dash-compare-foot">
+    <span>Diferencia</span>
+    <strong class="valor-gs is-texto{% if comparacion.diferencia < 0 %} is-alerta{% endif %}" dir="ltr">{{ comparacion.diferencia_txt }}</strong>
+  </p>
+  <p class="dash-meta">Participación · ventas {{ comparacion.ventas_pct }} · compras {{ comparacion.compras_pct }}</p>
+</article>

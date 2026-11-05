@@ -5,52 +5,107 @@
 {% block work %}
 <div class="dash">
   <header class="dash-head">
-    <p class="eyebrow">Sesión activa</p>
+    <p class="eyebrow">Tablero de gestión</p>
     <h1>Hola, {{ user.get_username }}.</h1>
     {% if user.is_staff %}
-      <p class="lede">Personas y stock se administran desde el panel.</p>
+      <p class="lede">Resumen de disponibilidad, ventas, compras y liquidez de la empresa.</p>
     {% else %}
-      <p class="lede">Tu sesión quedó abierta.</p>
+      <p class="lede">Tu sesión quedó abierta. Acá está el estado del negocio.</p>
     {% endif %}
   </header>
 
-  <section class="dash-kpis" aria-label="Resumen de ventas">
-    <article class="dash-card">
-      <p class="eyebrow">Ventas del día</p>
-      {% if tablero.ventas_dia_cantidad %}
-        <p class="dash-value valor-gs is-texto" dir="ltr">{{ tablero.ventas_dia_importe_txt }}</p>
-        <p class="dash-meta">{{ tablero.ventas_dia_cantidad }} comprobante{{ tablero.ventas_dia_cantidad|pluralize:"s" }}</p>
-      {% else %}
-        <p class="dash-empty">Sin ventas cobradas hoy</p>
-      {% endif %}
-    </article>
-
-    <article class="dash-card">
-      <p class="eyebrow">Última venta</p>
-      {% if tablero.ultima %}
-        <p class="dash-value valor-gs is-texto" dir="ltr">{{ tablero.ultima.importe_txt }}</p>
-        <p class="dash-meta">{{ tablero.ultima.numero }} · {{ tablero.ultima.fecha|date:"d/m/Y" }}</p>
-        <p class="dash-meta">{{ tablero.ultima.cliente }}</p>
-      {% else %}
-        <p class="dash-empty">Sin ventas cobradas</p>
-      {% endif %}
-    </article>
-
-    <article class="dash-card">
-      <p class="eyebrow">Producto más vendido</p>
-      {% if tablero.producto %}
-        <p class="dash-value dash-value-name">{{ tablero.producto.descripcion }}</p>
-        <p class="dash-meta">{{ tablero.producto.cantidad_txt }} · {{ tablero.producto.importe_txt }}</p>
-      {% else %}
-        <p class="dash-empty">Sin ventas cobradas hoy</p>
-      {% endif %}
-    </article>
+  <section class="dash-section" aria-labelledby="dash-overview">
+    <header class="dash-section-head">
+      <h2 id="dash-overview">Resumen</h2>
+    </header>
+    <div class="dash-kpis dash-kpis-4">
+      {% include "core/dash_indicador.html" with indicador=tablero.ventas_hoy %}
+      {% include "core/dash_indicador.html" with indicador=tablero.compras_hoy %}
+      {% include "core/dash_indicador.html" with indicador=tablero.disponibilidad %}
+      {% include "core/dash_indicador.html" with indicador=tablero.resultado_mes %}
+    </div>
   </section>
 
-  <section class="dash-cortes" aria-label="Ventas del día por grupo">
-    {% include "core/dash_corte.html" with titulo="Por categoría" filas=tablero.categorias %}
-    {% include "core/dash_corte.html" with titulo="Por marca" filas=tablero.marcas %}
-    {% include "core/dash_corte.html" with titulo="Por unidad de negocio" filas=tablero.unidades %}
+  <section class="dash-section" aria-labelledby="dash-gestion">
+    <header class="dash-section-head">
+      <h2 id="dash-gestion">Informes de gestión</h2>
+    </header>
+    <div class="dash-grid-main">
+      <article class="dash-card dash-list dash-span-2">
+        <div class="dash-card-head">
+          <p class="eyebrow">Disponibilidad</p>
+          <a class="dash-link" href="{% url 'reporte_disponibilidad' %}">Ver mayor</a>
+        </div>
+        <p class="dash-value valor-gs is-texto" dir="ltr">{{ tablero.disponibilidad.valor_txt }}</p>
+        <p class="dash-meta">{{ tablero.disponibilidad.meta }}</p>
+        {% if tablero.cuentas %}
+          <ul>
+            {% for fila in tablero.cuentas %}
+              <li>
+                <span>{{ fila.nombre }}</span>
+                <strong class="valor-gs is-texto{% if fila.importe < 0 %} is-alerta{% endif %}" dir="ltr">{{ fila.importe_txt }}</strong>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="dash-empty">Sin saldos de caja, banco o tarjeta</p>
+        {% endif %}
+      </article>
+
+      {% include "core/dash_comparacion.html" with titulo="Venta vs compras · hoy" comparacion=tablero.comparacion_dia %}
+      {% include "core/dash_comparacion.html" with titulo="Venta vs compras · mes" comparacion=tablero.comparacion_mes %}
+    </div>
+
+    <div class="dash-kpis dash-kpis-4">
+      {% include "core/dash_indicador.html" with indicador=tablero.ventas_mes %}
+      {% include "core/dash_indicador.html" with indicador=tablero.compras_mes %}
+      {% include "core/dash_indicador.html" with indicador=tablero.egresos_mes %}
+      {% include "core/dash_indicador.html" with indicador=tablero.margen %}
+      {% include "core/dash_indicador.html" with indicador=tablero.ticket_promedio %}
+      <article class="dash-card">
+        <p class="eyebrow">Última venta</p>
+        {% if tablero.ultima %}
+          <p class="dash-value valor-gs is-texto" dir="ltr">{{ tablero.ultima.importe_txt }}</p>
+          <p class="dash-meta">{{ tablero.ultima.numero }} · {{ tablero.ultima.fecha|date:"d/m/Y" }}</p>
+          <p class="dash-meta">{{ tablero.ultima.cliente }}</p>
+        {% else %}
+          <p class="dash-empty">Sin ventas cobradas</p>
+        {% endif %}
+      </article>
+      <article class="dash-card">
+        <p class="eyebrow">Producto más vendido</p>
+        {% if tablero.producto %}
+          <p class="dash-value dash-value-name">{{ tablero.producto.descripcion }}</p>
+          <p class="dash-meta">{{ tablero.producto.cantidad_txt }} · {{ tablero.producto.importe_txt }}</p>
+        {% else %}
+          <p class="dash-empty">Sin ventas cobradas hoy</p>
+        {% endif %}
+      </article>
+      {% include "core/dash_indicador.html" with indicador=tablero.flujo_mes %}
+    </div>
+  </section>
+
+  <section class="dash-section" aria-labelledby="dash-liquidez">
+    <header class="dash-section-head">
+      <h2 id="dash-liquidez">Liquidez</h2>
+    </header>
+    <div class="dash-kpis dash-kpis-4">
+      {% include "core/dash_indicador.html" with indicador=tablero.liquidez %}
+      {% include "core/dash_indicador.html" with indicador=tablero.por_pagar %}
+      {% include "core/dash_indicador.html" with indicador=tablero.cobertura %}
+      {% include "core/dash_indicador.html" with indicador=tablero.flujo_mes %}
+    </div>
+  </section>
+
+  <section class="dash-section" aria-labelledby="dash-cortes">
+    <header class="dash-section-head">
+      <h2 id="dash-cortes">Ventas del día</h2>
+    </header>
+    <div class="dash-cortes">
+      {% include "core/dash_corte.html" with titulo="Por categoría" filas=tablero.categorias %}
+      {% include "core/dash_corte.html" with titulo="Por marca" filas=tablero.marcas %}
+      {% include "core/dash_corte.html" with titulo="Por unidad de negocio" filas=tablero.unidades %}
+    </div>
   </section>
 </div>
 {% endblock %}
