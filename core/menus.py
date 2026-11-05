@@ -79,6 +79,12 @@ def main_menu(request):
                     formulario="reporte_disponibilidad",
                 ),
                 item(
+                    "Informe de gastos",
+                    url_name="reporte_gastos",
+                    icon="chart",
+                    formulario="reporte_gastos",
+                ),
+                item(
                     "Unidades de negocio",
                     url_name="unidad_negocio_list",
                     icon="building",

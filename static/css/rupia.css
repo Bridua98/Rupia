@@ -2447,6 +2447,18 @@ body.is-visor {
   vertical-align: middle;
 }
 
+.ledger.is-reporte .sheet-wrap {
+  overflow-x: auto;
+}
+
+.sheet.sheet-gastos {
+  min-width: 62rem;
+}
+
+.sheet.sheet-gastos-agrupado {
+  min-width: 46rem;
+}
+
 .reporte-modo {
   margin: 0.2rem 0 0;
   color: var(--accent);

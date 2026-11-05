@@ -1,5 +1,6 @@
 from django.urls import path
 
+from compras.reporte_gastos import ReporteGastosListView
 from compras.views import (
     AgregarItemView,
     AnularCompraView,
@@ -39,5 +40,21 @@ urlpatterns = [
     path("nueva/lineas/<int:pk>/", LineaCompraView.as_view(), name="compra_linea"),
     path("nueva/confirmar/", ConfirmarCompraView.as_view(), name="compra_confirmar"),
     path("nueva/cancelar/", CancelarCompraView.as_view(), name="compra_cancelar"),
+    path("reportes/gastos/", ReporteGastosListView.as_view(), name="reporte_gastos"),
+    path(
+        "reportes/gastos/imprimir/",
+        mantenimiento_salida(ReporteGastosListView, "print").as_view(),
+        name="reporte_gastos_print",
+    ),
+    path(
+        "reportes/gastos/exportar.xlsx",
+        mantenimiento_salida(ReporteGastosListView, "xlsx").as_view(),
+        name="reporte_gastos_export_xlsx",
+    ),
+    path(
+        "reportes/gastos/exportar.pdf",
+        mantenimiento_salida(ReporteGastosListView, "pdf").as_view(),
+        name="reporte_gastos_export_pdf",
+    ),
     path("<int:pk>/anular/", AnularCompraView.as_view(), name="compra_anular"),
 ]

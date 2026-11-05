@@ -15,6 +15,7 @@ def test_gestion_agrupa_timbrados_cuentas_y_unidades_de_negocio(ingresada):
         "Cuentas",
         "Transferencias",
         "Disponibilidad",
+        "Informe de gastos",
         "Unidades de negocio",
     ]
 
