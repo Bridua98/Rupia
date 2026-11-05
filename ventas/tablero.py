@@ -503,17 +503,17 @@ def tablero_inicio(hoy=None) -> TableroVentas:
     _, _resumen_mes, totales_mes = mayor_disponibilidad(
         fecha_desde=mes_inicio, fecha_hasta=mes_fin
     )
-    entradas_mes = redondear_guarani(totales_mes["debe"])
-    salidas_mes = redondear_guarani(totales_mes["haber"])
+    entradas_mes = redondear_guarani(totales_mes["entra"])
+    salidas_mes = redondear_guarani(totales_mes["salida"])
     flujo_mes = redondear_guarani(entradas_mes - salidas_mes)
     _, _, totales_mes_ant = mayor_disponibilidad(
         fecha_desde=mes_ant_inicio, fecha_hasta=mes_ant_fin
     )
-    flujo_mes_ant = redondear_guarani(totales_mes_ant["debe"] - totales_mes_ant["haber"])
+    flujo_mes_ant = redondear_guarani(totales_mes_ant["entra"] - totales_mes_ant["salida"])
     _, _, totales_mes_anio = mayor_disponibilidad(
         fecha_desde=mes_anio_inicio, fecha_hasta=mes_anio_fin
     )
-    flujo_mes_anio = redondear_guarani(totales_mes_anio["debe"] - totales_mes_anio["haber"])
+    flujo_mes_anio = redondear_guarani(totales_mes_anio["entra"] - totales_mes_anio["salida"])
 
     por_pagar = _total_compras(
         fecha_minima(),

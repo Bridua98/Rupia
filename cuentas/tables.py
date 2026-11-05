@@ -102,8 +102,8 @@ class DisponibilidadDetalleTable(tables.Table):
     fecha = tables.Column(verbose_name="Fecha", empty_values=())
     comprobante = tables.Column(verbose_name="Comprobante")
     origen = tables.Column(verbose_name="Origen", empty_values=())
-    debe = tables.Column(verbose_name="Debe", empty_values=(), attrs=ATTRS_MONEDA)
-    haber = tables.Column(verbose_name="Haber", empty_values=(), attrs=ATTRS_MONEDA)
+    entra = tables.Column(verbose_name="Entra", empty_values=(), attrs=ATTRS_MONEDA)
+    salida = tables.Column(verbose_name="Salida", empty_values=(), attrs=ATTRS_MONEDA)
     saldo = tables.Column(verbose_name="Saldo", attrs=ATTRS_MONEDA)
 
     class Meta:
@@ -119,10 +119,10 @@ class DisponibilidadDetalleTable(tables.Table):
     def render_origen(self, value):
         return value or "—"
 
-    def render_debe(self, value):
+    def render_entra(self, value):
         return html_guaranies(value)
 
-    def render_haber(self, value):
+    def render_salida(self, value):
         return html_guaranies(value)
 
     def render_saldo(self, value):
@@ -132,8 +132,8 @@ class DisponibilidadDetalleTable(tables.Table):
 class DisponibilidadResumenTable(tables.Table):
     cuenta = tables.Column(verbose_name="Cuenta")
     saldo_anterior = tables.Column(verbose_name="Saldo anterior", attrs=ATTRS_MONEDA)
-    debe = tables.Column(verbose_name="Debe", attrs=ATTRS_MONEDA)
-    haber = tables.Column(verbose_name="Haber", attrs=ATTRS_MONEDA)
+    entra = tables.Column(verbose_name="Entra", attrs=ATTRS_MONEDA)
+    salida = tables.Column(verbose_name="Salida", attrs=ATTRS_MONEDA)
     saldo = tables.Column(verbose_name="Saldo", attrs=ATTRS_MONEDA)
 
     class Meta:
@@ -145,10 +145,10 @@ class DisponibilidadResumenTable(tables.Table):
     def render_saldo_anterior(self, value):
         return html_guaranies(value)
 
-    def render_debe(self, value):
+    def render_entra(self, value):
         return html_guaranies(value)
 
-    def render_haber(self, value):
+    def render_salida(self, value):
         return html_guaranies(value)
 
     def render_saldo(self, value):
