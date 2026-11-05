@@ -31,10 +31,10 @@
           {% for column in table.columns %}
             {% if forloop.first %}
               <th scope="row">Total</th>
-            {% elif column.name == "debe" %}
-              <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.debe_html }}</td>
-            {% elif column.name == "haber" %}
-              <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.haber_html }}</td>
+            {% elif column.name == "entra" %}
+              <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.entra_html }}</td>
+            {% elif column.name == "salida" %}
+              <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.salida_html }}</td>
             {% elif column.name == "saldo_anterior" %}
               <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.saldo_anterior_html }}</td>
             {% elif column.name == "saldo" %}

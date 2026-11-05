@@ -16,7 +16,7 @@
           <p class="reporte-modo">{{ reporte_agrupado_label }}</p>
         {% endif %}
         {% if reporte_totales %}
-          <p class="reporte-leyenda">Ventas y entradas de transferencias en el debe, compras, egresos y salidas de transferencias en el haber · Importes en Gs.</p>
+          <p class="reporte-leyenda">Entra menos salida, y cada fila suma ese resultado al saldo de la anterior · Importes en Gs.</p>
         {% endif %}
         {% if record_count is not None %}
           <p class="record-count">{{ record_count }} {{ record_noun }}{{ record_count|pluralize }}</p>
@@ -80,13 +80,16 @@
           <div class="list-filters-grid">
             {% for row in list_filters %}
               <div class="list-filter">
-                <label for="filter-{{ row.name }}">{{ row.label }}</label>
+                <label for="filter-{{ row.name }}">
+                  {{ row.label }}{% if row.kind == "date" %}<abbr title="Obligatorio">*</abbr>{% endif %}
+                </label>
                 {% if row.kind == "date" %}
                   <input
                     type="date"
                     id="filter-{{ row.name }}"
                     name="{{ row.name }}"
                     value="{{ row.value }}"
+                    required
                   >
                 {% else %}
                   <select id="filter-{{ row.name }}" name="{{ row.name }}">

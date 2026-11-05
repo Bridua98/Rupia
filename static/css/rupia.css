@@ -1674,6 +1674,30 @@ button.topbar-icon:hover {
   box-shadow: 0 0 0 3px rgba(31, 122, 74, 0.12);
 }
 
+.list-filter input[type="date"] {
+  width: 100%;
+  height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 1px solid #e1eae5;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font: 400 0.95rem/1.2 var(--sans);
+  box-shadow: 0 1px 2px rgba(20, 51, 43, 0.03);
+}
+
+.list-filter input[type="date"]:focus {
+  outline: none;
+  border-color: #8ab5a4;
+  box-shadow: 0 0 0 3px rgba(31, 122, 74, 0.12);
+}
+
+.list-filter abbr {
+  margin-left: 0.2rem;
+  color: #9a3b32;
+  text-decoration: none;
+}
+
 .list-filters-actions {
   display: flex;
   flex-wrap: wrap;

@@ -41,8 +41,8 @@ class FilaDisponibilidad:
     fecha: date | None
     comprobante: str
     origen: str
-    debe: Decimal | None
-    haber: Decimal | None
+    entra: Decimal | None
+    salida: Decimal | None
     saldo: Decimal
     es_saldo_anterior: bool = False
 
@@ -52,8 +52,8 @@ class FilaResumenDisponibilidad:
     pk: int
     cuenta: str
     saldo_anterior: Decimal
-    debe: Decimal
-    haber: Decimal
+    entra: Decimal
+    salida: Decimal
     saldo: Decimal
 
 
@@ -141,8 +141,8 @@ def movimientos_caja(cuenta_id=None):
                 "fecha": venta.fecha,
                 "comprobante": venta.numero_completo or "—",
                 "origen": ORIGEN_VENTA,
-                "debe": venta.importe or CERO,
-                "haber": CERO,
+                "entra": venta.importe or CERO,
+                "salida": CERO,
                 "orden": 0,
                 "origen_id": venta.pk,
                 "clave": f"v-{venta.pk}",
@@ -156,8 +156,8 @@ def movimientos_caja(cuenta_id=None):
                 "fecha": compra.fecha,
                 "comprobante": _comprobante_compra(compra),
                 "origen": _origen_compra(compra),
-                "debe": CERO,
-                "haber": compra.importe or CERO,
+                "entra": CERO,
+                "salida": compra.importe or CERO,
                 "orden": 1,
                 "origen_id": compra.pk,
                 "clave": f"c-{compra.pk}",
@@ -173,8 +173,8 @@ def movimientos_caja(cuenta_id=None):
                     "fecha": transferencia.fecha,
                     "comprobante": comprobante,
                     "origen": ORIGEN_TRANSFERENCIA,
-                    "debe": CERO,
-                    "haber": transferencia.importe or CERO,
+                    "entra": CERO,
+                    "salida": transferencia.importe or CERO,
                     "orden": 2,
                     "origen_id": transferencia.pk,
                     "clave": f"t-{transferencia.pk}-s",
@@ -188,8 +188,8 @@ def movimientos_caja(cuenta_id=None):
                     "fecha": transferencia.fecha,
                     "comprobante": comprobante,
                     "origen": ORIGEN_TRANSFERENCIA,
-                    "debe": transferencia.importe or CERO,
-                    "haber": CERO,
+                    "entra": transferencia.importe or CERO,
+                    "salida": CERO,
                     "orden": 3,
                     "origen_id": transferencia.pk,
                     "clave": f"t-{transferencia.pk}-e",
@@ -213,40 +213,46 @@ def mayor_disponibilidad(*, cuenta_id=None, fecha_desde=None, fecha_hasta=None, 
 
     detalle = []
     resumen = []
-    total_debe = CERO
-    total_haber = CERO
+    total_entra = CERO
+    total_salida = CERO
     total_anterior = CERO
     for cuenta_id_grupo, items in sorted(por_cuenta.items(), key=lambda par: par[1][0]["cuenta"]):
         saldo_anterior = CERO
+        entra_anterior = CERO
+        salida_anterior = CERO
+        hubo_anterior = False
         periodo = []
         for movimiento in items:
             fecha = movimiento["fecha"]
             if desde and fecha < desde:
-                saldo_anterior += movimiento["debe"] - movimiento["haber"]
+                hubo_anterior = True
+                entra_anterior += movimiento["entra"]
+                salida_anterior += movimiento["salida"]
+                saldo_anterior += movimiento["entra"] - movimiento["salida"]
                 continue
             if hasta and fecha > hasta:
                 continue
             periodo.append(movimiento)
-        if not periodo and saldo_anterior == CERO:
+        if not periodo and not hubo_anterior:
             continue
         cuenta_nombre = items[0]["cuenta"]
-        debe_periodo = sum((fila["debe"] for fila in periodo), CERO)
-        haber_periodo = sum((fila["haber"] for fila in periodo), CERO)
-        total_debe += debe_periodo
-        total_haber += haber_periodo
+        entra_periodo = sum((fila["entra"] for fila in periodo), CERO)
+        salida_periodo = sum((fila["salida"] for fila in periodo), CERO)
+        total_entra += entra_periodo
+        total_salida += salida_periodo
         total_anterior += saldo_anterior
         resumen.append(
             FilaResumenDisponibilidad(
                 pk=cuenta_id_grupo,
                 cuenta=cuenta_nombre,
                 saldo_anterior=saldo_anterior,
-                debe=debe_periodo,
-                haber=haber_periodo,
-                saldo=saldo_anterior + debe_periodo - haber_periodo,
+                entra=entra_periodo,
+                salida=salida_periodo,
+                saldo=saldo_anterior + entra_periodo - salida_periodo,
             )
         )
         saldo = saldo_anterior
-        if desde:
+        if hubo_anterior:
             detalle.append(
                 FilaDisponibilidad(
                     pk=f"a-{cuenta_id_grupo}",
@@ -255,14 +261,14 @@ def mayor_disponibilidad(*, cuenta_id=None, fecha_desde=None, fecha_hasta=None, 
                     fecha=None,
                     comprobante="Saldo anterior",
                     origen="",
-                    debe=None,
-                    haber=None,
-                    saldo=saldo,
+                    entra=entra_anterior,
+                    salida=salida_anterior,
+                    saldo=entra_anterior - salida_anterior,
                     es_saldo_anterior=True,
                 )
             )
         for movimiento in periodo:
-            saldo = saldo + movimiento["debe"] - movimiento["haber"]
+            saldo = saldo + movimiento["entra"] - movimiento["salida"]
             detalle.append(
                 FilaDisponibilidad(
                     pk=movimiento["clave"],
@@ -271,16 +277,16 @@ def mayor_disponibilidad(*, cuenta_id=None, fecha_desde=None, fecha_hasta=None, 
                     fecha=movimiento["fecha"],
                     comprobante=movimiento["comprobante"],
                     origen=movimiento["origen"],
-                    debe=movimiento["debe"] if movimiento["debe"] else None,
-                    haber=movimiento["haber"] if movimiento["haber"] else None,
+                    entra=movimiento["entra"] if movimiento["entra"] else None,
+                    salida=movimiento["salida"] if movimiento["salida"] else None,
                     saldo=saldo,
                 )
             )
     totales = {
-        "debe": total_debe,
-        "haber": total_haber,
+        "entra": total_entra,
+        "salida": total_salida,
         "saldo_anterior": total_anterior,
-        "saldo": total_anterior + total_debe - total_haber,
+        "saldo": total_anterior + total_entra - total_salida,
     }
     return detalle, resumen, totales
 
@@ -295,9 +301,8 @@ class ReporteDisponibilidadListView(MantenimientoListView):
     create_label = ""
     show_create = False
     list_hint = (
-        "Movimientos de caja, banco y tarjeta: ventas cobradas y entradas de transferencias "
-        "en el debe, compras al contado, egresos y salidas de transferencias en el haber. "
-        "El saldo anterior es el de antes de la fecha desde."
+        "Elegí desde y hasta. El saldo de cada fila es el saldo anterior más la entra menos la salida. "
+        "Los movimientos de antes de esa fecha se agrupan en Saldo anterior."
     )
     search_label = "Buscar"
     search_placeholder = "Buscar por cuenta, comprobante u origen..."
@@ -313,11 +318,13 @@ class ReporteDisponibilidadListView(MantenimientoListView):
             "name": "fecha_desde",
             "label": "Desde",
             "kind": "date",
+            "required": True,
         },
         {
             "name": "fecha_hasta",
             "label": "Hasta",
             "kind": "date",
+            "required": True,
         },
         {
             "name": "vista",
@@ -341,20 +348,39 @@ class ReporteDisponibilidadListView(MantenimientoListView):
     def vista(self):
         return filter_values(self.request, filter_specs_for(self)).get("vista", VISTA_DETALLE)
 
+    def _fechas(self):
+        valores = filter_values(self.request, filter_specs_for(self))
+        return _parse_fecha(valores.get("fecha_desde")), _parse_fecha(valores.get("fecha_hasta"))
+
+    def fechas_listas(self):
+        desde, hasta = self._fechas()
+        return desde is not None and hasta is not None and desde <= hasta
+
     def _resultado(self):
         if hasattr(self, "_resultado_cache"):
             return self._resultado_cache
+        if not self.fechas_listas():
+            self._resultado_cache = ([], [], {
+                "entra": CERO,
+                "salida": CERO,
+                "saldo_anterior": CERO,
+                "saldo": CERO,
+            })
+            return self._resultado_cache
         valores = filter_values(self.request, filter_specs_for(self))
         cuenta = valores.get("cuenta")
+        desde, hasta = self._fechas()
         self._resultado_cache = mayor_disponibilidad(
             cuenta_id=int(cuenta) if cuenta and cuenta.isdigit() else None,
-            fecha_desde=valores.get("fecha_desde"),
-            fecha_hasta=valores.get("fecha_hasta"),
+            fecha_desde=desde,
+            fecha_hasta=hasta,
             query=self.query(),
         )
         return self._resultado_cache
 
     def get_queryset(self):
+        if not self.fechas_listas():
+            return []
         detalle, resumen, _totales = self._resultado()
         if self.vista() == VISTA_CUENTA:
             return resumen
@@ -381,34 +407,45 @@ class ReporteDisponibilidadListView(MantenimientoListView):
     def totales_formateados(self):
         _detalle, _resumen, totales = self._resultado()
         return {
-            "debe": mostrar_guaranies(totales["debe"]),
-            "haber": mostrar_guaranies(totales["haber"]),
+            "entra": mostrar_guaranies(totales["entra"]),
+            "salida": mostrar_guaranies(totales["salida"]),
             "saldo_anterior": mostrar_guaranies(totales["saldo_anterior"]),
             "saldo": mostrar_guaranies(totales["saldo"]),
-            "debe_html": html_guaranies(totales["debe"]),
-            "haber_html": html_guaranies(totales["haber"]),
+            "entra_html": html_guaranies(totales["entra"]),
+            "salida_html": html_guaranies(totales["salida"]),
             "saldo_anterior_html": html_guaranies(totales["saldo_anterior"]),
             "saldo_html": html_guaranies(totales["saldo"]),
-            "debe_raw": totales["debe"],
-            "haber_raw": totales["haber"],
+            "entra_raw": totales["entra"],
+            "salida_raw": totales["salida"],
             "saldo_anterior_raw": totales["saldo_anterior"],
             "saldo_raw": totales["saldo"],
         }
 
     def get_table(self, **kwargs):
         table = super().get_table(**kwargs)
-        table.reporte_totales = self.totales_formateados()
+        desde, hasta = self._fechas()
+        if desde is None or hasta is None:
+            table.empty_text = "Elegí las fechas desde y hasta para ver la disponibilidad."
+            table.reporte_totales = None
+        elif desde > hasta:
+            table.empty_text = "La fecha desde no puede ser posterior a la fecha hasta."
+            table.reporte_totales = None
+        else:
+            table.reporte_totales = self.totales_formateados()
         table.modo_resumen = self.vista() == VISTA_CUENTA
         return table
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         modo = self.vista()
+        desde, hasta = self._fechas()
         context["reporte_agrupado"] = modo if modo == VISTA_CUENTA else ""
         context["reporte_agrupado_label"] = VISTA_LABELS.get(modo, "")
         context["reporte_resumen_filtros"] = self.resumen_filtros()
-        context["reporte_totales"] = self.totales_formateados()
+        context["reporte_totales"] = self.totales_formateados() if self.fechas_listas() else None
         context["record_noun"] = "cuenta" if modo == VISTA_CUENTA else self.record_noun
+        if desde is None or hasta is None or desde > hasta:
+            context["filters_open"] = True
         return context
 
     def resumen_filtros(self):
@@ -447,13 +484,13 @@ class ReporteDisponibilidadListView(MantenimientoListView):
             "reporte_agrupado_label": VISTA_LABELS.get(self.vista(), ""),
             "reporte_totales": totales,
             "footer_label": "Total",
-            "footer_debe": totales["debe"],
-            "footer_haber": totales["haber"],
+            "footer_entra": totales["entra"],
+            "footer_salida": totales["salida"],
         }
 
     def _salida_context(self):
         context = super()._salida_context()
-        if self.export_totals and context["rows"]:
+        if self.export_totals and self.fechas_listas() and context["rows"]:
             context["record_count"] = max(0, len(context["rows"]) - 1)
         return context
 
@@ -471,7 +508,7 @@ class ReporteDisponibilidadListView(MantenimientoListView):
             for column in columns:
                 row.append(self._celda_export(column, record))
             rows.append(row)
-        if self.export_totals:
+        if self.export_totals and self.fechas_listas():
             total_row = self.export_totals_row(columns)
             if total_row is not None:
                 rows.append(total_row)
@@ -483,10 +520,10 @@ class ReporteDisponibilidadListView(MantenimientoListView):
         row = []
         for column in columns:
             name = column.name
-            if name == "debe":
-                row.append(totales["debe"])
-            elif name == "haber":
-                row.append(totales["haber"])
+            if name == "entra":
+                row.append(totales["entra"])
+            elif name == "salida":
+                row.append(totales["salida"])
             elif name == "saldo_anterior" and resumen:
                 row.append(totales["saldo_anterior"])
             elif name == "saldo":
@@ -504,7 +541,7 @@ class ReporteDisponibilidadListView(MantenimientoListView):
         if value is None:
             return ""
         name = column.name
-        if name in ("debe", "haber", "saldo", "saldo_anterior"):
+        if name in ("entra", "salida", "saldo", "saldo_anterior"):
             return mostrar_guaranies(value)
         if name == "fecha" and hasattr(value, "strftime"):
             return value.strftime("%d/%m/%Y")
