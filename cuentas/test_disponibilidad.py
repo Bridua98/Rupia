@@ -7,7 +7,7 @@ from openpyxl import load_workbook
 
 from compras.models import Compra, CompraDetalle, EstadoCompra, TipoCompra
 from cuentas.disponibilidad import mayor_disponibilidad
-from cuentas.models import Cuenta
+from cuentas.models import Cuenta, EstadoTransferencia, Transferencia
 from inventario.models import Item, ItemCategoria, Marca, TasaIva, TipoItem, UnidadMedida
 from negocio.models import UnidadNegocio
 from ventas.models import EstadoVenta, MedioPago, Venta, VentaDetalle
@@ -322,3 +322,90 @@ def test_excel_incluye_fila_total(ingresada, usuario):
     assert "Gs. 12.000" in str(hoja.cell(2, 5).value)
     assert "Gs. 12.000" in str(hoja.cell(ultima, 5).value)
     assert "Gs. 12.000" in str(hoja.cell(ultima, 7).value)
+
+
+def _transferencia(usuario, origen, destino, *, fecha, importe, comprobante="", estado=None):
+    return Transferencia.objects.create(
+        fecha=fecha,
+        cuenta_origen=origen,
+        cuenta_destino=destino,
+        importe=Decimal(importe),
+        comprobante=comprobante,
+        usuario=usuario,
+        estado=estado or EstadoTransferencia.CONFIRMADA,
+    )
+
+
+@pytest.mark.django_db
+def test_transferencia_sale_y_entra(ingresada, usuario):
+    caja = _cuenta("Caja A")
+    banco = _cuenta("Banco B", es_banco=True, numero="123", nombre_corto="BANCO")
+    _transferencia(
+        usuario,
+        caja,
+        banco,
+        fecha=date(2026, 11, 4),
+        importe="7000",
+        comprobante="DEP-99",
+    )
+
+    response = ingresada.get("/cuentas/disponibilidad/")
+    content = response.content.decode()
+    assert "DEP-99" in content
+    assert "Transferencia" in content
+    assert content.count("DEP-99") == 2
+    totales = content.split("sheet-total")[1]
+    assert "7.000" in totales
+    assert totales.count("7.000") >= 2
+
+    detalle, resumen, totales = mayor_disponibilidad()
+    por_cuenta = {fila.cuenta: fila for fila in resumen}
+    assert por_cuenta["Caja A"].haber == Decimal("7000")
+    assert por_cuenta["Caja A"].debe == Decimal("0")
+    assert por_cuenta["Caja A"].saldo == Decimal("-7000")
+    assert por_cuenta["Banco B"].debe == Decimal("7000")
+    assert por_cuenta["Banco B"].haber == Decimal("0")
+    assert por_cuenta["Banco B"].saldo == Decimal("7000")
+    assert totales["debe"] == Decimal("7000")
+    assert totales["haber"] == Decimal("7000")
+    assert totales["saldo"] == Decimal("0")
+
+
+@pytest.mark.django_db
+def test_transferencia_anulada_no_entra(ingresada, usuario):
+    caja = _cuenta("Caja A")
+    banco = _cuenta("Banco B", es_banco=True, numero="123", nombre_corto="BANCO")
+    _transferencia(
+        usuario,
+        caja,
+        banco,
+        fecha=date(2026, 11, 4),
+        importe="7000",
+        comprobante="DEP-ANULA",
+        estado=EstadoTransferencia.ANULADA,
+    )
+
+    response = ingresada.get("/cuentas/disponibilidad/")
+    content = response.content.decode()
+    assert "DEP-ANULA" not in content
+    assert "No hay movimientos para los filtros elegidos." in content
+
+
+@pytest.mark.django_db
+def test_filtro_cuenta_muestra_un_lado_de_la_transferencia(ingresada, usuario):
+    caja = _cuenta("Caja A")
+    banco = _cuenta("Banco B", es_banco=True, numero="123", nombre_corto="BANCO")
+    _transferencia(
+        usuario,
+        caja,
+        banco,
+        fecha=date(2026, 11, 4),
+        importe="5000",
+        comprobante="DEP-50",
+    )
+
+    response = ingresada.get(f"/cuentas/disponibilidad/?cuenta={caja.pk}")
+    content = response.content.decode()
+    assert "DEP-50" in content
+    assert content.count("DEP-50") == 1
+    assert "Caja A" in content

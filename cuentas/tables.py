@@ -1,8 +1,10 @@
 import django_tables2 as tables
+from django.urls import reverse
 
 from core.moneda import html_guaranies
 from core.tables import ATTRS_MONEDA, ActionMenuColumn
-from cuentas.models import Cuenta
+from core.vista import html_situacion
+from cuentas.models import Cuenta, EstadoTransferencia, Transferencia
 
 
 class CuentaTable(tables.Table):
@@ -22,6 +24,71 @@ class CuentaTable(tables.Table):
 
     def render_numero(self, value):
         return value or "—"
+
+
+def transferencia_row_actions(record, table=None):
+    if table is None:
+        return []
+    list_query = getattr(table, "list_query", None)
+    selection_param = getattr(table, "selection_param", None)
+    actions = []
+    if list_query and selection_param:
+        actions.append(
+            {
+                "label": "Ver",
+                "icon": "eye",
+                "href": list_query(**{selection_param: record.pk, "ver": 1}),
+            }
+        )
+    if record.estado == EstadoTransferencia.CONFIRMADA and getattr(table, "puede_anular", False):
+        actions.append(
+            {
+                "label": "Anular",
+                "icon": "trash",
+                "delete_url": reverse("transferencia_anular", args=[record.pk]),
+                "confirm_message": f"¿Anular {record}?",
+                "submit_label": "Anular",
+            }
+        )
+    return actions
+
+
+class TransferenciaTable(tables.Table):
+    fecha = tables.Column(verbose_name="Fecha")
+    cuenta_origen = tables.Column(verbose_name="Salida")
+    cuenta_destino = tables.Column(verbose_name="Entrada")
+    importe = tables.Column(verbose_name="Importe", empty_values=(), attrs=ATTRS_MONEDA)
+    comprobante = tables.Column(verbose_name="Comprobante", empty_values=())
+    estado = tables.Column(verbose_name="Estado")
+    acciones = ActionMenuColumn(get_actions=transferencia_row_actions)
+
+    class Meta:
+        model = Transferencia
+        fields = (
+            "fecha",
+            "cuenta_origen",
+            "cuenta_destino",
+            "importe",
+            "comprobante",
+            "estado",
+            "acciones",
+        )
+        orderable = False
+        template_name = "django_tables2/rupia.html"
+        empty_text = "Todavía no hay transferencias."
+        attrs = {"class": "sheet"}
+
+    def render_fecha(self, value):
+        return value.strftime("%d/%m/%Y") if value else "—"
+
+    def render_importe(self, value):
+        return html_guaranies(value or 0)
+
+    def render_comprobante(self, value):
+        return value or "—"
+
+    def render_estado(self, value, record):
+        return html_situacion(value, record.get_estado_display())
 
 
 def _clase_detalle(record):

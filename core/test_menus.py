@@ -13,6 +13,7 @@ def test_gestion_agrupa_timbrados_cuentas_y_unidades_de_negocio(ingresada):
     assert [hijo["label"] for hijo in gestion["children"]] == [
         "Timbrados",
         "Cuentas",
+        "Transferencias",
         "Disponibilidad",
         "Unidades de negocio",
     ]
