@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.db.models import Count, Sum
 
-from core.cantidad import formatear_cantidad
+from core.cantidad import formatear_cantidad, html_cantidad
 from core.listado import (
     apply_filters,
     apply_search,
@@ -12,8 +12,9 @@ from core.listado import (
     search_fields_for,
 )
 from core.mantenimiento import MantenimientoListView
-from core.moneda import formatear_guaranies
+from core.moneda import html_guaranies, mostrar_guaranies
 from inventario.models import Item, ItemCategoria, ItemMovimiento, Marca, TipoItem, TipoMovimiento
+from inventario.movimientos import con_signo_stock, expresion_stock
 from inventario.tables import ReporteProductosAgrupadoTable, ReporteProductosDetalleTable
 
 AGRUPAR_DETALLE = ""
@@ -59,7 +60,8 @@ class ReporteProductosListView(MantenimientoListView):
     create_label = ""
     show_create = False
     list_hint = (
-        "Movimientos vigentes de productos. Filtrá, agrupá en una fila e imprimí o exportá."
+        "Movimientos vigentes de productos. Las entradas suman al stock (positivo) "
+        "y las salidas lo descuentan (negativo). Filtrá, agrupá e imprimí o exportá."
     )
     search_label = "Buscar"
     search_placeholder = "Buscar por ítem, marca o categoría..."
@@ -148,10 +150,18 @@ class ReporteProductosListView(MantenimientoListView):
         queryset = apply_filters(queryset, filter_values(self.request, specs), specs)
         return queryset
 
+    def _sumas(self):
+        return {
+            "cantidad": Sum(expresion_stock("cantidad")),
+            "subtotal": Sum(expresion_stock("subtotal")),
+            "movimientos": Count("id"),
+        }
+
     def totales_raw(self):
+        sumas = self._sumas()
         return self.movimientos_queryset().aggregate(
-            cantidad=Sum("cantidad"),
-            subtotal=Sum("subtotal"),
+            cantidad=sumas["cantidad"],
+            subtotal=sumas["subtotal"],
         )
 
     def totales_formateados(self):
@@ -160,7 +170,9 @@ class ReporteProductosListView(MantenimientoListView):
         subtotal = datos.get("subtotal") or Decimal("0")
         return {
             "cantidad": formatear_cantidad(cantidad),
-            "subtotal": formatear_guaranies(subtotal),
+            "subtotal": mostrar_guaranies(subtotal),
+            "cantidad_html": html_cantidad(cantidad),
+            "subtotal_html": html_guaranies(subtotal),
             "cantidad_raw": cantidad,
             "subtotal_raw": subtotal,
         }
@@ -174,11 +186,7 @@ class ReporteProductosListView(MantenimientoListView):
                     "item__marca__descripcion",
                     "item__categoria__descripcion",
                 )
-                .annotate(
-                    cantidad=Sum("cantidad"),
-                    subtotal=Sum("subtotal"),
-                    movimientos=Count("id"),
-                )
+                .annotate(**self._sumas())
                 .order_by("item__descripcion")
             )
             return [
@@ -198,11 +206,7 @@ class ReporteProductosListView(MantenimientoListView):
         if modo == AGRUPAR_CATEGORIA:
             filas = (
                 queryset.values("item__categoria_id", "item__categoria__descripcion")
-                .annotate(
-                    cantidad=Sum("cantidad"),
-                    subtotal=Sum("subtotal"),
-                    movimientos=Count("id"),
-                )
+                .annotate(**self._sumas())
                 .order_by("item__categoria__descripcion")
             )
             return [
@@ -219,11 +223,7 @@ class ReporteProductosListView(MantenimientoListView):
         if modo == AGRUPAR_MARCA:
             filas = (
                 queryset.values("item__marca_id", "item__marca__descripcion")
-                .annotate(
-                    cantidad=Sum("cantidad"),
-                    subtotal=Sum("subtotal"),
-                    movimientos=Count("id"),
-                )
+                .annotate(**self._sumas())
                 .order_by("item__marca__descripcion")
             )
             return [
@@ -337,8 +337,7 @@ class ReporteProductosListView(MantenimientoListView):
         for record in queryset:
             row = []
             for column in columns:
-                value = column.accessor.resolve(record)
-                row.append("" if value is None else value)
+                row.append(self._celda_export(column, record))
             rows.append(row)
         if self.export_totals:
             total_row = self.export_totals_row(columns)
@@ -366,3 +365,25 @@ class ReporteProductosListView(MantenimientoListView):
         if not any(cell == "Total" for cell in row):
             row[0] = "Total"
         return row
+
+    def _celda_export(self, column, record):
+        value = column.accessor.resolve(record)
+        if value is None:
+            return ""
+        name = column.name
+        tipo = getattr(record, "tipo", None)
+        if name == "cantidad":
+            if tipo is not None:
+                value = con_signo_stock(tipo, value)
+            return formatear_cantidad(value)
+        if name == "subtotal":
+            if tipo is not None:
+                value = con_signo_stock(tipo, value)
+            return mostrar_guaranies(value)
+        if name in ("precio", "costo"):
+            return mostrar_guaranies(value)
+        if name == "fecha_movimiento" and hasattr(value, "strftime"):
+            return value.strftime("%d/%m/%Y")
+        if name == "tipo" and tipo is not None:
+            return record.get_tipo_display()
+        return value

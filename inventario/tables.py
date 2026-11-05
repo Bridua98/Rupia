@@ -4,9 +4,9 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
-from core.cantidad import formatear_cantidad
-from core.moneda import formatear_guaranies
-from core.tables import ActionMenuColumn
+from core.cantidad import html_cantidad
+from core.moneda import html_guaranies
+from core.tables import ATTRS_MONEDA, ATTRS_NUM, ActionMenuColumn
 from core.vista import html_bool
 from inventario.models import (
     AjusteStock,
@@ -17,6 +17,7 @@ from inventario.models import (
     Marca,
     UnidadMedida,
 )
+from inventario.movimientos import con_signo_stock, es_salida
 
 
 class MarcaTable(tables.Table):
@@ -94,9 +95,7 @@ class ItemTable(tables.Table):
 
 
 def texto_moneda(valor):
-    if valor is None:
-        return "—"
-    return formatear_guaranies(valor)
+    return html_guaranies(valor)
 
 
 class PrecioTable(tables.Table):
@@ -109,14 +108,8 @@ class PrecioTable(tables.Table):
         attrs={"th": {"class": "sheet-col-check"}, "td": {"class": "sheet-col-check"}},
     )
     descripcion = tables.Column(verbose_name="Descripción")
-    ultimo_costo = tables.Column(
-        verbose_name="Último costo",
-        attrs={"th": {"class": "sheet-col-moneda"}, "td": {"class": "sheet-col-moneda"}},
-    )
-    precio = tables.Column(
-        verbose_name="Precio",
-        attrs={"th": {"class": "sheet-col-moneda"}, "td": {"class": "sheet-col-moneda"}},
-    )
+    ultimo_costo = tables.Column(verbose_name="Último costo", attrs=ATTRS_MONEDA)
+    precio = tables.Column(verbose_name="Precio", attrs=ATTRS_MONEDA)
     precio_segun_costo = tables.Column(verbose_name="Base")
     precio_nuevo = tables.Column(
         verbose_name="Precio nuevo",
@@ -190,9 +183,9 @@ class PrecioHistorialTable(tables.Table):
     fecha = tables.Column(verbose_name="Fecha")
     usuario = tables.Column(verbose_name="Usuario", accessor="usuario__username")
     item = tables.Column(verbose_name="Ítem")
-    precio_anterior = tables.Column(verbose_name="Anterior")
-    precio_nuevo = tables.Column(verbose_name="Nuevo")
-    porcentaje = tables.Column(verbose_name="%")
+    precio_anterior = tables.Column(verbose_name="Anterior", attrs=ATTRS_MONEDA)
+    precio_nuevo = tables.Column(verbose_name="Nuevo", attrs=ATTRS_MONEDA)
+    porcentaje = tables.Column(verbose_name="%", attrs=ATTRS_NUM)
     segun_costo = tables.Column(verbose_name="Según costo")
     origen = tables.Column(verbose_name="Origen", accessor="get_origen_display")
 
@@ -233,17 +226,39 @@ class PrecioHistorialTable(tables.Table):
         return html_bool(value)
 
 
+def _clase_movimiento(record):
+    return "is-salida" if es_salida(getattr(record, "tipo", None)) else "is-entrada"
+
+
+def _clase_agrupada(record):
+    cantidad = getattr(record, "cantidad", 0) or 0
+    if cantidad < 0:
+        return "is-salida"
+    if cantidad > 0:
+        return "is-entrada"
+    return ""
+
+
+def _clase_stock(record):
+    stock = getattr(record, "stock", 0) or 0
+    if stock < 0:
+        return "is-salida"
+    if stock > 0:
+        return "is-entrada"
+    return ""
+
+
 class ReporteProductosDetalleTable(tables.Table):
     fecha_movimiento = tables.Column(verbose_name="Fecha")
-    tipo = tables.Column(verbose_name="Tipo", accessor="get_tipo_display")
+    tipo = tables.Column(verbose_name="Tipo")
     item = tables.Column(verbose_name="Ítem", accessor="item__descripcion")
     categoria = tables.Column(verbose_name="Categoría", accessor="item__categoria__descripcion")
     marca = tables.Column(verbose_name="Marca", accessor="item__marca__descripcion")
     unidad = tables.Column(verbose_name="Unidad", accessor="unidad_medida__simbolo")
-    cantidad = tables.Column(verbose_name="Cantidad")
-    precio = tables.Column(verbose_name="Precio")
-    costo = tables.Column(verbose_name="Costo")
-    subtotal = tables.Column(verbose_name="Subtotal")
+    cantidad = tables.Column(verbose_name="Cantidad", attrs=ATTRS_NUM)
+    precio = tables.Column(verbose_name="Precio", attrs=ATTRS_MONEDA)
+    costo = tables.Column(verbose_name="Costo", attrs=ATTRS_MONEDA)
+    subtotal = tables.Column(verbose_name="Subtotal", attrs=ATTRS_MONEDA)
 
     class Meta:
         model = ItemMovimiento
@@ -262,13 +277,22 @@ class ReporteProductosDetalleTable(tables.Table):
         orderable = False
         template_name = "django_tables2/rupia_totales.html"
         empty_text = "No hay movimientos para los filtros elegidos."
-        attrs = {"class": "sheet"}
+        attrs = {"class": "sheet sheet-reporte"}
+        row_attrs = {"class": _clase_movimiento}
 
     def render_fecha_movimiento(self, value):
         return value.strftime("%d/%m/%Y")
 
-    def render_cantidad(self, value):
-        return formatear_cantidad(value)
+    def render_tipo(self, value, record):
+        clase = "is-salida" if es_salida(record.tipo) else "is-entrada"
+        return format_html(
+            '<span class="rupia-badge {}">{}</span>',
+            clase,
+            record.get_tipo_display(),
+        )
+
+    def render_cantidad(self, value, record):
+        return html_cantidad(con_signo_stock(record.tipo, value))
 
     def render_precio(self, value):
         return texto_moneda(value)
@@ -276,28 +300,29 @@ class ReporteProductosDetalleTable(tables.Table):
     def render_costo(self, value):
         return texto_moneda(value)
 
-    def render_subtotal(self, value):
-        return texto_moneda(value)
+    def render_subtotal(self, value, record):
+        return texto_moneda(con_signo_stock(record.tipo, value))
 
 
 class ReporteProductosAgrupadoTable(tables.Table):
     etiqueta = tables.Column(verbose_name="Nombre")
     detalle = tables.Column(verbose_name="Detalle")
-    movimientos = tables.Column(verbose_name="Movimientos")
-    cantidad = tables.Column(verbose_name="Cantidad total")
-    subtotal = tables.Column(verbose_name="Subtotal")
+    movimientos = tables.Column(verbose_name="Movimientos", attrs=ATTRS_NUM)
+    cantidad = tables.Column(verbose_name="Cantidad total", attrs=ATTRS_NUM)
+    subtotal = tables.Column(verbose_name="Subtotal", attrs=ATTRS_MONEDA)
 
     class Meta:
         orderable = False
         template_name = "django_tables2/rupia_totales.html"
         empty_text = "No hay movimientos para los filtros elegidos."
-        attrs = {"class": "sheet"}
+        attrs = {"class": "sheet sheet-reporte"}
+        row_attrs = {"class": _clase_agrupada}
 
     def render_detalle(self, value):
         return value or "—"
 
     def render_cantidad(self, value):
-        return formatear_cantidad(value)
+        return html_cantidad(value)
 
     def render_subtotal(self, value):
         return texto_moneda(value)
@@ -308,17 +333,18 @@ class ReporteStockTable(tables.Table):
     marca = tables.Column(verbose_name="Marca")
     categoria = tables.Column(verbose_name="Categoría")
     unidad = tables.Column(verbose_name="Unidad")
-    stock = tables.Column(verbose_name="Stock")
+    stock = tables.Column(verbose_name="Stock", attrs=ATTRS_NUM)
     aviso = tables.Column(verbose_name="Nota", empty_values=())
 
     class Meta:
         orderable = False
         template_name = "django_tables2/rupia.html"
         empty_text = "No hay productos para los filtros elegidos."
-        attrs = {"class": "sheet"}
+        attrs = {"class": "sheet sheet-reporte"}
+        row_attrs = {"class": _clase_stock}
 
     def render_stock(self, value):
-        return formatear_cantidad(value)
+        return html_cantidad(value)
 
     def render_aviso(self, value):
         return value or "—"

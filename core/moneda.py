@@ -3,6 +3,8 @@ from decimal import Decimal
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 SIMBOLO = "Gs."
 SEPARADOR_MILES = "."
@@ -19,6 +21,42 @@ def formatear_guaranies(valor) -> str:
     entero = int(numero.quantize(Decimal("1")))
     signo = "-" if entero < 0 else ""
     return signo + f"{abs(entero):,}".replace(",", SEPARADOR_MILES)
+
+
+def mostrar_guaranies(valor) -> str:
+    numero = Decimal(valor)
+    entero = int(numero.quantize(Decimal("1")))
+    cifra = formatear_guaranies(abs(entero))
+    if entero < 0:
+        return f"-{SIMBOLO} {cifra}"
+    return f"{SIMBOLO} {cifra}"
+
+
+def html_guaranies(valor):
+    if valor is None:
+        return mark_safe("—")
+    numero = Decimal(valor)
+    entero = int(numero.quantize(Decimal("1")))
+    if entero < 0:
+        tono = "is-neg"
+        signo = "−"
+    elif entero == 0:
+        tono = "is-cero"
+        signo = ""
+    else:
+        tono = "is-pos"
+        signo = ""
+    return format_html(
+        '<span class="valor-gs {0}" dir="ltr">'
+        '<span class="valor-gs-signo">{1}</span>'
+        '<span class="valor-gs-simbolo">{2}</span>'
+        '<span class="valor-gs-cifra">{3}</span>'
+        "</span>",
+        tono,
+        signo,
+        SIMBOLO,
+        formatear_guaranies(abs(entero)),
+    )
 
 
 def interpretar_guaranies(valor) -> str:

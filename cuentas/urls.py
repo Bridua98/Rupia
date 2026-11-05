@@ -1,6 +1,7 @@
 from django.urls import path
 
 from core.mantenimiento import mantenimiento_salida
+from cuentas.disponibilidad import ReporteDisponibilidadListView
 from cuentas.views import (
     CuentaCreateView,
     CuentaDeleteView,
@@ -10,6 +11,26 @@ from cuentas.views import (
 
 urlpatterns = [
     path("", CuentaListView.as_view(), name="cuenta_list"),
+    path(
+        "disponibilidad/",
+        ReporteDisponibilidadListView.as_view(),
+        name="reporte_disponibilidad",
+    ),
+    path(
+        "disponibilidad/imprimir/",
+        mantenimiento_salida(ReporteDisponibilidadListView, "print").as_view(),
+        name="reporte_disponibilidad_print",
+    ),
+    path(
+        "disponibilidad/exportar.xlsx",
+        mantenimiento_salida(ReporteDisponibilidadListView, "xlsx").as_view(),
+        name="reporte_disponibilidad_export_xlsx",
+    ),
+    path(
+        "disponibilidad/exportar.pdf",
+        mantenimiento_salida(ReporteDisponibilidadListView, "pdf").as_view(),
+        name="reporte_disponibilidad_export_pdf",
+    ),
     path(
         "imprimir/",
         mantenimiento_salida(CuentaListView, "print").as_view(),

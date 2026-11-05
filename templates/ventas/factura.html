@@ -45,10 +45,10 @@
           <td>{{ linea.descripcion }}</td>
           <td>{{ linea.cantidad_txt }} {{ linea.unidad }}</td>
           <td>{{ linea.tasa }}%</td>
-          <td>Gs. {{ linea.precio_txt }}</td>
-          <td>{% if linea.tasa == 0 %}Gs. {{ linea.subtotal_txt }}{% else %}—{% endif %}</td>
-          <td>{% if linea.tasa == 5 %}Gs. {{ linea.subtotal_txt }}{% else %}—{% endif %}</td>
-          <td>{% if linea.tasa == 10 %}Gs. {{ linea.subtotal_txt }}{% else %}—{% endif %}</td>
+          <td class="sheet-col-moneda"><span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.precio_txt }}</span></td>
+          <td class="sheet-col-moneda">{% if linea.tasa == 0 %}<span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.subtotal_txt }}</span>{% else %}—{% endif %}</td>
+          <td class="sheet-col-moneda">{% if linea.tasa == 5 %}<span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.subtotal_txt }}</span>{% else %}—{% endif %}</td>
+          <td class="sheet-col-moneda">{% if linea.tasa == 10 %}<span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.subtotal_txt }}</span>{% else %}—{% endif %}</td>
         </tr>
       {% endfor %}
     </tbody>

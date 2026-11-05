@@ -5,8 +5,8 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
-from core.cantidad import formatear_cantidad
-from core.moneda import formatear_guaranies
+from core.cantidad import html_cantidad
+from core.moneda import html_guaranies
 
 _MONEDA = ("precio", "costo", "subtotal")
 _VIGENTE = {"CONFIRMADA", "COBRADA"}
@@ -87,8 +87,8 @@ def format_value(record, field):
         if value is None:
             return "—"
         if _es_moneda(field):
-            return formatear_guaranies(value)
-        return formatear_cantidad(value)
+            return html_guaranies(value)
+        return html_cantidad(value)
 
     if name == "imagen" and value:
         try:

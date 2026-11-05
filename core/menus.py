@@ -67,6 +67,12 @@ def main_menu(request):
                 item("Timbrados", url_name="timbrado_list", icon="receipt", formulario="timbrados"),
                 item("Cuentas", url_name="cuenta_list", icon="bank", formulario="cuentas"),
                 item(
+                    "Disponibilidad",
+                    url_name="reporte_disponibilidad",
+                    icon="chart",
+                    formulario="reporte_disponibilidad",
+                ),
+                item(
                     "Unidades de negocio",
                     url_name="unidad_negocio_list",
                     icon="building",

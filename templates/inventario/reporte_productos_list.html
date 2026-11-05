@@ -15,6 +15,9 @@
         {% if reporte_agrupado_label %}
           <p class="reporte-modo">{{ reporte_agrupado_label }}</p>
         {% endif %}
+        {% if reporte_totales %}
+          <p class="reporte-leyenda">Entradas en positivo, salidas en negativo · Importes en Gs.</p>
+        {% endif %}
         {% if record_count is not None %}
           <p class="record-count">{{ record_count }} {{ record_noun }}{{ record_count|pluralize }}</p>
         {% endif %}

@@ -64,7 +64,7 @@ from personas.models import Persona
 
 
 def _dinero(valor) -> str:
-    return f"{SIMBOLO} {formatear_guaranies(valor)}"
+    return mostrar_guaranies(valor)
 
 
 def _error(exc: ValidationError) -> str:

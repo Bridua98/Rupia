@@ -48,13 +48,13 @@
           <tr>
             <td class="ticket-cant">{{ linea.cantidad_txt }}</td>
             <td class="ticket-desc">{{ linea.descripcion }}</td>
-            <td class="ticket-monto">{{ linea.subtotal_txt }}</td>
+            <td class="ticket-monto"><span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.subtotal_txt }}</span></td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
     <p class="ticket-sep"></p>
-    <p class="ticket-total"><span>Total</span><strong>{{ total_txt }}</strong></p>
+    <p class="ticket-total"><span>Total</span><strong class="valor-gs is-texto" dir="ltr">{{ total_txt }}</strong></p>
   </div>
 </article>
 {% endblock %}

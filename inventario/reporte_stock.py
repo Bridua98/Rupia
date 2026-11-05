@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.db.models import Prefetch
 
+from core.cantidad import formatear_cantidad
 from core.listado import (
     apply_filters,
     apply_search,
@@ -203,6 +204,11 @@ class ReporteStockListView(MantenimientoListView):
             row = []
             for column in columns:
                 value = column.accessor.resolve(record)
-                row.append("" if value is None else value)
+                if value is None:
+                    row.append("")
+                elif column.name == "stock":
+                    row.append(formatear_cantidad(value))
+                else:
+                    row.append(value)
             rows.append(row)
         return headers, rows

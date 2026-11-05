@@ -1,8 +1,8 @@
 import django_tables2 as tables
 from django.urls import reverse
 
-from core.moneda import formatear_guaranies
-from core.tables import ActionMenuColumn
+from core.moneda import html_guaranies
+from core.tables import ATTRS_MONEDA, ActionMenuColumn
 from core.vista import html_bool, html_situacion
 from ventas.models import EstadoVenta, PuntoExpedicion, TipoAnulacion, TipoComprobante, Venta
 
@@ -107,7 +107,7 @@ class VentaTable(tables.Table):
     importe = tables.Column(
         verbose_name="Total",
         empty_values=(),
-        attrs={"th": {"class": "sheet-col-moneda"}, "td": {"class": "sheet-col-moneda"}},
+        attrs=ATTRS_MONEDA,
     )
     acciones = ActionMenuColumn(get_actions=venta_row_actions)
 
@@ -143,4 +143,4 @@ class VentaTable(tables.Table):
         return html_situacion(value, record.get_estado_display())
 
     def render_importe(self, value):
-        return formatear_guaranies(value or 0)
+        return html_guaranies(value or 0)
