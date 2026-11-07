@@ -5076,6 +5076,11 @@ body.pos-screen .app-stage {
   margin: 0.15rem 0;
 }
 
+.ticket-meta span:last-child {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
 .ticket-items {
   width: 100%;
   border-collapse: collapse;

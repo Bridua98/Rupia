@@ -34,6 +34,10 @@
     <p class="ticket-meta"><span>N° venta</span><span>{{ venta.numero_completo }}</span></p>
     <p class="ticket-meta"><span>Fecha</span><span>{{ venta.fecha|date:"d/m/Y" }}</span></p>
     <p class="ticket-meta"><span>Hora</span><span>{{ hora_txt }}</span></p>
+    {% if venta.cliente_id %}
+      <p class="ticket-meta"><span>Cliente</span><span>{{ venta.cliente.razon_social }}</span></p>
+      <p class="ticket-meta"><span>{{ venta.cliente.get_tipo_documento_display }}</span><span>{{ venta.cliente.documento }}</span></p>
+    {% endif %}
     <p class="ticket-sep"></p>
     <table class="ticket-items">
       <thead>
