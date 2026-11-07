@@ -5,6 +5,7 @@ import pytest
 from django.utils import timezone
 
 from compras.models import Compra, CompraDetalle, EstadoCompra, TipoCompra
+from configuracion.testing import crear_usuario_con_permisos
 from cuentas.models import Cuenta
 from inventario.models import Item, ItemCategoria, Marca, TasaIva, TipoItem, UnidadMedida
 from negocio.models import UnidadNegocio
@@ -286,3 +287,66 @@ def test_tablero_muestra_disponibilidad_compras_y_liquidez(usuario):
     assert tablero.resultado_mes.valor == Decimal("6000")
     assert tablero.margen.valor == Decimal("7000")
     assert tablero.flujo_mes.valor == Decimal("8000")
+
+
+def _html_inicio(client, user):
+    client.force_login(user)
+    return client.get("/").content.decode()
+
+
+@pytest.mark.django_db
+def test_inicio_cajero_ve_ventas_y_no_gestion(client, django_user_model, usuario):
+    cajero = crear_usuario_con_permisos(
+        django_user_model, ("punto_de_venta", "ver"), username="cajero"
+    )
+    _cobrar(usuario, _item())
+
+    html = _html_inicio(client, cajero)
+
+    assert "Ventas del día" in html
+    assert "Por categoría" in html
+    assert "Bombón de helado" in html
+    assert "Compras del día" not in html
+    assert "Disponibilidad" not in html
+    assert "Liquidez" not in html
+    assert "Ver mayor" not in html
+    assert "Venta vs compras · hoy" not in html
+    assert "Cuentas a pagar" not in html
+
+
+@pytest.mark.django_db
+def test_inicio_compras_no_muestra_ventas_ni_caja(client, django_user_model, usuario):
+    comprador = crear_usuario_con_permisos(
+        django_user_model, ("compras", "ver"), username="compras"
+    )
+    cuenta = _cuenta()
+    item = _item()
+    _cobrar_en_caja(usuario, item, cuenta)
+    _compra_confirmada(usuario, item, cuenta, importe=Decimal("4000"))
+
+    html = _html_inicio(client, comprador)
+
+    assert "Compras del día" in html
+    assert "Egresos del mes" in html
+    assert "Ventas del día" not in html
+    assert "Por categoría" not in html
+    assert "Disponibilidad" not in html
+    assert "Liquidez" not in html
+    assert "Ver mayor" not in html
+    assert "Venta vs compras · hoy" not in html
+    assert "Caja tablero" not in html
+
+
+@pytest.mark.django_db
+def test_inicio_acceso_total_no_recorta_el_tablero(client, usuario):
+    html = _html_inicio(client, usuario)
+
+    assert "Ventas del día" in html
+    assert "Compras del día" in html
+    assert "Disponibilidad" in html
+    assert "Liquidez" in html
+    assert "Informes de gestión" in html
+    assert "Venta vs compras · hoy" in html
+    assert "Ver mayor" in html
+    assert "Por categoría" in html
+    assert "No hay indicadores para tu perfil" not in html

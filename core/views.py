@@ -22,7 +22,9 @@ class RupiaLoginView(LoginView):
 
 @login_required
 def home(request):
-    return render(request, "core/home.html", {"tablero": tablero_inicio()})
+    return render(
+        request, "core/home.html", {"tablero": tablero_inicio(user=request.user)}
+    )
 
 
 def error_403(request, exception=None):
