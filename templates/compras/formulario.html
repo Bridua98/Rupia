@@ -81,7 +81,7 @@
             <th>Costo</th>
             <th>Cant.</th>
             <th>Importe</th>
-            <th><span class="sr-only">Quitar</span></th>
+            <th class="pos-col-quitar"><span class="sr-only">Quitar</span></th>
           </tr>
         </thead>
         <tbody>
@@ -178,10 +178,10 @@
                 </form>
               </td>
               <td class="pos-col-moneda"><span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.subtotal_txt }}</span></td>
-              <td>
+              <td class="pos-col-quitar">
                 <form method="post" action="{% url 'compra_linea' linea.pk %}">
                   {% csrf_token %}
-                  <button class="pos-remove" type="submit" name="accion" value="quitar" aria-label="Quitar">{% include "core/icon.html" with name="remove" %}</button>
+                  <button class="pos-remove" type="submit" name="accion" value="quitar" aria-label="Quitar">{% include "core/icon.html" with name="trash" %}</button>
                 </form>
               </td>
             </tr>

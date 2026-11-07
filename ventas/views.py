@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.views import View
 
 from configuracion.permisos import PermisoRequeridoMixin, tiene_permiso
-from core.cantidad import formatear_cantidad
+from core.cantidad import formatear_cantidad, interpretar_cantidad
 from core.listado import (
     apply_filters,
     apply_search,
@@ -580,7 +580,10 @@ class LineaVentaView(PosPermisoView):
                 elif accion == "menos":
                     cambiar_cantidad(detalle, actual - 1)
                 elif request.POST.get("cantidad") not in (None, ""):
-                    cambiar_cantidad(detalle, Decimal(request.POST.get("cantidad")))
+                    crudo = interpretar_cantidad(request.POST.get("cantidad"))
+                    if not crudo:
+                        raise ValidationError("Escribí la cantidad.", code="cantidad")
+                    cambiar_cantidad(detalle, Decimal(crudo))
         except ValidationError as exc:
             messages.error(request, _error(exc))
         return redirect("punto_de_venta")

@@ -80,7 +80,7 @@
             <th>Precio</th>
             <th>Cant.</th>
             <th>Importe</th>
-            <th><span class="sr-only">Quitar</span></th>
+            <th class="pos-col-quitar"><span class="sr-only">Quitar</span></th>
           </tr>
         </thead>
         <tbody>
@@ -115,15 +115,28 @@
                 <form method="post" action="{% url 'punto_de_venta_linea' linea.pk %}" class="pos-stepper">
                   {% csrf_token %}
                   <button type="submit" name="accion" value="menos" aria-label="Menos">−</button>
-                  <span>{{ linea.cantidad_txt }}</span>
+                  <input
+                    type="text"
+                    name="cantidad"
+                    value="{{ linea.cantidad_txt }}"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    data-cantidad="py"
+                    data-cantidad-decimales="3"
+                    data-cantidad-max="9"
+                    data-cantidad-miles="."
+                    data-cantidad-decimal=","
+                    aria-label="Cantidad"
+                    onchange="this.form.submit()"
+                  >
                   <button type="submit" name="accion" value="mas" aria-label="Más">+</button>
                 </form>
               </td>
               <td class="pos-col-moneda"><span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.subtotal_txt }}</span></td>
-              <td>
+              <td class="pos-col-quitar">
                 <form method="post" action="{% url 'punto_de_venta_linea' linea.pk %}">
                   {% csrf_token %}
-                  <button class="pos-remove" type="submit" name="accion" value="quitar" aria-label="Quitar">{% include "core/icon.html" with name="remove" %}</button>
+                  <button class="pos-remove" type="submit" name="accion" value="quitar" aria-label="Quitar">{% include "core/icon.html" with name="trash" %}</button>
                 </form>
               </td>
             </tr>
@@ -148,6 +161,22 @@
           Cancelar venta (Esc)
         </button>
       </form>
+      <div class="pos-totals">
+        <dl class="pos-totals-lines">
+          <div>
+            <dt>Subtotal</dt>
+            <dd><strong class="valor-gs is-texto" dir="ltr">{{ subtotal_txt }}</strong></dd>
+          </div>
+          <div>
+            <dt>{{ iva_label }}</dt>
+            <dd><strong class="valor-gs is-texto" dir="ltr">{{ iva_txt }}</strong></dd>
+          </div>
+        </dl>
+        <div class="pos-pay">
+          <span>A pagar</span>
+          <strong class="valor-gs is-texto" dir="ltr">{{ total_txt }}</strong>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -155,21 +184,6 @@
     <form method="post" action="{% url 'punto_de_venta' %}" id="pos-cabecera">
       {% csrf_token %}
       <input type="hidden" name="descuento" value="{{ descuento_txt }}">
-      <section class="pos-card pos-summary">
-        <div class="pos-row">
-          <span>Subtotal</span>
-          <strong class="valor-gs is-texto" dir="ltr">{{ subtotal_txt }}</strong>
-        </div>
-        <div class="pos-row">
-          <span>{{ iva_label }}</span>
-          <strong class="valor-gs is-texto" dir="ltr">{{ iva_txt }}</strong>
-        </div>
-        <div class="pos-total">
-          <span>TOTAL A PAGAR</span>
-          <strong class="valor-gs is-texto" dir="ltr">{{ total_txt }}</strong>
-        </div>
-      </section>
-
       <section class="pos-card">
         <h2>Método de pago</h2>
         <div class="pos-medios">
@@ -359,5 +373,6 @@
 {% block scripts %}
 {{ block.super }}
 <script src="{% static 'js/rupia-moneda.js' %}"></script>
+<script src="{% static 'js/rupia-cantidad.js' %}"></script>
 <script src="{% static 'js/rupia-venta.js' %}"></script>
 {% endblock %}

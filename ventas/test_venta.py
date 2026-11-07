@@ -190,6 +190,24 @@ def test_cambiar_cantidad_y_unidad(ingresada):
 
 
 @pytest.mark.django_db
+def test_cantidad_acepta_coma_y_tres_decimales(ingresada):
+    _preparar()
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    detalle = Venta.objects.get(estado=EstadoVenta.EN_CURSO).detalles.get()
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert 'name="cantidad"' in content
+    assert 'data-cantidad="py"' in content
+    assert 'src="/static/js/rupia-cantidad.js"' in content
+
+    ingresada.post(
+        f"/ventas/punto-de-venta/lineas/{detalle.pk}/",
+        {"cantidad": "1,250"},
+    )
+    detalle.refresh_from_db()
+    assert detalle.cantidad == Decimal("1.250")
+
+
+@pytest.mark.django_db
 def test_descuento_y_vuelto_efectivo(ingresada):
     _preparar()
     ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
