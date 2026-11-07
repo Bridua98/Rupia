@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from compras.cuotas import total_saldo_pendiente
 from compras.models import Compra, EstadoCompra, TipoCompra
+from configuracion.permisos import tiene_permiso
 from core.cantidad import formatear_cantidad
 from core.moneda import mostrar_guaranies
 from cuentas.disponibilidad import mayor_disponibilidad
@@ -135,6 +136,43 @@ class TableroVentas:
     egresos_mes: IndicadorTablero = field(
         default_factory=lambda: _indicador_vacio("Egresos del mes")
     )
+    mostrar_ventas: bool = True
+    mostrar_compras: bool = True
+    mostrar_resultado: bool = True
+    mostrar_disponibilidad: bool = True
+    mostrar_cuentas_pagar: bool = True
+    mostrar_liquidez: bool = True
+
+    @property
+    def mostrar_resumen(self) -> bool:
+        return (
+            self.mostrar_ventas
+            or self.mostrar_compras
+            or self.mostrar_disponibilidad
+            or self.mostrar_resultado
+        )
+
+    @property
+    def mostrar_gestion(self) -> bool:
+        return (
+            self.mostrar_ventas
+            or self.mostrar_compras
+            or self.mostrar_disponibilidad
+            or self.mostrar_resultado
+        )
+
+    @property
+    def mostrar_seccion_liquidez(self) -> bool:
+        return self.mostrar_liquidez or self.mostrar_cuentas_pagar
+
+    @property
+    def mostrar_vacio(self) -> bool:
+        return not (
+            self.mostrar_ventas
+            or self.mostrar_compras
+            or self.mostrar_disponibilidad
+            or self.mostrar_cuentas_pagar
+        )
 
 
 def _dinero(valor) -> str:
@@ -397,7 +435,20 @@ def _costo_ventas(desde, hasta) -> Decimal:
     return redondear_guarani(total)
 
 
-def tablero_inicio(hoy=None) -> TableroVentas:
+def _permisos_tablero(user):
+    if user is None:
+        return True, True, True, True
+
+    ventas = tiene_permiso(user, "ventas", "ver") or tiene_permiso(
+        user, "punto_de_venta", "ver"
+    )
+    compras = tiene_permiso(user, "compras", "ver")
+    disponibilidad = tiene_permiso(user, "reporte_disponibilidad", "ver")
+    cuentas_pagar = tiene_permiso(user, "reporte_cuentas_pagar", "ver")
+    return ventas, compras, disponibilidad, cuentas_pagar
+
+
+def tablero_inicio(hoy=None, user=None) -> TableroVentas:
     hoy = hoy or timezone.localdate()
     ayer = hoy - timedelta(days=1)
     mismo_anio = _fecha_anio_anterior(hoy)
@@ -405,154 +456,225 @@ def tablero_inicio(hoy=None) -> TableroVentas:
     mes_ant_inicio, mes_ant_fin = _rango_mes_anterior(hoy)
     mes_anio_inicio, mes_anio_fin = _rango_mes_anio_anterior(hoy)
     semana_inicio = hoy - timedelta(days=6)
+    mostrar_ventas, mostrar_compras, mostrar_disponibilidad, mostrar_cuentas_pagar = (
+        _permisos_tablero(user)
+    )
+    mostrar_resultado = mostrar_ventas and mostrar_compras
+    mostrar_liquidez = mostrar_disponibilidad and mostrar_cuentas_pagar
 
-    ultima_venta = _cobradas().select_related("cliente").first()
     ultima = None
-    if ultima_venta is not None:
-        importe = total_venta(ultima_venta)
-        ultima = TarjetaUltima(
-            numero=str(ultima_venta),
-            fecha=ultima_venta.fecha,
-            cliente=ultima_venta.cliente.razon_social if ultima_venta.cliente_id else SIN_CLIENTE,
-            importe=importe,
-            importe_txt=_dinero(importe),
-        )
-
-    ventas_dia = list(_cobradas().filter(fecha=hoy))
-    lineas = list(
-        VentaDetalle.objects.filter(venta__in=ventas_dia).select_related(
-            "item",
-            "item__categoria",
-            "item__marca",
-            "item__unidad_negocio",
-        )
-    )
-    por_venta = defaultdict(list)
-    for linea in lineas:
-        por_venta[linea.venta_id].append(linea)
-
-    productos = {}
-    categorias = defaultdict(lambda: CERO)
-    marcas = defaultdict(lambda: CERO)
-    unidades = defaultdict(lambda: CERO)
-    importe_dia = CERO
-
-    for venta in ventas_dia:
-        netos = _netos_lineas(venta, por_venta.get(venta.id, []))
-        importe_dia += sum(netos.values(), CERO)
-        for linea in por_venta.get(venta.id, []):
-            neto = netos[linea.id]
-            item = linea.item
-            producto = productos.setdefault(
-                item.id,
-                {
-                    "descripcion": item.descripcion,
-                    "cantidad": CERO,
-                    "importe": CERO,
-                },
-            )
-            producto["cantidad"] += linea.cantidad
-            producto["importe"] += neto
-            categorias[item.categoria.descripcion] += neto
-            marcas[item.marca.descripcion] += neto
-            if item.unidad_negocio_id:
-                unidades[item.unidad_negocio.descripcion] += neto
-            else:
-                unidades[SIN_UNIDAD] += neto
-
-    importe_dia = redondear_guarani(importe_dia)
     producto = None
-    if productos:
-        ganador = max(productos.values(), key=lambda dato: (dato["cantidad"], dato["importe"]))
-        producto = TarjetaProducto(
-            descripcion=ganador["descripcion"],
-            cantidad=ganador["cantidad"],
-            cantidad_txt=formatear_cantidad(ganador["cantidad"]),
-            importe=ganador["importe"],
-            importe_txt=_dinero(ganador["importe"]),
+    ventas_dia = []
+    categorias = {}
+    marcas = {}
+    unidades = {}
+    importe_dia = CERO
+    ventas_ayer = CERO
+    ventas_anio = CERO
+    ventas_mes = CERO
+    ventas_mes_cantidad = 0
+    ventas_mes_ant = CERO
+    ventas_mes_anio = CERO
+    serie_ventas = _serie([])
+    ticket = CERO
+    costo_mes = CERO
+    margen_valor = CERO
+    margen_meta = "Sin ventas cobradas en el mes"
+    meta_ventas = "Sin ventas cobradas hoy"
+
+    if mostrar_ventas:
+        ultima_venta = _cobradas().select_related("cliente").first()
+        if ultima_venta is not None:
+            importe = total_venta(ultima_venta)
+            ultima = TarjetaUltima(
+                numero=str(ultima_venta),
+                fecha=ultima_venta.fecha,
+                cliente=(
+                    ultima_venta.cliente.razon_social
+                    if ultima_venta.cliente_id
+                    else SIN_CLIENTE
+                ),
+                importe=importe,
+                importe_txt=_dinero(importe),
+            )
+
+        ventas_dia = list(_cobradas().filter(fecha=hoy))
+        lineas = list(
+            VentaDetalle.objects.filter(venta__in=ventas_dia).select_related(
+                "item",
+                "item__categoria",
+                "item__marca",
+                "item__unidad_negocio",
+            )
+        )
+        por_venta = defaultdict(list)
+        for linea in lineas:
+            por_venta[linea.venta_id].append(linea)
+
+        productos = {}
+        categorias = defaultdict(lambda: CERO)
+        marcas = defaultdict(lambda: CERO)
+        unidades = defaultdict(lambda: CERO)
+
+        for venta in ventas_dia:
+            netos = _netos_lineas(venta, por_venta.get(venta.id, []))
+            importe_dia += sum(netos.values(), CERO)
+            for linea in por_venta.get(venta.id, []):
+                neto = netos[linea.id]
+                item = linea.item
+                producto_dato = productos.setdefault(
+                    item.id,
+                    {
+                        "descripcion": item.descripcion,
+                        "cantidad": CERO,
+                        "importe": CERO,
+                    },
+                )
+                producto_dato["cantidad"] += linea.cantidad
+                producto_dato["importe"] += neto
+                categorias[item.categoria.descripcion] += neto
+                marcas[item.marca.descripcion] += neto
+                if item.unidad_negocio_id:
+                    unidades[item.unidad_negocio.descripcion] += neto
+                else:
+                    unidades[SIN_UNIDAD] += neto
+
+        importe_dia = redondear_guarani(importe_dia)
+        if productos:
+            ganador = max(
+                productos.values(), key=lambda dato: (dato["cantidad"], dato["importe"])
+            )
+            producto = TarjetaProducto(
+                descripcion=ganador["descripcion"],
+                cantidad=ganador["cantidad"],
+                cantidad_txt=formatear_cantidad(ganador["cantidad"]),
+                importe=ganador["importe"],
+                importe_txt=_dinero(ganador["importe"]),
+            )
+
+        ventas_ayer, _ = _total_ventas(ayer, ayer)
+        ventas_anio, _ = _total_ventas(mismo_anio, mismo_anio)
+        ventas_mes, ventas_mes_cantidad = _total_ventas(mes_inicio, mes_fin)
+        ventas_mes_ant, _ = _total_ventas(mes_ant_inicio, mes_ant_fin)
+        ventas_mes_anio, _ = _total_ventas(mes_anio_inicio, mes_anio_fin)
+        serie_ventas = _serie_diaria(semana_inicio, hoy, _mapa_ventas(semana_inicio, hoy))
+        ticket = (
+            redondear_guarani(importe_dia / Decimal(len(ventas_dia))) if ventas_dia else CERO
+        )
+        meta_ventas = (
+            f"{len(ventas_dia)} comprobante{'' if len(ventas_dia) == 1 else 's'}"
+            if ventas_dia
+            else "Sin ventas cobradas hoy"
+        )
+        if mostrar_resultado:
+            costo_mes = _costo_ventas(mes_inicio, mes_fin)
+            margen_valor = redondear_guarani(ventas_mes - costo_mes)
+            if ventas_mes > 0:
+                margen_pct = int(redondear_guarani((margen_valor / ventas_mes) * CIEN))
+                margen_meta = f"{margen_pct}% sobre ventas del mes"
+
+    compras_hoy = CERO
+    compras_ayer = CERO
+    compras_anio = CERO
+    compras_mes = CERO
+    compras_mes_ant = CERO
+    compras_mes_anio = CERO
+    egresos_mes = CERO
+    egresos_mes_ant = CERO
+    egresos_mes_anio = CERO
+    serie_compras = _serie([])
+
+    if mostrar_compras:
+        compras_hoy = _total_compras(hoy, hoy)
+        compras_ayer = _total_compras(ayer, ayer)
+        compras_anio = _total_compras(mismo_anio, mismo_anio)
+        compras_mes = _total_compras(mes_inicio, mes_fin)
+        compras_mes_ant = _total_compras(mes_ant_inicio, mes_ant_fin)
+        compras_mes_anio = _total_compras(mes_anio_inicio, mes_anio_fin)
+        egresos_mes = _total_compras(mes_inicio, mes_fin, tipos=(TipoCompra.EGRESO,))
+        egresos_mes_ant = _total_compras(
+            mes_ant_inicio, mes_ant_fin, tipos=(TipoCompra.EGRESO,)
+        )
+        egresos_mes_anio = _total_compras(
+            mes_anio_inicio, mes_anio_fin, tipos=(TipoCompra.EGRESO,)
+        )
+        serie_compras = _serie_diaria(semana_inicio, hoy, _mapa_compras(semana_inicio, hoy))
+
+    resultado_mes = CERO
+    resultado_mes_ant = CERO
+    resultado_mes_anio = CERO
+    if mostrar_resultado:
+        resultado_mes = redondear_guarani(ventas_mes - compras_mes - egresos_mes)
+        resultado_mes_ant = redondear_guarani(
+            ventas_mes_ant - compras_mes_ant - egresos_mes_ant
+        )
+        resultado_mes_anio = redondear_guarani(
+            ventas_mes_anio - compras_mes_anio - egresos_mes_anio
         )
 
-    ventas_ayer, _ = _total_ventas(ayer, ayer)
-    ventas_anio, _ = _total_ventas(mismo_anio, mismo_anio)
-    compras_hoy = _total_compras(hoy, hoy)
-    compras_ayer = _total_compras(ayer, ayer)
-    compras_anio = _total_compras(mismo_anio, mismo_anio)
-    ventas_mes, ventas_mes_cantidad = _total_ventas(mes_inicio, mes_fin)
-    ventas_mes_ant, _ = _total_ventas(mes_ant_inicio, mes_ant_fin)
-    ventas_mes_anio, _ = _total_ventas(mes_anio_inicio, mes_anio_fin)
-    compras_mes = _total_compras(mes_inicio, mes_fin)
-    compras_mes_ant = _total_compras(mes_ant_inicio, mes_ant_fin)
-    compras_mes_anio = _total_compras(mes_anio_inicio, mes_anio_fin)
-    egresos_mes = _total_compras(mes_inicio, mes_fin, tipos=(TipoCompra.EGRESO,))
-    egresos_mes_ant = _total_compras(mes_ant_inicio, mes_ant_fin, tipos=(TipoCompra.EGRESO,))
-    egresos_mes_anio = _total_compras(mes_anio_inicio, mes_anio_fin, tipos=(TipoCompra.EGRESO,))
-    resultado_mes = redondear_guarani(ventas_mes - compras_mes - egresos_mes)
-    resultado_mes_ant = redondear_guarani(ventas_mes_ant - compras_mes_ant - egresos_mes_ant)
-    resultado_mes_anio = redondear_guarani(ventas_mes_anio - compras_mes_anio - egresos_mes_anio)
+    disponible = CERO
+    cuentas = []
+    entradas_mes = CERO
+    salidas_mes = CERO
+    flujo_mes = CERO
+    flujo_mes_ant = CERO
+    flujo_mes_anio = CERO
+    if mostrar_disponibilidad:
+        _detalle, resumen, totales = mayor_disponibilidad()
+        disponible = redondear_guarani(totales["saldo"])
+        cuentas = [
+            CorteTablero(
+                nombre=fila.cuenta, importe=fila.saldo, importe_txt=_dinero(fila.saldo)
+            )
+            for fila in sorted(resumen, key=lambda fila: (-fila.saldo, fila.cuenta))
+        ]
+        _, _resumen_mes, totales_mes = mayor_disponibilidad(
+            fecha_desde=mes_inicio, fecha_hasta=mes_fin
+        )
+        entradas_mes = redondear_guarani(totales_mes["entra"])
+        salidas_mes = redondear_guarani(totales_mes["salida"])
+        flujo_mes = redondear_guarani(entradas_mes - salidas_mes)
+        _, _, totales_mes_ant = mayor_disponibilidad(
+            fecha_desde=mes_ant_inicio, fecha_hasta=mes_ant_fin
+        )
+        flujo_mes_ant = redondear_guarani(
+            totales_mes_ant["entra"] - totales_mes_ant["salida"]
+        )
+        _, _, totales_mes_anio = mayor_disponibilidad(
+            fecha_desde=mes_anio_inicio, fecha_hasta=mes_anio_fin
+        )
+        flujo_mes_anio = redondear_guarani(
+            totales_mes_anio["entra"] - totales_mes_anio["salida"]
+        )
 
-    mapa_ventas = _mapa_ventas(semana_inicio, hoy)
-    mapa_compras = _mapa_compras(semana_inicio, hoy)
-    serie_ventas = _serie_diaria(semana_inicio, hoy, mapa_ventas)
-    serie_compras = _serie_diaria(semana_inicio, hoy, mapa_compras)
+    por_pagar = CERO
+    if mostrar_cuentas_pagar:
+        por_pagar = total_saldo_pendiente()
 
-    _detalle, resumen, totales = mayor_disponibilidad()
-    disponible = redondear_guarani(totales["saldo"])
-    cuentas = [
-        CorteTablero(nombre=fila.cuenta, importe=fila.saldo, importe_txt=_dinero(fila.saldo))
-        for fila in sorted(resumen, key=lambda fila: (-fila.saldo, fila.cuenta))
-    ]
-    _, _resumen_mes, totales_mes = mayor_disponibilidad(
-        fecha_desde=mes_inicio, fecha_hasta=mes_fin
-    )
-    entradas_mes = redondear_guarani(totales_mes["entra"])
-    salidas_mes = redondear_guarani(totales_mes["salida"])
-    flujo_mes = redondear_guarani(entradas_mes - salidas_mes)
-    _, _, totales_mes_ant = mayor_disponibilidad(
-        fecha_desde=mes_ant_inicio, fecha_hasta=mes_ant_fin
-    )
-    flujo_mes_ant = redondear_guarani(totales_mes_ant["entra"] - totales_mes_ant["salida"])
-    _, _, totales_mes_anio = mayor_disponibilidad(
-        fecha_desde=mes_anio_inicio, fecha_hasta=mes_anio_fin
-    )
-    flujo_mes_anio = redondear_guarani(totales_mes_anio["entra"] - totales_mes_anio["salida"])
-
-    por_pagar = total_saldo_pendiente()
-    if por_pagar > 0:
-        ratio = (disponible / por_pagar) if por_pagar else CERO
-        cobertura_txt = f"{ratio.quantize(Decimal('0.1'))}×"
-        cobertura_meta = "Disponible sobre compras a crédito"
-        liquidez_tono = "ok" if ratio >= 1 else "alerta"
-    else:
-        cobertura_txt = "Sin pasivo"
-        cobertura_meta = "No hay saldo pendiente en cuentas a pagar"
-        liquidez_tono = "ok" if disponible >= 0 else "alerta"
-    dias_mes = max((hoy - mes_inicio).days + 1, 1)
-    promedio_salida = redondear_guarani(salidas_mes / Decimal(dias_mes)) if salidas_mes else CERO
-    if promedio_salida > 0 and disponible > 0:
-        dias_cobertura = int(disponible / promedio_salida)
-        cobertura_dias_txt = f"{dias_cobertura} día{'s' if dias_cobertura != 1 else ''}"
-    elif disponible <= 0:
-        cobertura_dias_txt = "Sin saldo"
-        liquidez_tono = "alerta"
-    else:
-        cobertura_dias_txt = "Sin salidas"
-
-    ticket = (
-        redondear_guarani(importe_dia / Decimal(len(ventas_dia))) if ventas_dia else CERO
-    )
-    costo_mes = _costo_ventas(mes_inicio, mes_fin)
-    margen_valor = redondear_guarani(ventas_mes - costo_mes)
-    if ventas_mes > 0:
-        margen_pct = int(redondear_guarani((margen_valor / ventas_mes) * CIEN))
-        margen_meta = f"{margen_pct}% sobre ventas del mes"
-    else:
-        margen_meta = "Sin ventas cobradas en el mes"
-
-    meta_ventas = (
-        f"{len(ventas_dia)} comprobante{'' if len(ventas_dia) == 1 else 's'}"
-        if ventas_dia
-        else "Sin ventas cobradas hoy"
-    )
+    cobertura_txt = "Sin pasivo"
+    cobertura_meta = "No hay saldo pendiente en cuentas a pagar"
+    liquidez_tono = ""
+    cobertura_dias_txt = "Sin salidas"
+    if mostrar_liquidez:
+        if por_pagar > 0:
+            ratio = (disponible / por_pagar) if por_pagar else CERO
+            cobertura_txt = f"{ratio.quantize(Decimal('0.1'))}×"
+            cobertura_meta = "Disponible sobre compras a crédito"
+            liquidez_tono = "ok" if ratio >= 1 else "alerta"
+        else:
+            liquidez_tono = "ok" if disponible >= 0 else "alerta"
+        dias_mes = max((hoy - mes_inicio).days + 1, 1)
+        promedio_salida = (
+            redondear_guarani(salidas_mes / Decimal(dias_mes)) if salidas_mes else CERO
+        )
+        if promedio_salida > 0 and disponible > 0:
+            dias_cobertura = int(disponible / promedio_salida)
+            cobertura_dias_txt = f"{dias_cobertura} día{'s' if dias_cobertura != 1 else ''}"
+        elif disponible <= 0:
+            cobertura_dias_txt = "Sin saldo"
+            liquidez_tono = "alerta"
+        else:
+            cobertura_dias_txt = "Sin salidas"
 
     return TableroVentas(
         ventas_dia_cantidad=len(ventas_dia),
@@ -598,8 +720,8 @@ def tablero_inicio(hoy=None) -> TableroVentas:
             tono="ok" if resultado_mes >= 0 else "alerta",
         ),
         cuentas=cuentas,
-        comparacion_dia=_comparacion(importe_dia, compras_hoy),
-        comparacion_mes=_comparacion(ventas_mes, compras_mes),
+        comparacion_dia=_comparacion(importe_dia, compras_hoy) if mostrar_resultado else None,
+        comparacion_mes=_comparacion(ventas_mes, compras_mes) if mostrar_resultado else None,
         liquidez=IndicadorTablero(
             etiqueta="Saldo líquido",
             valor=disponible,
@@ -612,7 +734,7 @@ def tablero_inicio(hoy=None) -> TableroVentas:
             valor=por_pagar,
             valor_txt=_dinero(por_pagar),
             meta="Saldo pendiente de cuotas",
-            tono="alerta" if por_pagar > disponible else "",
+            tono="alerta" if mostrar_cuentas_pagar and por_pagar > disponible else "",
         ),
         flujo_mes=_indicador(
             "Flujo de caja del mes",
@@ -666,6 +788,12 @@ def tablero_inicio(hoy=None) -> TableroVentas:
             meta="Gastos confirmados",
             invertir=True,
         ),
+        mostrar_ventas=mostrar_ventas,
+        mostrar_compras=mostrar_compras,
+        mostrar_resultado=mostrar_resultado,
+        mostrar_disponibilidad=mostrar_disponibilidad,
+        mostrar_cuentas_pagar=mostrar_cuentas_pagar,
+        mostrar_liquidez=mostrar_liquidez,
     )
 
 

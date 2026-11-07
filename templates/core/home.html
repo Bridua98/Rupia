@@ -14,23 +14,42 @@
     {% endif %}
   </header>
 
+  {% if tablero.mostrar_vacio %}
+    <section class="dash-section">
+      <p class="dash-empty">No hay indicadores para tu perfil.</p>
+    </section>
+  {% endif %}
+
+  {% if tablero.mostrar_resumen %}
   <section class="dash-section" aria-labelledby="dash-overview">
     <header class="dash-section-head">
       <h2 id="dash-overview">Resumen</h2>
     </header>
     <div class="dash-kpis dash-kpis-4">
-      {% include "core/dash_indicador.html" with indicador=tablero.ventas_hoy %}
-      {% include "core/dash_indicador.html" with indicador=tablero.compras_hoy %}
-      {% include "core/dash_indicador.html" with indicador=tablero.disponibilidad %}
-      {% include "core/dash_indicador.html" with indicador=tablero.resultado_mes %}
+      {% if tablero.mostrar_ventas %}
+        {% include "core/dash_indicador.html" with indicador=tablero.ventas_hoy %}
+      {% endif %}
+      {% if tablero.mostrar_compras %}
+        {% include "core/dash_indicador.html" with indicador=tablero.compras_hoy %}
+      {% endif %}
+      {% if tablero.mostrar_disponibilidad %}
+        {% include "core/dash_indicador.html" with indicador=tablero.disponibilidad %}
+      {% endif %}
+      {% if tablero.mostrar_resultado %}
+        {% include "core/dash_indicador.html" with indicador=tablero.resultado_mes %}
+      {% endif %}
     </div>
   </section>
+  {% endif %}
 
+  {% if tablero.mostrar_gestion %}
   <section class="dash-section" aria-labelledby="dash-gestion">
     <header class="dash-section-head">
       <h2 id="dash-gestion">Informes de gestión</h2>
     </header>
+    {% if tablero.mostrar_disponibilidad or tablero.mostrar_resultado %}
     <div class="dash-grid-main">
+      {% if tablero.mostrar_disponibilidad %}
       <article class="dash-card dash-list dash-span-2">
         <div class="dash-card-head">
           <p class="eyebrow">Disponibilidad</p>
@@ -51,17 +70,28 @@
           <p class="dash-empty">Sin saldos de caja, banco o tarjeta</p>
         {% endif %}
       </article>
+      {% endif %}
 
-      {% include "core/dash_comparacion.html" with titulo="Venta vs compras · hoy" comparacion=tablero.comparacion_dia %}
-      {% include "core/dash_comparacion.html" with titulo="Venta vs compras · mes" comparacion=tablero.comparacion_mes %}
+      {% if tablero.mostrar_resultado %}
+        {% include "core/dash_comparacion.html" with titulo="Venta vs compras · hoy" comparacion=tablero.comparacion_dia %}
+        {% include "core/dash_comparacion.html" with titulo="Venta vs compras · mes" comparacion=tablero.comparacion_mes %}
+      {% endif %}
     </div>
+    {% endif %}
 
     <div class="dash-kpis dash-kpis-4">
-      {% include "core/dash_indicador.html" with indicador=tablero.ventas_mes %}
-      {% include "core/dash_indicador.html" with indicador=tablero.compras_mes %}
-      {% include "core/dash_indicador.html" with indicador=tablero.egresos_mes %}
-      {% include "core/dash_indicador.html" with indicador=tablero.margen %}
-      {% include "core/dash_indicador.html" with indicador=tablero.ticket_promedio %}
+      {% if tablero.mostrar_ventas %}
+        {% include "core/dash_indicador.html" with indicador=tablero.ventas_mes %}
+      {% endif %}
+      {% if tablero.mostrar_compras %}
+        {% include "core/dash_indicador.html" with indicador=tablero.compras_mes %}
+        {% include "core/dash_indicador.html" with indicador=tablero.egresos_mes %}
+      {% endif %}
+      {% if tablero.mostrar_resultado %}
+        {% include "core/dash_indicador.html" with indicador=tablero.margen %}
+      {% endif %}
+      {% if tablero.mostrar_ventas %}
+        {% include "core/dash_indicador.html" with indicador=tablero.ticket_promedio %}
       <article class="dash-card">
         <p class="eyebrow">Última venta</p>
         {% if tablero.ultima %}
@@ -81,22 +111,37 @@
           <p class="dash-empty">Sin ventas cobradas hoy</p>
         {% endif %}
       </article>
-      {% include "core/dash_indicador.html" with indicador=tablero.flujo_mes %}
+      {% endif %}
+      {% if tablero.mostrar_disponibilidad %}
+        {% include "core/dash_indicador.html" with indicador=tablero.flujo_mes %}
+      {% endif %}
     </div>
   </section>
+  {% endif %}
 
+  {% if tablero.mostrar_seccion_liquidez %}
   <section class="dash-section" aria-labelledby="dash-liquidez">
     <header class="dash-section-head">
       <h2 id="dash-liquidez">Liquidez</h2>
     </header>
     <div class="dash-kpis dash-kpis-4">
-      {% include "core/dash_indicador.html" with indicador=tablero.liquidez %}
-      {% include "core/dash_indicador.html" with indicador=tablero.por_pagar %}
-      {% include "core/dash_indicador.html" with indicador=tablero.cobertura %}
-      {% include "core/dash_indicador.html" with indicador=tablero.flujo_mes %}
+      {% if tablero.mostrar_liquidez %}
+        {% include "core/dash_indicador.html" with indicador=tablero.liquidez %}
+      {% endif %}
+      {% if tablero.mostrar_cuentas_pagar %}
+        {% include "core/dash_indicador.html" with indicador=tablero.por_pagar %}
+      {% endif %}
+      {% if tablero.mostrar_liquidez %}
+        {% include "core/dash_indicador.html" with indicador=tablero.cobertura %}
+      {% endif %}
+      {% if tablero.mostrar_disponibilidad %}
+        {% include "core/dash_indicador.html" with indicador=tablero.flujo_mes %}
+      {% endif %}
     </div>
   </section>
+  {% endif %}
 
+  {% if tablero.mostrar_ventas %}
   <section class="dash-section" aria-labelledby="dash-cortes">
     <header class="dash-section-head">
       <h2 id="dash-cortes">Ventas del día</h2>
@@ -107,5 +152,6 @@
       {% include "core/dash_corte.html" with titulo="Por unidad de negocio" filas=tablero.unidades %}
     </div>
   </section>
+  {% endif %}
 </div>
 {% endblock %}
