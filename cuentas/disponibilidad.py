@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.db.models import DecimalField, F, Q, Sum, Value
 from django.db.models.functions import Coalesce
 
-from compras.models import Compra, EstadoCompra, TipoCompra
+from compras.models import Compra, EstadoCompra, EstadoPagoProveedor, PagoProveedor, TipoCompra
 from core.listado import filter_specs_for, filter_values
 from core.mantenimiento import MantenimientoListView
 from core.moneda import html_guaranies, mostrar_guaranies
@@ -20,6 +20,7 @@ ORIGEN_VENTA = "Venta"
 ORIGEN_COMPRA = "Compra"
 ORIGEN_EGRESO = "Egreso"
 ORIGEN_TRANSFERENCIA = "Transferencia"
+ORIGEN_PAGO_PROVEEDOR = "Pago proveedor"
 
 VISTA_CHOICES = (
     (VISTA_DETALLE, "Detalle"),
@@ -126,12 +127,16 @@ def movimientos_caja(cuenta_id=None):
     transferencias = Transferencia.objects.filter(
         estado=EstadoTransferencia.CONFIRMADA
     ).select_related("cuenta_origen", "cuenta_destino")
+    pagos_proveedor = PagoProveedor.objects.filter(
+        estado=EstadoPagoProveedor.CONFIRMADO
+    ).select_related("cuenta", "proveedor")
     if cuenta_id:
         ventas = ventas.filter(cuenta_cobro_id=cuenta_id)
         compras = compras.filter(cuenta_id=cuenta_id)
         transferencias = transferencias.filter(
             Q(cuenta_origen_id=cuenta_id) | Q(cuenta_destino_id=cuenta_id)
         )
+        pagos_proveedor = pagos_proveedor.filter(cuenta_id=cuenta_id)
 
     filas = []
     for venta in ventas:
@@ -162,6 +167,22 @@ def movimientos_caja(cuenta_id=None):
                 "orden": 1,
                 "origen_id": compra.pk,
                 "clave": f"c-{compra.pk}",
+            }
+        )
+    for pago in pagos_proveedor:
+        proveedor = str(pago.proveedor) if pago.proveedor_id else "—"
+        filas.append(
+            {
+                "cuenta_id": pago.cuenta_id,
+                "cuenta": pago.cuenta.descripcion,
+                "fecha": pago.fecha,
+                "comprobante": f"Pago {pago.pk} · {proveedor}",
+                "origen": ORIGEN_PAGO_PROVEEDOR,
+                "entra": CERO,
+                "salida": pago.importe or CERO,
+                "orden": 1,
+                "origen_id": pago.pk,
+                "clave": f"p-{pago.pk}",
             }
         )
     for transferencia in transferencias:

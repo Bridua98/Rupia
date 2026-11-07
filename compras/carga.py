@@ -7,6 +7,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q, Sum
 from django.utils import timezone
 
+from compras.cuotas import compra_tiene_pagos, limpiar_cuotas, validar_cuotas_credito
 from compras.models import (
     Compra,
     CompraDetalle,
@@ -163,6 +164,11 @@ def anular(compra, usuario=None):
             raise ValidationError("Esa compra ya está anulada.", code="anulada")
         if compra.estado != EstadoCompra.CONFIRMADA:
             raise ValidationError("Solo se puede anular una compra confirmada.", code="estado")
+        if compra.es_credito and compra_tiene_pagos(compra):
+            raise ValidationError(
+                "Hay pagos confirmados sobre las cuotas. Anulá los pagos primero.",
+                code="pagos",
+            )
         ItemMovimiento.objects.filter(
             tipo=TipoMovimiento.COMPRA,
             secuencia_origen=_secuencia(compra),
@@ -465,6 +471,11 @@ def actualizar_cabecera(
             raise ValidationError("Elegí el tipo de compra.", code="tipo")
         compra.tipo = tipo
         campos.append("tipo")
+        if tipo != TipoCompra.FACTURA_CREDITO:
+            limpiar_cuotas(compra)
+        if tipo == TipoCompra.FACTURA_CREDITO:
+            compra.cuenta = None
+            campos.append("cuenta")
         if tipo == TipoCompra.EGRESO:
             compra.timbrado = ""
             compra.establecimiento = ""
@@ -607,12 +618,13 @@ def confirmar(compra, *, afectar_precios=False) -> Compra:
     _exige_borrador(compra)
     if not compra.detalles.exists():
         raise ValidationError("Agregá un ítem.", code="vacia")
-    if compra.cuenta_id is None:
+    if compra.tipo != TipoCompra.FACTURA_CREDITO and compra.cuenta_id is None:
         raise ValidationError("Elegí una cuenta.", code="cuenta")
     if compra.proveedor_id is None:
         raise ValidationError("Elegí un proveedor.", code="proveedor")
     _validar_documento(compra)
     _validar_lineas(compra)
+    validar_cuotas_credito(compra, subtotal_compra(compra))
     with transaction.atomic():
         compra = Compra.objects.select_for_update().get(pk=compra.pk)
         _exige_borrador(compra)

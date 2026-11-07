@@ -246,6 +246,15 @@ def _compra_confirmada(
         tasa_iva=TasaIva.DIEZ,
         subtotal=importe,
     )
+    if tipo == TipoCompra.FACTURA_CREDITO:
+        from compras.models import CompraCuota
+
+        CompraCuota.objects.create(
+            compra=compra,
+            numero=1,
+            vencimiento=_hoy(),
+            importe=importe,
+        )
     return compra
 
 

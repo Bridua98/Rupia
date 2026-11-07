@@ -8,6 +8,7 @@ from django.db.models import DecimalField, ExpressionWrapper, F, Sum, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
+from compras.cuotas import total_saldo_pendiente
 from compras.models import Compra, EstadoCompra, TipoCompra
 from core.cantidad import formatear_cantidad
 from core.moneda import mostrar_guaranies
@@ -515,11 +516,7 @@ def tablero_inicio(hoy=None) -> TableroVentas:
     )
     flujo_mes_anio = redondear_guarani(totales_mes_anio["entra"] - totales_mes_anio["salida"])
 
-    por_pagar = _total_compras(
-        fecha_minima(),
-        hoy,
-        tipos=(TipoCompra.FACTURA_CREDITO,),
-    )
+    por_pagar = total_saldo_pendiente()
     if por_pagar > 0:
         ratio = (disponible / por_pagar) if por_pagar else CERO
         cobertura_txt = f"{ratio.quantize(Decimal('0.1'))}×"
@@ -527,7 +524,7 @@ def tablero_inicio(hoy=None) -> TableroVentas:
         liquidez_tono = "ok" if ratio >= 1 else "alerta"
     else:
         cobertura_txt = "Sin pasivo"
-        cobertura_meta = "No hay facturas de crédito confirmadas"
+        cobertura_meta = "No hay saldo pendiente en cuentas a pagar"
         liquidez_tono = "ok" if disponible >= 0 else "alerta"
     dias_mes = max((hoy - mes_inicio).days + 1, 1)
     promedio_salida = redondear_guarani(salidas_mes / Decimal(dias_mes)) if salidas_mes else CERO
@@ -614,7 +611,7 @@ def tablero_inicio(hoy=None) -> TableroVentas:
             etiqueta="Cuentas a pagar",
             valor=por_pagar,
             valor_txt=_dinero(por_pagar),
-            meta="Facturas de crédito confirmadas",
+            meta="Saldo pendiente de cuotas",
             tono="alerta" if por_pagar > disponible else "",
         ),
         flujo_mes=_indicador(
