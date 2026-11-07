@@ -4,6 +4,14 @@
 {% block title %}Punto de venta · Rupia{% endblock %}
 {% block body_class %}app pos-screen{% endblock %}
 
+{% block stage_banner %}
+  {% if emision_motivo and not messages %}
+    <div class="banner" role="alert" data-pos-emision-banner>
+      <p>{{ emision_motivo }}</p>
+    </div>
+  {% endif %}
+{% endblock %}
+
 {% block work %}
 <div
   class="pos"
@@ -129,7 +137,7 @@
     </div>
 
     <div class="pos-sale-actions">
-      <button class="button button-ghost" type="submit" form="pos-cabecera" name="guardar" value="1" data-pos-guardar{% if factura_pide_cliente %} disabled{% endif %}>
+      <button class="button button-ghost" type="submit" form="pos-cabecera" name="guardar" value="1" data-pos-guardar{% if not puede_guardar %} disabled{% endif %}>
         {% include "core/icon.html" with name="pause" %}
         Guardar / Suspender (F5)
       </button>
@@ -280,9 +288,6 @@
             </div>
             <p class="pos-factura-num-msg" data-pos-num-msg hidden></p>
           </div>
-        {% endif %}
-        {% if emision_motivo %}
-          <p class="pos-hint{% if factura_pide_cliente %} is-warn{% endif %}">{{ emision_motivo }}</p>
         {% endif %}
         <details class="pos-obs"{% if venta.observacion %} open{% endif %}>
           <summary>

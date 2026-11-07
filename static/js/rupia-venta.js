@@ -328,6 +328,36 @@
     clienteQ.focus();
   }
 
+  function avisarEmision() {
+    var banner =
+      document.querySelector("[data-pos-emision-banner]") ||
+      document.querySelector(".app-stage > .banner");
+    if (banner) {
+      banner.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }
+
+  function accionBloqueadaEnPos(cobrar) {
+    if (faltaClienteFactura()) {
+      avisarClienteFactura();
+      return true;
+    }
+    if (cobrar) {
+      var cobrarBtn = root.querySelector("[data-pos-cobrar]");
+      if (cobrarBtn && cobrarBtn.disabled) {
+        avisarEmision();
+        return true;
+      }
+      return false;
+    }
+    var guardarBtn = root.querySelector("[data-pos-guardar]");
+    if (guardarBtn && guardarBtn.disabled) {
+      avisarEmision();
+      return true;
+    }
+    return false;
+  }
+
   function bloquearSiFaltaCliente(event) {
     if (!faltaClienteFactura()) {
       if (clienteQ) clienteQ.setCustomValidity("");
@@ -482,8 +512,7 @@
 
   function intentarCobrar(event) {
     if (event) event.preventDefault();
-    if (faltaClienteFactura()) {
-      avisarClienteFactura();
+    if (accionBloqueadaEnPos(true)) {
       return;
     }
     if (esFactura()) {
@@ -690,8 +719,7 @@
     }
     if (event.key === "F5") {
       event.preventDefault();
-      if (faltaClienteFactura()) {
-        avisarClienteFactura();
+      if (accionBloqueadaEnPos(false)) {
         return;
       }
       var guardar = root.querySelector("[data-pos-guardar]");

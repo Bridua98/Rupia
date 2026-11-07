@@ -359,7 +359,7 @@ class Venta(models.Model):
                 name="ventas_una_en_curso_por_usuario",
             ),
             models.UniqueConstraint(
-                fields=["timbrado", "numero_completo"],
+                fields=["tipo_comprobante", "timbrado", "numero_completo"],
                 condition=(
                     (
                         models.Q(estado=EstadoVenta.COBRADA)

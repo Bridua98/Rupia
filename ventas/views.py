@@ -48,6 +48,7 @@ from ventas.cobro import (
     confirmar,
     cuentas_para_medio,
     exigir_cliente_factura,
+    exigir_emision,
     factura_pide_cliente,
     formatear_porcentaje,
     importes_rapidos,
@@ -56,10 +57,12 @@ from ventas.cobro import (
     lineas_vista,
     liquidar_iva,
     medios_disponibles,
+    motivo_emision,
     motivo_pos,
     numero_ya_usado,
     proximo_numero,
     puede_cobrar,
+    puede_guardar,
     punto_de,
     quitar_linea,
     subtotal_venta,
@@ -85,12 +88,16 @@ def _dinero(valor) -> str:
 
 
 def _numero_visor(venta, punto) -> str:
+    if venta.tipo_comprobante != TipoComprobante.FACTURA:
+        return proximo_numero(TipoComprobante.TICKET)
     establecimiento = venta.establecimiento or (punto.establecimiento if punto else "")
     codigo = venta.punto_codigo or (punto.codigo if punto else "")
-    secuencial = venta.secuencial or (punto.numero_proximo if punto else None)
-    if establecimiento and codigo and secuencial:
+    secuencial = venta.secuencial if venta.secuencial is not None else (
+        punto.numero_proximo if punto else None
+    )
+    if establecimiento and codigo and secuencial is not None:
         return formatear_numero_comprobante(establecimiento, codigo, secuencial)
-    return proximo_numero(venta.tipo_comprobante)
+    return proximo_numero(TipoComprobante.FACTURA)
 
 
 def _error(exc: ValidationError) -> str:
@@ -296,6 +303,10 @@ class PuntoVentaView(PosPermisoView):
             self._aplicar(request, venta)
             if request.POST.get("guardar"):
                 exigir_cliente_factura(venta)
+                exigir_emision(
+                    punto_de(venta.tipo_comprobante),
+                    tipo=venta.tipo_comprobante,
+                )
                 messages.success(request, "La venta quedó guardada.")
                 return redirect("home")
         except ValidationError as exc:
@@ -365,6 +376,7 @@ class PuntoVentaView(PosPermisoView):
             "medios": medios_disponibles(venta.medio),
             "comprobantes": comprobantes_pos(),
             "puede_cobrar": puede_cobrar(venta),
+            "puede_guardar": puede_guardar(venta),
             "factura_pide_cliente": pide_cliente,
             "emision_motivo": motivo_pos(venta),
             "proximo_numero": proximo_numero(venta.tipo_comprobante),
@@ -380,13 +392,23 @@ class PuntoVentaView(PosPermisoView):
             "subtotal_entero": int(subtotal),
             "total_entero": int(total),
             "numero_establecimiento": (
-                venta.establecimiento or (punto.establecimiento if punto else "")
+                (venta.establecimiento or (punto.establecimiento if punto else ""))
+                if venta.tipo_comprobante == TipoComprobante.FACTURA
+                else ""
             ),
-            "numero_punto": (venta.punto_codigo or (punto.codigo if punto else "")),
+            "numero_punto": (
+                (venta.punto_codigo or (punto.codigo if punto else ""))
+                if venta.tipo_comprobante == TipoComprobante.FACTURA
+                else ""
+            ),
             "numero_secuencial": (
-                f"{venta.secuencial:07d}"
-                if venta.secuencial
-                else (f"{punto.numero_proximo:07d}" if punto else "")
+                (
+                    f"{venta.secuencial:07d}"
+                    if venta.secuencial is not None
+                    else (f"{punto.numero_proximo:07d}" if punto else "")
+                )
+                if venta.tipo_comprobante == TipoComprobante.FACTURA
+                else ""
             ),
             "timbrado_txt": (punto.timbrado if punto else ""),
             "subtotal_txt": _dinero(subtotal),
@@ -451,12 +473,27 @@ class BuscarProductosView(PosPermisoView):
 class ValidarNumeroView(PosPermisoView):
     def get(self, request):
         venta = borrador(request.user)
-        punto = punto_de(venta.tipo_comprobante)
-        if punto is None:
+        if venta.tipo_comprobante != TipoComprobante.FACTURA:
             return JsonResponse(
-                {"ok": False, "error": "No hay un timbrado registrado para ese comprobante."},
+                {
+                    "ok": False,
+                    "error": "La numeración manual solo aplica a factura.",
+                },
                 status=400,
             )
+        punto = punto_de(TipoComprobante.FACTURA)
+        if punto is None:
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": motivo_emision(None, tipo=TipoComprobante.FACTURA),
+                },
+                status=400,
+            )
+        try:
+            exigir_emision(punto, tipo=TipoComprobante.FACTURA)
+        except ValidationError as exc:
+            return JsonResponse({"ok": False, "error": _error(exc)}, status=400)
         try:
             establecimiento = interpretar_serie(
                 request.GET.get("establecimiento"),
@@ -469,11 +506,11 @@ class ValidarNumeroView(PosPermisoView):
             return JsonResponse({"ok": False, "error": _error(exc)}, status=400)
         if not (punto.numero_desde <= secuencial <= punto.numero_hasta):
             return JsonResponse(
-                {"ok": False, "error": "Ese número está fuera del rango del timbrado."},
+                {"ok": False, "error": "Ese número está fuera del rango del timbrado de factura."},
                 status=400,
             )
         numero = formatear_numero_comprobante(establecimiento, codigo, secuencial)
-        if numero_ya_usado(punto.timbrado, numero):
+        if numero_ya_usado(punto.timbrado, numero, tipo=TipoComprobante.FACTURA):
             return JsonResponse(
                 {
                     "ok": False,

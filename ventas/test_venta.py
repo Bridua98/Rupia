@@ -352,13 +352,17 @@ def test_timbrado_vencido_y_rango_agotado(ingresada):
     _stock(item)
     ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
     ingresada.post("/ventas/punto-de-venta/confirmar/")
-    assert "timbrado no está vigente" in ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "El timbrado de ticket no está vigente." in ingresada.get(
+        "/ventas/punto-de-venta/"
+    ).content.decode()
     punto = PuntoExpedicion.objects.get()
     punto.vigencia_hasta = hoy + timedelta(days=10)
     punto.numero_proximo = 1001
     punto.save()
     ingresada.post("/ventas/punto-de-venta/confirmar/")
-    assert "rango de números" in ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "Se acabó el rango de números de ticket." in ingresada.get(
+        "/ventas/punto-de-venta/"
+    ).content.decode()
 
 
 @pytest.mark.django_db
@@ -369,12 +373,12 @@ def test_timbrado_deshabilitado_no_confirma(ingresada):
     _stock(item)
     ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
     content = ingresada.get("/ventas/punto-de-venta/").content.decode()
-    assert "El timbrado no está habilitado." in content
+    assert "El timbrado de ticket no está habilitado." in content
     assert "disabled" in content
     response = ingresada.post("/ventas/punto-de-venta/confirmar/")
     assert response.url == "/ventas/punto-de-venta/"
     assert Venta.objects.filter(estado=EstadoVenta.COBRADA).count() == 0
-    assert "El timbrado no está habilitado." in ingresada.get(
+    assert "El timbrado de ticket no está habilitado." in ingresada.get(
         "/ventas/punto-de-venta/"
     ).content.decode()
 
@@ -411,7 +415,7 @@ def test_factura_deshabilitada_no_impide_ticket(ingresada):
         ).count()
         == 0
     )
-    assert "El timbrado no está habilitado." in ingresada.get(
+    assert "El timbrado de factura no está habilitado." in ingresada.get(
         "/ventas/punto-de-venta/"
     ).content.decode()
 
@@ -424,7 +428,7 @@ def test_sin_timbrado_no_confirma(ingresada):
     ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
     response = ingresada.post("/ventas/punto-de-venta/confirmar/")
     assert response.url == "/ventas/punto-de-venta/"
-    assert "No hay un timbrado registrado" in ingresada.get(
+    assert "No hay un timbrado registrado para ticket." in ingresada.get(
         "/ventas/punto-de-venta/"
     ).content.decode()
 
@@ -627,6 +631,107 @@ def test_guardar_factura_con_cliente_suspende(ingresada):
 
 
 @pytest.mark.django_db
+def test_guardar_sin_timbrado_ticket_no_sale(ingresada):
+    _caja()
+    item = _item()
+    _stock(item)
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    aviso = "No hay un timbrado registrado para ticket."
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert aviso in content
+    assert "data-pos-emision-banner" in content
+    response = ingresada.post("/ventas/punto-de-venta/", {"guardar": "1"})
+    assert response.url == "/ventas/punto-de-venta/"
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert aviso in content
+    assert 'class="banner"' in content
+
+
+@pytest.mark.django_db
+def test_guardar_timbrado_ticket_vencido_no_sale(ingresada):
+    hoy = _hoy()
+    _punto(
+        TipoComprobante.TICKET,
+        vigencia_desde=hoy - timedelta(days=400),
+        vigencia_hasta=hoy - timedelta(days=1),
+    )
+    _caja()
+    item = _item()
+    _stock(item)
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    response = ingresada.post("/ventas/punto-de-venta/", {"guardar": "1"})
+    assert response.url == "/ventas/punto-de-venta/"
+    assert "El timbrado de ticket no está vigente." in ingresada.get(
+        "/ventas/punto-de-venta/"
+    ).content.decode()
+
+
+@pytest.mark.django_db
+def test_guardar_timbrado_ticket_deshabilitado_no_sale(ingresada):
+    _punto(TipoComprobante.TICKET, habilitado=False)
+    _caja()
+    item = _item()
+    _stock(item)
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    response = ingresada.post("/ventas/punto-de-venta/", {"guardar": "1"})
+    assert response.url == "/ventas/punto-de-venta/"
+    assert "El timbrado de ticket no está habilitado." in ingresada.get(
+        "/ventas/punto-de-venta/"
+    ).content.decode()
+
+
+@pytest.mark.django_db
+def test_guardar_rango_ticket_agotado_no_sale(ingresada):
+    _punto(TipoComprobante.TICKET, numero_proximo=1001, numero_hasta=1000)
+    _caja()
+    item = _item()
+    _stock(item)
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    response = ingresada.post("/ventas/punto-de-venta/", {"guardar": "1"})
+    assert response.url == "/ventas/punto-de-venta/"
+    assert "Se acabó el rango de números de ticket." in ingresada.get(
+        "/ventas/punto-de-venta/"
+    ).content.decode()
+
+
+@pytest.mark.django_db
+def test_guardar_factura_sin_timbrado_factura_no_sale(ingresada):
+    _punto(TipoComprobante.TICKET)
+    cliente = _cliente()
+    _caja()
+    item = _item()
+    _stock(item)
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    response = ingresada.post(
+        "/ventas/punto-de-venta/",
+        {
+            "guardar": "1",
+            "tipo_comprobante": TipoComprobante.FACTURA,
+            "cliente": cliente.pk,
+        },
+    )
+    assert response.url == "/ventas/punto-de-venta/"
+    assert "No hay un timbrado registrado para factura." in ingresada.get(
+        "/ventas/punto-de-venta/"
+    ).content.decode()
+
+
+@pytest.mark.django_db
+def test_guardar_ticket_con_factura_deshabilitada_sigue(ingresada):
+    _punto(TipoComprobante.TICKET)
+    _punto(TipoComprobante.FACTURA, habilitado=False)
+    _caja()
+    item = _item()
+    _stock(item)
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    response = ingresada.post("/ventas/punto-de-venta/", {"guardar": "1"})
+    assert response.status_code == 302
+    assert response.url == "/"
+    venta = Venta.objects.get(estado=EstadoVenta.EN_CURSO)
+    assert venta.tipo_comprobante == TipoComprobante.TICKET
+
+
+@pytest.mark.django_db
 def test_medios_de_cobro_siguen_a_las_cuentas(ingresada):
     _preparar()
     content = ingresada.get("/ventas/punto-de-venta/").content.decode()
@@ -820,6 +925,104 @@ def test_factura_muestra_numeracion_y_permite_elegirla(ingresada):
     assert factura.numero_completo == "001-002-0000130"
     assert factura.timbrado == "87654321"
     assert PuntoExpedicion.objects.get(tipo=TipoComprobante.FACTURA).numero_proximo == 131
+
+
+@pytest.mark.django_db
+def test_validar_numero_solo_con_factura(ingresada):
+    _preparar()
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    consulta = ingresada.get(
+        "/ventas/punto-de-venta/numero/?establecimiento=001&punto=001&secuencial=124"
+    ).json()
+    assert consulta["ok"] is False
+    assert "solo aplica a factura" in consulta["error"].lower()
+
+
+@pytest.mark.django_db
+def test_cambio_a_ticket_no_reutiliza_numeracion_de_factura(ingresada):
+    _preparar()
+    cliente = _cliente()
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    ingresada.post(
+        "/ventas/punto-de-venta/",
+        {
+            "tipo_comprobante": TipoComprobante.FACTURA,
+            "cliente": cliente.pk,
+            "numero_establecimiento": "001",
+            "numero_punto": "002",
+            "numero_secuencial": "200",
+        },
+    )
+    ingresada.post(
+        "/ventas/punto-de-venta/",
+        {"tipo_comprobante": TipoComprobante.TICKET, "consumidor_final": "1"},
+    )
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "001-001-0000124" in content
+    assert "001-002-0000200" not in content
+
+
+@pytest.mark.django_db
+def test_mismo_numero_ticket_y_factura_separados(ingresada):
+    _preparar()
+    item = Item.objects.get(codigo_barra="PROD-001")
+    _stock(item, "20")
+    cliente = _cliente()
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
+    ingresada.post("/ventas/punto-de-venta/confirmar/")
+    ticket = Venta.objects.get(tipo_comprobante=TipoComprobante.TICKET, estado=EstadoVenta.COBRADA)
+    assert ticket.numero_completo == "001-001-0000124"
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
+    ingresada.post(
+        "/ventas/punto-de-venta/",
+        {"tipo_comprobante": TipoComprobante.FACTURA, "cliente": cliente.pk},
+    )
+    response = ingresada.post(
+        "/ventas/punto-de-venta/confirmar/",
+        {
+            "tipo_comprobante": TipoComprobante.FACTURA,
+            "cliente": cliente.pk,
+            "numero_establecimiento": "001",
+            "numero_punto": "002",
+            "numero_secuencial": "124",
+        },
+    )
+    factura = Venta.objects.get(tipo_comprobante=TipoComprobante.FACTURA, estado=EstadoVenta.COBRADA)
+    assert response.url == f"/ventas/{factura.pk}/factura/"
+    assert factura.numero_completo == "001-002-0000124"
+
+
+@pytest.mark.django_db
+def test_ticket_no_choca_con_factura_del_mismo_timbrado(ingresada):
+    _punto(TipoComprobante.TICKET)
+    _punto(TipoComprobante.FACTURA, establecimiento="001", codigo="001", timbrado="12345678")
+    _caja()
+    item = _item()
+    _stock(item, "20")
+    cliente = _cliente()
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
+    ingresada.post(
+        "/ventas/punto-de-venta/confirmar/",
+        {
+            "tipo_comprobante": TipoComprobante.FACTURA,
+            "cliente": cliente.pk,
+            "numero_establecimiento": "001",
+            "numero_punto": "001",
+            "numero_secuencial": "124",
+        },
+    )
+    factura = Venta.objects.get(tipo_comprobante=TipoComprobante.FACTURA, estado=EstadoVenta.COBRADA)
+    assert factura.numero_completo == "001-001-0000124"
+    assert factura.timbrado == "12345678"
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
+    response = ingresada.post(
+        "/ventas/punto-de-venta/confirmar/",
+        {"tipo_comprobante": TipoComprobante.TICKET, "consumidor_final": "1"},
+    )
+    ticket = Venta.objects.get(tipo_comprobante=TipoComprobante.TICKET, estado=EstadoVenta.COBRADA)
+    assert response.url == f"/ventas/{ticket.pk}/ticket/"
+    assert ticket.numero_completo == "001-001-0000124"
+    assert ticket.timbrado == "12345678"
 
 
 @pytest.mark.django_db
