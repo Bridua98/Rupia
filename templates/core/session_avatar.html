@@ -1,0 +1,7 @@
+<span class="session-avatar{% if extra_class %} {{ extra_class }}{% endif %}{% if session_foto_url %} has-foto{% endif %}" aria-hidden="true">
+  {% if session_foto_url %}
+    <img src="{{ session_foto_url }}" alt="">
+  {% else %}
+    {% include "core/icon.html" with name="user" %}
+  {% endif %}
+</span>

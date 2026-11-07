@@ -208,6 +208,24 @@ body {
   letter-spacing: 0.02em;
 }
 
+.login-origen {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: rgba(244, 239, 230, 0.88);
+  font-weight: 560;
+}
+
+.bandera-py {
+  display: block;
+  width: 1.2rem;
+  height: 0.8rem;
+  flex: none;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28);
+  overflow: hidden;
+}
+
 .login-main {
   display: flex;
   align-items: center;
@@ -782,6 +800,7 @@ body.app {
   width: 2.15rem;
   height: 2.15rem;
   flex: none;
+  overflow: hidden;
   place-items: center;
   border: 1.5px solid rgba(255, 255, 255, 0.55);
   border-radius: 50%;
@@ -789,10 +808,48 @@ body.app {
   color: #fff;
 }
 
+.session-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.session-avatar.has-foto {
+  padding: 0;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
 .session-avatar-top {
   border: 0;
   background: #e7f3eb;
   color: var(--accent);
+}
+
+.session-avatar-top.has-foto {
+  background: #dfe8e3;
+}
+
+.topbar-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.topbar-user:hover .topbar-user-name {
+  text-decoration: underline;
+}
+
+.topbar-user-name {
+  max-width: 12rem;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .session-meta {
@@ -1047,10 +1104,15 @@ button.topbar-icon:hover {
 
   .display,
   .aside-lead,
-  .aside-foot,
+  .aside-foot-note,
   .login-aside-gem,
   .login-card-mark {
     display: none;
+  }
+
+  .login-origen {
+    margin-left: auto;
+    font-size: 0.78rem;
   }
 
   .aside-copy {
@@ -5498,6 +5560,12 @@ body.pos-screen .app-stage {
 .contrasena-form {
   max-width: 22rem;
   margin-top: 1rem;
+}
+
+.cuenta-foto-form {
+  max-width: 24rem;
+  padding-bottom: 1.4rem;
+  border-bottom: 1px solid var(--line);
 }
 
 .compra-cuenta {

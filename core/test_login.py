@@ -8,6 +8,8 @@ def test_login_muestra_el_formulario(client):
     assert response.status_code == 200
     content = response.content.decode()
     assert "Ingresar" in content
+    assert "Software 100% paraguayo" in content
+    assert "bandera-py" in content
     assert "css/rupia.css" in content
     assert "favicon.svg" in content
     assert "csrfmiddlewaretoken" in content
@@ -56,6 +58,7 @@ def test_login_entra_y_cierra_sesion(client, django_user_model):
     assert home.status_code == 200
     content = home.content.decode()
     assert "Hola, ada." in content
+    assert '<span class="topbar-user-name">ada</span>' in content
     assert "Abrir administración" not in content
     assert "Salir" in content
 
