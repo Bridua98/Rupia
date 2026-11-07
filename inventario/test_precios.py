@@ -176,6 +176,7 @@ def test_pantalla_lista_activos_y_muestra_el_menu(ingresada):
     foraneos = _foraneos()
     _item(foraneos=foraneos, descripcion="Arroz 1kg")
     _item(foraneos=foraneos, descripcion="Fideos", activo=False)
+    _item(foraneos=foraneos, descripcion="Gastos Ande", tipo=TipoItem.GASTO)
 
     response = ingresada.get("/inventario/precios/")
     content = response.content.decode()
@@ -183,10 +184,13 @@ def test_pantalla_lista_activos_y_muestra_el_menu(ingresada):
     assert response.status_code == 200
     assert "Arroz 1kg" in content
     assert "Fideos" not in content
+    assert "Gastos Ande" not in content
     assert "Precios" in content
     assert "Historial" in content
     assert 'name="porcentaje"' in content
     assert 'name="todos_filtrados"' in content
+    assert "precios-stepper-valor" in content
+    assert "precios-panel" in content
 
 
 @pytest.mark.django_db
@@ -244,6 +248,7 @@ def test_aplicar_todos_los_filtrados(ingresada):
     arroz = _item(foraneos=foraneos, descripcion="Arroz 1kg")
     fideos = _item(foraneos=foraneos, descripcion="Fideos", precio=Decimal("10000.000"))
     _item(foraneos=foraneos, descripcion="Aceite", activo=False, precio=Decimal("4000.000"))
+    gasto = _item(foraneos=foraneos, descripcion="Gastos Ande", tipo=TipoItem.GASTO, precio=Decimal("5000.000"))
 
     response = ingresada.post(
         "/inventario/precios/",
@@ -253,10 +258,12 @@ def test_aplicar_todos_los_filtrados(ingresada):
     arroz.refresh_from_db()
     fideos.refresh_from_db()
     aceite = Item.objects.get(descripcion="Aceite")
+    gasto.refresh_from_db()
     assert response.status_code == 302
     assert arroz.precio == Decimal("9350")
     assert fideos.precio == Decimal("11000")
     assert aceite.precio == Decimal("4000.000")
+    assert gasto.precio == Decimal("5000.000")
     assert ItemPrecioHistorial.objects.count() == 2
     assert ItemPrecioHistorial.objects.values("lote").distinct().count() == 1
 

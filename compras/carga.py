@@ -34,7 +34,7 @@ from inventario.unidades import convertir_a_base, redondear_cantidad
 from negocio.models import UnidadNegocio
 from personas.consulta import buscar as buscar_padron
 from personas.consulta import consultar_ruc
-from personas.models import Genero, Persona, TipoDocumento
+from personas.models import Genero, Persona, TipoDocumento, TipoPersona
 
 UNO = Decimal("1")
 CERO = Decimal("0")
@@ -312,6 +312,7 @@ def asegurar_proveedor_desde_ficha(ficha) -> Persona:
         except ValueError:
             fecha = None
     return Persona.objects.create(
+        tipo_persona=ficha.get("tipo_persona") or TipoPersona.FISICO,
         tipo_documento=ficha.get("tipo_documento") or TipoDocumento.CEDULA,
         documento=documento,
         razon_social=(ficha.get("razon_social") or documento).strip(),

@@ -4,7 +4,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from personas.models import Genero, Persona, TipoDocumento
+from personas.models import Genero, Persona, TipoDocumento, TipoPersona
 
 
 @pytest.mark.django_db
@@ -101,3 +101,23 @@ def test_persona_rechaza_fecha_de_nacimiento_futura():
         persona.full_clean()
 
     assert "La fecha de nacimiento no puede ser futura." in str(error.value)
+
+
+@pytest.mark.django_db
+def test_persona_juridica_deja_genero_sin_definir():
+    persona = Persona(
+        tipo_persona=TipoPersona.JURIDICO,
+        tipo_documento=TipoDocumento.RUC,
+        documento="80012345-6",
+        razon_social="Comercial Este",
+        genero=Genero.MASCULINO,
+        direccion="Centro",
+        es_proveedor=True,
+    )
+
+    persona.full_clean()
+    persona.save()
+    persona.refresh_from_db()
+    assert persona.tipo_persona == TipoPersona.JURIDICO
+    assert persona.genero == Genero.SIN_DEFINIR
+    assert persona.tipo_persona_texto == "Jurídico"

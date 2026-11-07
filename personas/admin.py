@@ -7,6 +7,7 @@ from personas.models import Persona
 class PersonaAdmin(admin.ModelAdmin):
     list_display = (
         "razon_social",
+        "tipo_persona",
         "tipo_documento",
         "documento",
         "es_cliente",
@@ -15,6 +16,7 @@ class PersonaAdmin(admin.ModelAdmin):
         "activo",
     )
     list_filter = (
+        "tipo_persona",
         "tipo_documento",
         "genero",
         "es_cliente",

@@ -8,6 +8,11 @@ class TipoDocumento(models.TextChoices):
     RUC = "RUC", "RUC"
 
 
+class TipoPersona(models.TextChoices):
+    FISICO = "FISICO", "Físico"
+    JURIDICO = "JURIDICO", "Jurídico"
+
+
 class Genero(models.TextChoices):
     SIN_DEFINIR = "SIN DEFINIR", "Sin definir"
     MASCULINO = "MASCULINO", "Masculino"
@@ -16,6 +21,13 @@ class Genero(models.TextChoices):
 
 class Persona(models.Model):
     id = models.AutoField(primary_key=True, db_column="pers_id")
+    tipo_persona = models.CharField(
+        "tipo de persona",
+        max_length=8,
+        choices=TipoPersona.choices,
+        default=TipoPersona.FISICO,
+        db_column="pers_tipo_persona",
+    )
     tipo_documento = models.CharField(
         "tipo de documento",
         max_length=6,
@@ -81,10 +93,20 @@ class Persona(models.Model):
 
     def clean(self):
         super().clean()
+        if self.tipo_persona == TipoPersona.JURIDICO:
+            self.genero = Genero.SIN_DEFINIR
         if self.fecha_nacimiento and self.fecha_nacimiento > timezone.localdate():
             raise ValidationError(
                 {"fecha_nacimiento": ("La fecha de nacimiento no puede ser futura.")}
             )
+
+    @property
+    def tipo_persona_texto(self):
+        return self.get_tipo_persona_display()
+
+    @property
+    def es_juridico(self):
+        return self.tipo_persona == TipoPersona.JURIDICO
 
     @property
     def roles_lista(self):
