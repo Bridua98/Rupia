@@ -4,6 +4,10 @@
     if (list) initList(list);
     var ficha = document.querySelector("[data-rupia='ficha']");
     if (ficha) initFicha(ficha);
+    document.querySelectorAll("[data-imagen]").forEach(function (card) {
+      if (card.closest("[data-rupia='ficha']")) return;
+      initImagen(card.closest("form") || card);
+    });
   }
 
   function visorImagen() {

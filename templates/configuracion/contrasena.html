@@ -1,6 +1,7 @@
 {% extends "app.html" %}
+{% load static %}
 
-{% block title %}Contraseña · Rupia{% endblock %}
+{% block title %}Tu cuenta · Rupia{% endblock %}
 
 {% block work %}
 <div class="ledger">
@@ -12,11 +13,27 @@
     <div class="stage-head">
       <div>
         <p class="eyebrow">Configuración</p>
-        <h1>Contraseña</h1>
+        <h1>Tu cuenta</h1>
       </div>
     </div>
+
+    <form method="post" class="contrasena-form cuenta-foto-form" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="accion" value="foto">
+      <p class="eyebrow">Imagen</p>
+      {% include "core/form_field.html" with field=foto_form.imagen_archivo %}
+      {% if foto_form.quitar_imagen %}
+        {% include "core/form_field.html" with field=foto_form.quitar_imagen %}
+      {% endif %}
+      <button type="submit" class="button">
+        {% include "core/icon.html" with name="check" %}
+        <span>Guardar imagen</span>
+      </button>
+    </form>
+
     <form method="post" class="contrasena-form" novalidate>
       {% csrf_token %}
+      <p class="eyebrow">Contraseña</p>
       {% if form.non_field_errors %}
         <div class="banner" role="alert">
           {% for error in form.non_field_errors %}
@@ -34,4 +51,5 @@
     </form>
   </div>
 </div>
+<script src="{% static 'js/rupia-tabla.js' %}"></script>
 {% endblock %}

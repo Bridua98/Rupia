@@ -66,3 +66,29 @@ class PerfilPermiso(models.Model):
 
     def __str__(self):
         return f"{self.perfil}: {self.formulario}.{self.accion}"
+
+
+class UsuarioFoto(models.Model):
+    id = models.AutoField(primary_key=True, db_column="usufoto_id")
+    usuario = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="foto",
+        db_column="usufoto_usuario_id",
+        verbose_name="usuario",
+    )
+    imagen = models.CharField(
+        "imagen",
+        max_length=200,
+        blank=True,
+        default="",
+        db_column="usufoto_imagen",
+    )
+
+    class Meta:
+        db_table = "usuario_fotos"
+        verbose_name = "foto de usuario"
+        verbose_name_plural = "fotos de usuario"
+
+    def __str__(self):
+        return self.imagen or str(self.usuario)

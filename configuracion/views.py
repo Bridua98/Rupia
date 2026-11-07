@@ -4,13 +4,22 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import PasswordChangeView
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Prefetch
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
+from django.utils.html import format_html
 from django.views import View
 
 from configuracion.catalogo import FORMULARIOS, matriz_permisos
-from configuracion.forms import PerfilForm, RupiaPasswordChangeForm, UsuarioClaveForm, UsuarioForm
-from configuracion.models import Perfil
+from configuracion.forms import (
+    CuentaFotoForm,
+    PerfilForm,
+    RupiaPasswordChangeForm,
+    UsuarioClaveForm,
+    UsuarioForm,
+)
+from configuracion.fotos import resolver_foto
+from configuracion.models import Perfil, UsuarioFoto
 from configuracion.permisos import PermisoRequeridoMixin, tiene_permiso
 from configuracion.tables import PerfilTable, UsuarioTable
 from core.mantenimiento import (
@@ -211,6 +220,20 @@ class UsuarioListView(UsuarioMantenimiento, MantenimientoListView):
                 "value": ", ".join(nombres) if nombres else "—",
             }
         )
+        foto = UsuarioFoto.objects.filter(usuario=record).exclude(imagen="").first()
+        if foto:
+            context["view_fields"].append(
+                {
+                    "label": "Imagen",
+                    "value": format_html(
+                        (
+                            '<a class="view-imagen-link" href="{}" '
+                            'target="_blank" rel="noopener">Ver imagen</a>'
+                        ),
+                        reverse("usuario_imagen", args=[foto.imagen]),
+                    ),
+                }
+            )
         context["view_tables"] = []
         return context
 
@@ -291,6 +314,34 @@ class CambiarContrasenaView(LoginRequiredMixin, PasswordChangeView):
     template_name = "configuracion/contrasena.html"
     success_url = reverse_lazy("home")
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.setdefault("foto_form", CuentaFotoForm(instance=self.request.user))
+        return context
+
+    def post(self, request, *args, **kwargs):
+        if request.POST.get("accion") == "foto":
+            foto_form = CuentaFotoForm(request.POST, request.FILES, instance=request.user)
+            if foto_form.is_valid():
+                foto_form.save()
+                messages.success(request, "Tu imagen se actualizó.")
+                return redirect("cambiar_contrasena")
+            return self.render_to_response(
+                self.get_context_data(
+                    form=self.form_class(user=request.user),
+                    foto_form=foto_form,
+                )
+            )
+        return super().post(request, *args, **kwargs)
+
     def form_valid(self, form):
         messages.success(self.request, "Tu contraseña se actualizó.")
         return super().form_valid(form)
+
+
+class UsuarioImagenView(LoginRequiredMixin, View):
+    def get(self, request, nombre):
+        destino = resolver_foto(nombre)
+        if destino is None:
+            raise Http404
+        return FileResponse(destino.open("rb"))

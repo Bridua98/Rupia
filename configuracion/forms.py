@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import PasswordChangeForm
@@ -6,10 +8,61 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 from configuracion.catalogo import FORMULARIOS, campo_permiso, pares_permiso
-from configuracion.models import Perfil, PerfilPermiso
+from configuracion.fotos import EXTENSIONES, aplicar_foto, url_foto
+from configuracion.models import Perfil, PerfilPermiso, UsuarioFoto
 from core.forms import RupiaModelForm
 
 User = get_user_model()
+
+
+class ImagenInput(forms.FileInput):
+    is_imagen = True
+
+    def __init__(self, attrs=None, preview_url=""):
+        self.preview_url = preview_url
+        base = {
+            "accept": "image/jpeg,image/png,image/webp,image/gif",
+            "data-imagen-input": True,
+        }
+        if attrs:
+            base.update(attrs)
+        super().__init__(attrs=base)
+
+
+def _validar_imagen(archivo):
+    if not archivo:
+        return None
+    suffix = Path(archivo.name).suffix.lower()
+    if suffix not in EXTENSIONES:
+        raise ValidationError("La imagen tiene que ser JPG, PNG, WEBP o GIF.")
+    return archivo
+
+
+def _campos_foto():
+    return {
+        "imagen_archivo": forms.ImageField(
+            label="Imagen",
+            required=False,
+            error_messages={"invalid_image": "Elegí un archivo de imagen."},
+            widget=ImagenInput(),
+        ),
+        "quitar_imagen": forms.BooleanField(label="Quitar imagen", required=False),
+    }
+
+
+def _configurar_campos_foto(form, usuario):
+    for nombre, campo in _campos_foto().items():
+        if nombre not in form.fields:
+            form.fields[nombre] = campo
+    foto = None
+    if getattr(usuario, "pk", None):
+        foto = UsuarioFoto.objects.filter(usuario=usuario).first()
+    if not foto or not foto.imagen:
+        form.fields.pop("quitar_imagen", None)
+        return
+    preview = url_foto(usuario)
+    if preview:
+        form.fields["imagen_archivo"].widget.preview_url = preview
 
 
 def _clave_widget(autocomplete):
@@ -156,6 +209,7 @@ class UsuarioForm(RupiaModelForm):
             and self.instance.pk == self.request_user.pk
         ):
             self.fields["is_active"].disabled = True
+        _configurar_campos_foto(self, self.instance)
 
     def clean_username(self):
         username = self.cleaned_data["username"]
@@ -193,6 +247,9 @@ class UsuarioForm(RupiaModelForm):
                     self.add_error("password1", exc)
         return cleaned
 
+    def clean_imagen_archivo(self):
+        return _validar_imagen(self.cleaned_data.get("imagen_archivo"))
+
     def save(self, commit=True):
         user = super().save(commit=False)
         password = self.cleaned_data.get("password1")
@@ -201,6 +258,11 @@ class UsuarioForm(RupiaModelForm):
         if commit:
             user.save()
             user.perfiles.set(self.cleaned_data.get("perfiles") or [])
+            aplicar_foto(
+                user,
+                archivo=self.cleaned_data.get("imagen_archivo"),
+                quitar=self.cleaned_data.get("quitar_imagen"),
+            )
         return user
 
 
@@ -238,6 +300,32 @@ class UsuarioClaveForm(forms.Form):
     def save(self):
         self.instance.set_password(self.cleaned_data["password1"])
         self.instance.save(update_fields=["password"])
+        return self.instance
+
+
+class CuentaFotoForm(forms.Form):
+    imagen_archivo = forms.ImageField(
+        label="Imagen",
+        required=False,
+        error_messages={"invalid_image": "Elegí un archivo de imagen."},
+        widget=ImagenInput(),
+    )
+    quitar_imagen = forms.BooleanField(label="Quitar imagen", required=False)
+
+    def __init__(self, *args, instance=None, **kwargs):
+        self.instance = instance
+        super().__init__(*args, **kwargs)
+        _configurar_campos_foto(self, instance)
+
+    def clean_imagen_archivo(self):
+        return _validar_imagen(self.cleaned_data.get("imagen_archivo"))
+
+    def save(self):
+        aplicar_foto(
+            self.instance,
+            archivo=self.cleaned_data.get("imagen_archivo"),
+            quitar=self.cleaned_data.get("quitar_imagen"),
+        )
         return self.instance
 
 

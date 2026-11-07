@@ -57,7 +57,7 @@
     </nav>
 
     <div class="app-nav-foot">
-      <span class="session-avatar" aria-hidden="true">{% include "core/icon.html" with name="user" %}</span>
+      {% include "core/session_avatar.html" %}
       <a class="session-meta" href="{% url 'cambiar_contrasena' %}">
         <span class="session-name">{{ user.get_username }}</span>
         <span class="session-role">{{ session_role|default:"Usuario" }}</span>
@@ -86,7 +86,10 @@
       </div>
       <div class="topbar-end">
         {% block topbar_status %}{% endblock %}
-        <span class="session-avatar session-avatar-top" aria-hidden="true">{% include "core/icon.html" with name="user" %}</span>
+        <a class="topbar-user" href="{% url 'cambiar_contrasena' %}">
+          {% include "core/session_avatar.html" with extra_class="session-avatar-top" %}
+          <span class="topbar-user-name">{{ user.get_username }}</span>
+        </a>
       </div>
     </header>
 

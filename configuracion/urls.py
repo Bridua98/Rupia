@@ -8,6 +8,7 @@ from configuracion.views import (
     PerfilUpdateView,
     UsuarioCreateView,
     UsuarioDeleteView,
+    UsuarioImagenView,
     UsuarioListView,
     UsuarioPasswordView,
     UsuarioUpdateView,
@@ -59,4 +60,5 @@ urlpatterns = [
     path("perfiles/<int:pk>/", PerfilUpdateView.as_view(), name="perfil_update"),
     path("perfiles/<int:pk>/eliminar/", PerfilDeleteView.as_view(), name="perfil_delete"),
     path("contrasena/", CambiarContrasenaView.as_view(), name="cambiar_contrasena"),
+    path("usuarios/imagen/<str:nombre>/", UsuarioImagenView.as_view(), name="usuario_imagen"),
 ]
