@@ -146,7 +146,6 @@
   <aside class="pos-side">
     <form method="post" action="{% url 'punto_de_venta' %}" id="pos-cabecera">
       {% csrf_token %}
-      {% if venta.caja_id %}<input type="hidden" name="caja" value="{{ venta.caja_id }}">{% endif %}
       <input type="hidden" name="descuento" value="{{ descuento_txt }}">
       <section class="pos-card pos-summary">
         <div class="pos-row">
@@ -177,21 +176,15 @@
             </label>
           {% endfor %}
         </div>
-        {% if venta.medio == "EFECTIVO" %}
-          {% if not venta.caja_id %}
-            <p class="pos-destino">Elegí una caja para cobrar en efectivo.</p>
-          {% endif %}
-        {% else %}
-          <label class="field">
-            <span>Cuenta de cobro</span>
-            <select name="cuenta_cobro">
-              <option value="">Elegí la cuenta ligada a este medio</option>
-              {% for cuenta in cuentas_cobro %}
-                <option value="{{ cuenta.pk }}"{% if venta.cuenta_cobro_id == cuenta.pk %} selected{% endif %}>{{ cuenta.nombre_corto }} · {{ cuenta.descripcion }}</option>
-              {% endfor %}
-            </select>
-          </label>
-        {% endif %}
+        <label class="field">
+          <span>Cuenta de cobro</span>
+          <select name="cuenta_cobro">
+            <option value="">Elegí la cuenta ligada a este medio</option>
+            {% for cuenta in cuentas_cobro %}
+              <option value="{{ cuenta.pk }}"{% if venta.cuenta_cobro_id == cuenta.pk %} selected{% endif %}>{{ cuenta.etiqueta_cobro }}</option>
+            {% endfor %}
+          </select>
+        </label>
         {% if venta.medio == "EFECTIVO" %}
           <label class="pos-recibido">
             <span>Monto recibido</span>
