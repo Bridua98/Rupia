@@ -35,10 +35,10 @@
     <form method="post" action="{% url 'compra_nueva' %}" class="compra-cuenta" id="compra-cabecera">
       {% csrf_token %}
       {% if compra.proveedor_id %}<input type="hidden" name="proveedor" value="{{ compra.proveedor_id }}">{% endif %}
-      <label class="field">
+      <label class="field" data-compra-cuenta-wrap{% if cuenta_opcional %} hidden{% endif %}>
         <span>Cuenta</span>
-        <select name="cuenta" aria-label="Cuenta" data-compra-cuenta>
-          <option value="">Elegí la cuenta</option>
+        <select name="cuenta" aria-label="Cuenta" data-compra-cuenta{% if cuenta_opcional %} disabled{% endif %}>
+          <option value="">{% if cuenta_opcional %}Al confirmar el pago{% else %}Elegí la cuenta{% endif %}</option>
           {% for cuenta in cuentas %}
             <option value="{{ cuenta.pk }}"{% if compra.cuenta_id == cuenta.pk %} selected{% endif %}>{{ cuenta.etiqueta_cobro }}</option>
           {% endfor %}
@@ -206,25 +206,27 @@
           Cancelar compra
         </button>
       </form>
+      <div class="pos-totals">
+        <dl class="pos-totals-lines">
+          <div>
+            <dt>Subtotal</dt>
+            <dd><strong class="valor-gs is-texto" dir="ltr">{{ subtotal_txt }}</strong></dd>
+          </div>
+          <div>
+            <dt>{{ iva_label }}</dt>
+            <dd><strong class="valor-gs is-texto" dir="ltr">{{ iva_txt }}</strong></dd>
+          </div>
+        </dl>
+        <div class="pos-pay">
+          <span>Total</span>
+          <strong class="valor-gs is-texto" dir="ltr">{{ total_txt }}</strong>
+        </div>
+      </div>
     </div>
   </section>
 
   <aside class="pos-side">
-    <section class="pos-card pos-summary">
-      <div class="pos-row">
-        <span>Subtotal</span>
-          <strong class="valor-gs is-texto" dir="ltr">{{ subtotal_txt }}</strong>
-        </div>
-        <div class="pos-row">
-          <span>{{ iva_label }}</span>
-          <strong class="valor-gs is-texto" dir="ltr">{{ iva_txt }}</strong>
-        </div>
-        <div class="pos-total">
-          <span>TOTAL</span>
-          <strong class="valor-gs is-texto" dir="ltr">{{ total_txt }}</strong>
-      </div>
-    </section>
-
+    <div class="pos-side-scroll">
     <section class="pos-card pos-cliente" data-compra-proveedor>
       <h2>
         {% include "core/icon.html" with name="users" %}
@@ -281,6 +283,100 @@
         <textarea name="observacion" rows="2" form="compra-cabecera">{{ compra.observacion }}</textarea>
       </details>
     </section>
+
+    {% if es_credito %}
+      <section class="pos-card pos-cuotas" data-compra-cuotas>
+        <h2>
+          {% include "core/icon.html" with name="calendar" %}
+          Cuotas
+        </h2>
+        <p class="pos-hint">La suma tiene que coincidir con el total de la compra.</p>
+        {% if cuotas %}
+          <div class="pos-vuelto{% if not cuotas_completa %} is-faltante{% endif %}">
+            {% if cuotas_completa %}
+              <span>Cuotas cubren el total</span>
+              <strong class="valor-gs is-texto" dir="ltr">{{ cuotas_suma_txt }}</strong>
+            {% elif cuotas_restante > 0 %}
+              <span>Falta cubrir</span>
+              <strong class="valor-gs is-texto" dir="ltr">{{ cuotas_restante_txt }}</strong>
+            {% else %}
+              <span>Sobra</span>
+              <strong class="valor-gs is-texto" dir="ltr">{{ cuotas_restante_txt }}</strong>
+            {% endif %}
+          </div>
+          <ul class="pos-cuotas-list">
+            {% for cuota in cuotas %}
+              <li class="pos-cuota">
+                <span class="pos-cuota-nro" aria-hidden="true">{{ cuota.numero }}</span>
+                <form method="post" action="{% url 'compra_cuota' cuota.pk %}" class="pos-cuota-campos">
+                  {% csrf_token %}
+                  <input type="hidden" name="accion" value="actualizar">
+                  <label class="field">
+                    <span>Vence</span>
+                    <input type="date" name="vencimiento" value="{{ cuota.vencimiento|date:'Y-m-d' }}" onchange="this.form.submit()" aria-label="Vencimiento cuota {{ cuota.numero }}">
+                  </label>
+                  <label class="field">
+                    <span>Importe</span>
+                    <span class="pos-cuota-monto">
+                      <span>Gs.</span>
+                      <input
+                        type="text"
+                        name="importe"
+                        value="{{ cuota.importe_txt }}"
+                        inputmode="numeric"
+                        data-moneda="guarani"
+                        data-moneda-max="12"
+                        onchange="this.form.submit()"
+                        aria-label="Importe cuota {{ cuota.numero }}"
+                      >
+                    </span>
+                  </label>
+                </form>
+                <form method="post" action="{% url 'compra_cuota' cuota.pk %}" class="pos-cuota-quitar">
+                  {% csrf_token %}
+                  <input type="hidden" name="accion" value="quitar">
+                  <button type="submit" class="pos-remove" aria-label="Quitar cuota {{ cuota.numero }}">{% include "core/icon.html" with name="trash" %}</button>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="pos-hint is-warn">Agregá al menos una cuota antes de confirmar.</p>
+        {% endif %}
+        <form method="post" action="{% url 'compra_cuota_agregar' %}" class="pos-cuota-nueva">
+          {% csrf_token %}
+          <input type="hidden" name="accion" value="agregar">
+          <div class="pos-cuota-nueva-grid">
+            <label class="field">
+              <span>Vencimiento</span>
+              <input type="date" name="vencimiento" value="{{ cuota_sugerida_vence }}" required>
+            </label>
+            <label class="field">
+              <span>Importe</span>
+              <span class="pos-cuota-monto">
+                <span>Gs.</span>
+                <input
+                  type="text"
+                  name="importe"
+                  value="{{ cuota_sugerida_importe }}"
+                  inputmode="numeric"
+                  data-moneda="guarani"
+                  data-moneda-max="12"
+                  placeholder="0"
+                  required
+                  aria-label="Importe de la nueva cuota"
+                >
+              </span>
+            </label>
+          </div>
+          <button type="submit" class="button">
+            {% include "core/icon.html" with name="plus" %}
+            Agregar cuota
+          </button>
+        </form>
+      </section>
+    {% endif %}
+    </div>
 
     <button
       class="button pos-cobrar"

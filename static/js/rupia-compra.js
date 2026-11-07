@@ -48,6 +48,22 @@
     return !!(radio && radio.value && radio.value.indexOf("FAC_") === 0);
   }
 
+  function esCredito() {
+    var radio = cabecera && cabecera.querySelector("input[name='tipo']:checked");
+    return !!(radio && radio.value === "FAC_CRE");
+  }
+
+  function pintarCuentaCredito() {
+    var wrap = root.querySelector("[data-compra-cuenta-wrap]");
+    var cuenta = root.querySelector("[data-compra-cuenta]");
+    if (!wrap || !cuenta) return;
+    var credito = esCredito();
+    wrap.hidden = credito;
+    cuenta.disabled = credito;
+    if (credito) cuenta.value = "";
+  }
+  pintarCuentaCredito();
+
   function perteneceACabecera(el) {
     if (!cabecera || !el) return false;
     if (el.closest && el.closest("dialog")) return false;
@@ -285,6 +301,7 @@
 
   document.querySelectorAll("[data-compra-cuenta], input[name='tipo']").forEach(function (el) {
     el.addEventListener("change", function () {
+      pintarCuentaCredito();
       if (cabecera) cabecera.submit();
     });
   });

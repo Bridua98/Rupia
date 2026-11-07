@@ -33,6 +33,8 @@ def url_origen_caja(origen, origen_id):
         return url_ver_registro("compra_list", "compra", origen_id)
     if origen == "Transferencia":
         return url_ver_registro("transferencia_list", "transferencia", origen_id)
+    if origen == "Pago proveedor":
+        return url_ver_registro("pago_proveedor_list", "pago", origen_id)
     return ""
 
 

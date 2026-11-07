@@ -89,6 +89,21 @@ def _preparar():
     return cuenta, proveedor, item
 
 
+def _cuota_total(ingresada, total, *, cuenta, proveedor, vencimiento="2026-12-31"):
+    ingresada.post(
+        "/compras/nueva/",
+        _cabecera(cuenta, proveedor, tipo=TipoCompra.FACTURA_CREDITO),
+    )
+    return ingresada.post(
+        "/compras/nueva/cuotas/",
+        {
+            "accion": "agregar",
+            "vencimiento": vencimiento,
+            "importe": str(int(total)),
+        },
+    )
+
+
 def _cabecera(cuenta, proveedor, **extra):
     datos = {
         "cuenta": str(cuenta.pk),
@@ -243,11 +258,12 @@ def test_factura_credito_y_duplicado(ingresada):
         f"/compras/nueva/lineas/{detalle.pk}/",
         {"accion": "costo", "costo": "8.000"},
     )
+    _cuota_total(ingresada, Decimal("8000"), cuenta=cuenta, proveedor=proveedor)
     ingresada.post(
         "/compras/nueva/confirmar/",
         _cabecera(cuenta, proveedor, tipo=TipoCompra.FACTURA_CREDITO),
     )
-    assert Compra.objects.get().tipo == TipoCompra.FACTURA_CREDITO
+    assert Compra.objects.get(estado=EstadoCompra.CONFIRMADA).tipo == TipoCompra.FACTURA_CREDITO
 
     otro = _item(descripcion="Harina", codigo_barra="PROD-002")
     ingresada.post("/compras/nueva/agregar/", {"q": "PROD-002"})
@@ -256,6 +272,7 @@ def test_factura_credito_y_duplicado(ingresada):
         f"/compras/nueva/lineas/{detalle.pk}/",
         {"accion": "costo", "costo": "4.000"},
     )
+    _cuota_total(ingresada, Decimal("4000"), cuenta=cuenta, proveedor=proveedor)
     ingresada.post(
         "/compras/nueva/confirmar/",
         _cabecera(cuenta, proveedor, tipo=TipoCompra.FACTURA_CREDITO),

@@ -1,8 +1,16 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import DecimalField, Sum, Value
+from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 from inventario.models import TipoItem
+
+CERO = Decimal("0")
+IMPORTE = DecimalField(max_digits=15, decimal_places=3)
 
 
 class TipoCompra(models.TextChoices):
@@ -159,6 +167,185 @@ class Compra(models.Model):
     @property
     def es_factura(self) -> bool:
         return self.tipo in (TipoCompra.FACTURA_CONTADO, TipoCompra.FACTURA_CREDITO)
+
+    @property
+    def es_credito(self) -> bool:
+        return self.tipo == TipoCompra.FACTURA_CREDITO
+
+
+class EstadoPagoProveedor(models.TextChoices):
+    CONFIRMADO = "CONFIRMADO", "Confirmado"
+    ANULADO = "ANULADO", "Anulado"
+
+
+class CompraCuota(models.Model):
+    id = models.AutoField(primary_key=True, db_column="comprcuot_id")
+    compra = models.ForeignKey(
+        Compra,
+        on_delete=models.CASCADE,
+        db_column="comprcuot_compr_id",
+        related_name="cuotas",
+        verbose_name="compra",
+    )
+    numero = models.PositiveSmallIntegerField("número", db_column="comprcuot_numero")
+    vencimiento = models.DateField("vencimiento", db_column="comprcuot_vencimiento")
+    importe = models.DecimalField(
+        "importe",
+        max_digits=15,
+        decimal_places=3,
+        db_column="comprcuot_importe",
+    )
+
+    class Meta:
+        db_table = "compras_cuotas"
+        verbose_name = "cuota de compra"
+        verbose_name_plural = "cuotas de compra"
+        ordering = ["compra_id", "numero"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["compra", "numero"],
+                name="compras_cuotas_compra_numero",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Cuota {self.numero} de {self.compra}"
+
+    def clean(self):
+        super().clean()
+        if self.importe is not None and self.importe <= 0:
+            raise ValidationError({"importe": "El importe tiene que ser mayor a cero."})
+
+    def importe_pagado(self) -> Decimal:
+        total = (
+            PagoCuota.objects.filter(
+                cuota_id=self.pk,
+                pago__estado=EstadoPagoProveedor.CONFIRMADO,
+            ).aggregate(total=Coalesce(Sum("importe"), Value(CERO, output_field=IMPORTE)))[
+                "total"
+            ]
+            or CERO
+        )
+        return Decimal(total)
+
+    def saldo_pendiente(self) -> Decimal:
+        return self.importe - self.importe_pagado()
+
+
+class PagoProveedor(models.Model):
+    id = models.AutoField(primary_key=True, db_column="pagprov_id")
+    fecha = models.DateField("fecha", default=timezone.localdate, db_column="pagprov_fecha")
+    estado = models.CharField(
+        "estado",
+        max_length=10,
+        choices=EstadoPagoProveedor.choices,
+        default=EstadoPagoProveedor.CONFIRMADO,
+        db_column="pagprov_estado",
+    )
+    proveedor = models.ForeignKey(
+        "personas.Persona",
+        on_delete=models.RESTRICT,
+        db_column="pagprov_pers_id",
+        related_name="pagos_proveedor",
+        verbose_name="proveedor",
+    )
+    cuenta = models.ForeignKey(
+        "cuentas.Cuenta",
+        on_delete=models.RESTRICT,
+        db_column="pagprov_cuen_id",
+        related_name="pagos_proveedor",
+        verbose_name="cuenta",
+    )
+    importe = models.DecimalField(
+        "importe",
+        max_digits=15,
+        decimal_places=3,
+        db_column="pagprov_importe",
+    )
+    observacion = models.CharField(
+        "observación",
+        max_length=300,
+        blank=True,
+        db_column="pagprov_observacion",
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.RESTRICT,
+        db_column="pagprov_usuario_id",
+        related_name="pagos_proveedor",
+        verbose_name="usuario",
+    )
+    anulado_en = models.DateTimeField(
+        "anulado en",
+        null=True,
+        blank=True,
+        db_column="pagprov_anulado_en",
+    )
+    anulado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="pagprov_anulado_por_id",
+        related_name="pagos_proveedor_anulados",
+        verbose_name="anulado por",
+    )
+
+    class Meta:
+        db_table = "pagos_proveedor"
+        verbose_name = "pago a proveedor"
+        verbose_name_plural = "pagos a proveedor"
+        ordering = ["-fecha", "-id"]
+
+    def __str__(self):
+        if self.pk:
+            return f"Pago proveedor {self.pk}"
+        return "Pago a proveedor"
+
+    def clean(self):
+        super().clean()
+        if self.importe is not None and self.importe <= 0:
+            raise ValidationError({"importe": "El importe tiene que ser mayor a cero."})
+        if self.observacion:
+            self.observacion = self.observacion.strip()
+
+
+class PagoCuota(models.Model):
+    id = models.AutoField(primary_key=True, db_column="pagcuot_id")
+    pago = models.ForeignKey(
+        PagoProveedor,
+        on_delete=models.CASCADE,
+        db_column="pagcuot_pagprov_id",
+        related_name="aplicaciones",
+        verbose_name="pago",
+    )
+    cuota = models.ForeignKey(
+        CompraCuota,
+        on_delete=models.RESTRICT,
+        db_column="pagcuot_comprcuot_id",
+        related_name="aplicaciones",
+        verbose_name="cuota",
+    )
+    importe = models.DecimalField(
+        "importe",
+        max_digits=15,
+        decimal_places=3,
+        db_column="pagcuot_importe",
+    )
+
+    class Meta:
+        db_table = "pagos_cuotas"
+        verbose_name = "aplicación de pago"
+        verbose_name_plural = "aplicaciones de pago"
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.importe} → cuota {self.cuota_id}"
+
+    def clean(self):
+        super().clean()
+        if self.importe is not None and self.importe <= 0:
+            raise ValidationError({"importe": "El importe tiene que ser mayor a cero."})
 
 
 class CompraDetalle(models.Model):

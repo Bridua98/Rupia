@@ -4388,6 +4388,7 @@ body.pos-screen .app-stage {
   min-height: 0;
 }
 
+.pos-side-scroll,
 .pos-side #pos-cabecera {
   display: grid;
   gap: 0.7rem;
@@ -4577,6 +4578,7 @@ body.pos-screen .app-stage {
 }
 
 .pos-cliente h2,
+.pos-cuotas h2,
 .pos-hint {
   display: flex;
   align-items: center;
@@ -5533,6 +5535,123 @@ body.pos-screen .app-stage {
   padding: 0.35rem 0.5rem;
   font: inherit;
   text-align: right;
+}
+
+.pos-cuotas h2 {
+  margin-bottom: 0.15rem;
+}
+
+.pos-cuotas .pos-hint {
+  margin-top: 0.35rem;
+}
+
+.pos-cuotas .pos-vuelto {
+  margin-top: 0.7rem;
+}
+
+.pos-cuotas-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.7rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pos-cuota {
+  display: grid;
+  grid-template-columns: 1.85rem minmax(0, 1fr) 2rem;
+  gap: 0.5rem;
+  align-items: start;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid #dce8e1;
+  border-radius: 12px;
+  background: #f7faf8;
+}
+
+.pos-cuota-nro {
+  display: grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  margin-top: 1.55rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pos-cuota-campos {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.pos-cuota-nueva-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.pos-cuota-campos .field,
+.pos-cuota-nueva .field {
+  margin: 0;
+}
+
+.pos-cuota-monto {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #dce8e1;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.pos-cuota-monto > span:first-child {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.pos-cuota-monto input,
+.pos-side .pos-cuota-monto input {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.pos-cuotas .pos-vuelto .valor-gs {
+  color: inherit;
+}
+
+.pos-cuota-quitar {
+  display: grid;
+  place-items: center;
+  margin: 1.55rem 0 0;
+}
+
+.pos-cuota-nueva {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.8rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #dce8e1;
+}
+
+.pos-cuota-nueva .button {
+  margin: 0;
+  width: 100%;
 }
 
 .compra-precios-lista {

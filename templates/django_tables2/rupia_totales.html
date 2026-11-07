@@ -39,6 +39,12 @@
               <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.iva_html }}</td>
             {% elif column.name == "subtotal" %}
               <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.subtotal_html }}</td>
+            {% elif column.name == "importe" %}
+              <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.importe_html }}</td>
+            {% elif column.name == "pagado" %}
+              <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.pagado_html }}</td>
+            {% elif column.name == "saldo" %}
+              <td{% if column.attrs.td.as_html %} {{ column.attrs.td.as_html }}{% endif %}>{{ table.reporte_totales.saldo_html }}</td>
             {% else %}
               <td></td>
             {% endif %}

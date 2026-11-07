@@ -10,6 +10,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 
+from compras.cuotas import (
+    actualizar_cuota,
+    agregar_cuota,
+    quitar_cuota,
+    resumen_cuotas,
+)
 from compras.carga import (
     actualizar_cabecera,
     agregar_item,
@@ -39,6 +45,7 @@ from compras.carga import (
 )
 from compras.models import (
     Compra,
+    CompraCuota,
     CompraDetalle,
     EstadoCompra,
     TipoCompra,
@@ -265,6 +272,7 @@ class CompraFormView(CompraPermisoView):
             }
             for pendiente in pendientes
         ]
+        resumen = resumen_cuotas(compra, total)
         return {
             "compra": compra,
             "lineas": lineas,
@@ -296,6 +304,15 @@ class CompraFormView(CompraPermisoView):
                 if tiene_permiso(self.request.user, "personas", "alta")
                 else ""
             ),
+            "cuotas": resumen["filas"],
+            "cuotas_suma_txt": resumen["suma_txt"],
+            "cuotas_restante": resumen["restante"],
+            "cuotas_restante_txt": resumen["restante_txt"],
+            "cuotas_completa": resumen["completa"],
+            "cuota_sugerida_vence": resumen["sugerido_vence"],
+            "cuota_sugerida_importe": resumen["sugerido_importe_txt"],
+            "es_credito": compra.tipo == TipoCompra.FACTURA_CREDITO,
+            "cuenta_opcional": compra.tipo == TipoCompra.FACTURA_CREDITO,
         }
 
 
@@ -454,6 +471,36 @@ class ConfirmarCompraView(CompraPermisoView):
             return redirect("compra_nueva")
         messages.success(request, f"Se confirmó {compra}.")
         return redirect("compra_list")
+
+
+class CuotaCompraView(CompraPermisoView):
+    def post(self, request, pk=None):
+        compra = borrador(request.user)
+        accion = request.POST.get("accion", "")
+        try:
+            if accion == "agregar":
+                importe = _monto(request.POST.get("importe"), None)
+                if importe is None:
+                    raise ValidationError("Escribí el importe.", code="importe")
+                agregar_cuota(
+                    compra,
+                    vencimiento=request.POST.get("vencimiento"),
+                    importe=importe,
+                )
+            elif accion == "quitar" and pk:
+                cuota = get_object_or_404(CompraCuota, pk=pk, compra=compra)
+                quitar_cuota(cuota)
+            elif accion == "actualizar" and pk:
+                cuota = get_object_or_404(CompraCuota, pk=pk, compra=compra)
+                importe = _monto(request.POST.get("importe"), None)
+                actualizar_cuota(
+                    cuota,
+                    vencimiento=request.POST.get("vencimiento"),
+                    importe=importe,
+                )
+        except ValidationError as exc:
+            messages.error(request, _error(exc))
+        return redirect("compra_nueva")
 
 
 class CancelarCompraView(CompraPermisoView):

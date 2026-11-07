@@ -66,6 +66,16 @@ FORMULARIOS = (
         "Informe de gastos",
         (ACCION_VER, ACCION_EXPORTAR),
     ),
+    Formulario(
+        "pagos_proveedor",
+        "Pagos a proveedor",
+        (ACCION_VER, ACCION_ALTA, ACCION_ANULAR, ACCION_EXPORTAR),
+    ),
+    Formulario(
+        "reporte_cuentas_pagar",
+        "Cuentas a pagar",
+        (ACCION_VER, ACCION_EXPORTAR),
+    ),
     Formulario("timbrados", "Timbrados", ACCIONES_MANTENIMIENTO),
     Formulario("marcas", "Marcas", ACCIONES_MANTENIMIENTO),
     Formulario("categorias", "Categorías", ACCIONES_MANTENIMIENTO),
