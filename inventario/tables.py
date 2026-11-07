@@ -5,6 +5,7 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 from core.cantidad import html_cantidad
+from core.enlaces import html_enlace_origen, url_origen_movimiento
 from core.moneda import html_guaranies
 from core.tables import ATTRS_MONEDA, ATTRS_NUM, ActionMenuColumn
 from core.vista import html_bool
@@ -251,6 +252,7 @@ def _clase_stock(record):
 class ReporteProductosDetalleTable(tables.Table):
     fecha_movimiento = tables.Column(verbose_name="Fecha")
     tipo = tables.Column(verbose_name="Tipo")
+    secuencia_origen = tables.Column(verbose_name="Origen", empty_values=())
     item = tables.Column(verbose_name="Ítem", accessor="item__descripcion")
     categoria = tables.Column(verbose_name="Categoría", accessor="item__categoria__descripcion")
     marca = tables.Column(verbose_name="Marca", accessor="item__marca__descripcion")
@@ -265,6 +267,7 @@ class ReporteProductosDetalleTable(tables.Table):
         fields = (
             "fecha_movimiento",
             "tipo",
+            "secuencia_origen",
             "item",
             "categoria",
             "marca",
@@ -290,6 +293,10 @@ class ReporteProductosDetalleTable(tables.Table):
             clase,
             record.get_tipo_display(),
         )
+
+    def render_secuencia_origen(self, value, record):
+        texto = value or "—"
+        return html_enlace_origen(texto, url_origen_movimiento(record.tipo, value))
 
     def render_cantidad(self, value, record):
         return html_cantidad(con_signo_stock(record.tipo, value))

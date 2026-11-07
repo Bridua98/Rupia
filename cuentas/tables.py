@@ -1,6 +1,7 @@
 import django_tables2 as tables
 from django.urls import reverse
 
+from core.enlaces import html_enlace_origen, url_origen_caja
 from core.moneda import html_guaranies
 from core.tables import ATTRS_MONEDA, ActionMenuColumn
 from core.vista import html_situacion
@@ -115,6 +116,12 @@ class DisponibilidadDetalleTable(tables.Table):
 
     def render_fecha(self, value):
         return value.strftime("%d/%m/%Y") if value else "—"
+
+    def render_comprobante(self, value, record):
+        texto = value or "—"
+        if getattr(record, "es_saldo_anterior", False):
+            return texto
+        return html_enlace_origen(texto, url_origen_caja(record.origen, record.origen_id))
 
     def render_origen(self, value):
         return value or "—"

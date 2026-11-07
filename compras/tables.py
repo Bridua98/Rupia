@@ -3,6 +3,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 
 from compras.models import Compra, EstadoCompra
+from core.enlaces import html_enlace_origen, url_ver_registro
 from core.moneda import html_guaranies
 from core.tables import ATTRS_MONEDA, ATTRS_NUM, ActionMenuColumn
 from core.vista import html_situacion
@@ -125,6 +126,11 @@ class ReporteGastosDetalleTable(tables.Table):
 
     def render_fecha(self, value):
         return value.strftime("%d/%m/%Y")
+
+    def render_comprobante(self, value, record):
+        texto = value or "—"
+        compra_id = getattr(record, "compra_id", None)
+        return html_enlace_origen(texto, url_ver_registro("compra_list", "compra", compra_id))
 
     def render_tipo_item(self, value):
         clase = "is-salida" if value == "Gasto" else "is-entrada"

@@ -465,6 +465,51 @@ def test_agrupado_muestra_saldo_anterior_por_cuenta(ingresada, usuario):
 
 
 @pytest.mark.django_db
+def test_comprobante_abre_el_registro_de_origen(ingresada, usuario):
+    caja = _cuenta()
+    banco = _cuenta("Banco B", es_banco=True, numero="123", nombre_corto="BANCO")
+    venta = _venta(
+        usuario, caja, fecha=date(2026, 11, 4), importe="15000", numero="001-001-0000001"
+    )
+    compra = _compra(
+        usuario,
+        caja,
+        fecha=date(2026, 11, 4),
+        importe="8000",
+        numero="001-001-0000099",
+    )
+    transferencia = _transferencia(
+        usuario,
+        caja,
+        banco,
+        fecha=date(2026, 11, 4),
+        importe="1000",
+        comprobante="DEP-01",
+    )
+
+    content = ingresada.get(_disponibilidad()).content.decode()
+
+    assert f'href="/ventas/?venta={venta.pk}&amp;ver=1"' in content
+    assert f'href="/compras/?compra={compra.pk}&amp;ver=1"' in content
+    assert f'href="/cuentas/transferencias/?transferencia={transferencia.pk}&amp;ver=1"' in content
+    assert "sheet-origen" in content
+
+
+@pytest.mark.django_db
+def test_saldo_anterior_no_tiene_enlace(ingresada, usuario):
+    caja = _cuenta()
+    _venta(usuario, caja, fecha=date(2026, 10, 30), importe="10000", numero="001-001-0000001")
+
+    content = ingresada.get(_disponibilidad()).content.decode()
+    cuerpo = content.split("<tbody>")[1].split("</tbody>")[0]
+    fila_anterior = [fila for fila in cuerpo.split("<tr") if "Saldo anterior" in fila][0]
+
+    assert "Saldo anterior" in fila_anterior
+    assert "sheet-origen" not in fila_anterior
+    assert "href=" not in fila_anterior
+
+
+@pytest.mark.django_db
 def test_saldo_corre_entra_menos_salida(usuario):
     caja = _cuenta()
     _venta(usuario, caja, fecha=date(2026, 11, 2), importe="10000", numero="001-001-0000001")

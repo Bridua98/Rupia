@@ -64,12 +64,13 @@ class ReporteProductosListView(MantenimientoListView):
         "y las salidas lo descuentan (negativo). Filtrá, agrupá e imprimí o exportá."
     )
     search_label = "Buscar"
-    search_placeholder = "Buscar por ítem, marca o categoría..."
+    search_placeholder = "Buscar por ítem, marca, categoría u origen..."
     search_fields = (
         "item__descripcion",
         "item__codigo_barra",
         "item__marca__descripcion",
         "item__categoria__descripcion",
+        "secuencia_origen",
     )
     filters = (
         {
