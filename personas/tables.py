@@ -8,7 +8,8 @@ from personas.models import Persona
 
 class PersonaTable(tables.Table):
     razon_social = tables.Column(verbose_name="Razón social")
-    tipo = tables.Column(verbose_name="Tipo", accessor="roles_texto")
+    tipo_persona = tables.Column(verbose_name="Persona", accessor="tipo_persona_texto")
+    tipo = tables.Column(verbose_name="Roles", accessor="roles_texto")
     documento = tables.Column(verbose_name="Documento", accessor="documento")
     celular = tables.Column(verbose_name="Celular")
     activo = tables.Column(verbose_name="Activo")
@@ -18,6 +19,7 @@ class PersonaTable(tables.Table):
         model = Persona
         fields = (
             "razon_social",
+            "tipo_persona",
             "tipo",
             "documento",
             "celular",

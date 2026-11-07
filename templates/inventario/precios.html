@@ -114,8 +114,10 @@
               <button type="button" class="precios-paso" data-precios-paso="-1" aria-label="Bajar 1 por ciento">
                 {% include "core/icon.html" with name="minus" %}
               </button>
-              {{ ajuste_form.porcentaje }}
-              <span class="precios-porcentaje-sufijo">%</span>
+              <div class="precios-stepper-valor">
+                {{ ajuste_form.porcentaje }}
+                <span class="precios-porcentaje-sufijo">%</span>
+              </div>
               <button type="button" class="precios-paso" data-precios-paso="1" aria-label="Subir 1 por ciento">
                 {% include "core/icon.html" with name="plus" %}
               </button>

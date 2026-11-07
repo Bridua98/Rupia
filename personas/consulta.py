@@ -6,7 +6,7 @@ from urllib.request import Request, urlopen
 
 from django.conf import settings
 
-from personas.models import TipoDocumento
+from personas.models import TipoDocumento, TipoPersona
 
 TIMEOUT = 4
 
@@ -26,6 +26,13 @@ def _get(path, params):
             return json.loads(response.read().decode())
     except (OSError, URLError, TimeoutError, ValueError):
         return None
+
+
+def _tipo_persona(valor):
+    marca = str(valor or "").strip().upper()
+    if marca in ("J", "JURIDICO", "JURÍDICO"):
+        return TipoPersona.JURIDICO
+    return TipoPersona.FISICO
 
 
 def _fecha(value):
@@ -55,8 +62,10 @@ def ficha_persona(data):
         tipo = TipoDocumento.CEDULA
         documento = ruc
     razon_social = str(data.get("razonsocial") or "").strip()
+    tipo_persona = _tipo_persona(data.get("tipo"))
     return {
         "ruc": ruc,
+        "tipo_persona": tipo_persona,
         "tipo_documento": tipo,
         "documento": documento,
         "razon_social": razon_social,

@@ -1,6 +1,49 @@
 (function () {
   function boot() {
+    document.querySelectorAll("[data-rupia='ficha']").forEach(initFicha);
     document.querySelectorAll("[data-persona-consulta]").forEach(init);
+  }
+
+  function juridico(form) {
+    var marcado = form.querySelector('[name="tipo_persona"]:checked');
+    return marcado && marcado.value === "JURIDICO";
+  }
+
+  function setTipoPersona(form, valor) {
+    if (!valor) return;
+    form.querySelectorAll('[name="tipo_persona"]').forEach(function (radio) {
+      radio.checked = radio.value === valor;
+    });
+    syncTipo(form);
+  }
+
+  function documentoPorDefecto(form) {
+    var tipoDoc = form.querySelector('[name="tipo_documento"]');
+    if (!tipoDoc) return;
+    tipoDoc.value = juridico(form) ? "RUC" : "CEDULA";
+  }
+
+  function syncTipo(form) {
+    var esJuridico = juridico(form);
+    form.querySelectorAll("[data-persona-solo-fisico]").forEach(function (nodo) {
+      nodo.hidden = esJuridico;
+    });
+    var genero = form.querySelector('[name="genero"]');
+    if (esJuridico && genero) genero.value = "SIN DEFINIR";
+  }
+
+  function initFicha(root) {
+    if (root.getAttribute("data-persona-ficha-ready")) return;
+    root.setAttribute("data-persona-ficha-ready", "1");
+    var form = root.querySelector("form");
+    if (!form) return;
+    form.querySelectorAll('[name="tipo_persona"]').forEach(function (radio) {
+      radio.addEventListener("change", function () {
+        documentoPorDefecto(form);
+        syncTipo(form);
+      });
+    });
+    syncTipo(form);
   }
 
   function init(input) {
@@ -26,6 +69,7 @@
     function apply(ficha) {
       var form = input.form;
       if (!form || !ficha) return;
+      setTipoPersona(form, ficha.tipo_persona);
       var tipo = form.querySelector('[name="tipo_documento"]');
       var documento = form.querySelector('[name="documento"]');
       var razon = form.querySelector('[name="razon_social"]');
@@ -33,7 +77,8 @@
       if (tipo && ficha.tipo_documento) tipo.value = ficha.tipo_documento;
       if (documento && ficha.documento) documento.value = ficha.documento;
       if (razon && ficha.razon_social) razon.value = ficha.razon_social;
-      if (fecha && ficha.fecha_nacimiento) fecha.value = ficha.fecha_nacimiento;
+      if (fecha) fecha.value = ficha.fecha_nacimiento || "";
+      syncTipo(form);
     }
 
     function choose(row) {

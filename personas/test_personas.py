@@ -9,7 +9,7 @@ from django.utils import timezone
 from openpyxl import load_workbook
 
 from personas.consulta import buscar, consultar_ruc, ficha_persona
-from personas.models import Genero, Persona, TipoDocumento
+from personas.models import Genero, Persona, TipoDocumento, TipoPersona
 
 
 def crear_persona(**overrides):
@@ -27,6 +27,7 @@ def crear_persona(**overrides):
 
 def datos_persona(**overrides):
     datos = {
+        "tipo_persona": TipoPersona.FISICO,
         "tipo_documento": TipoDocumento.CEDULA,
         "documento": "1234567",
         "razon_social": "Ana Gómez",
@@ -145,6 +146,7 @@ def test_alta_vuelve_al_listado(ingresada):
     assert response.status_code == 302
     assert response.url == "/personas/"
     assert persona.razon_social == "Ana Gómez"
+    assert persona.tipo_persona == TipoPersona.FISICO
     assert persona.fecha_nacimiento == date(1990, 1, 15)
     assert persona.genero == Genero.FEMENINO
     assert persona.direccion == "Centro"
@@ -235,6 +237,26 @@ def test_guardar_y_seguir_abre_otra_ficha(ingresada):
 
 
 @pytest.mark.django_db
+def test_alta_persona_juridica(ingresada):
+    response = ingresada.post(
+        "/personas/nueva/",
+        datos_persona(
+            tipo_persona=TipoPersona.JURIDICO,
+            tipo_documento=TipoDocumento.RUC,
+            documento="80012345-6",
+            razon_social="Comercial Este",
+            genero=Genero.MASCULINO,
+            fecha_nacimiento="",
+        ),
+    )
+
+    persona = Persona.objects.get(documento="80012345-6")
+    assert response.status_code == 302
+    assert persona.tipo_persona == TipoPersona.JURIDICO
+    assert persona.genero == Genero.SIN_DEFINIR
+
+
+@pytest.mark.django_db
 def test_nueva_persona_desde_compras_marca_proveedor(ingresada):
     response = ingresada.get(
         "/personas/?nueva=1&proveedor=1&razon_social=Proveedor%20nuevo"
@@ -255,6 +277,9 @@ def test_formulario_usa_personal_y_fecha_nativa(ingresada):
     assert response.status_code == 200
     assert '<label for="id_es_empleado">Personal</label>' in content
     assert 'type="date"' in content
+    assert 'name="tipo_persona" value="FISICO"' in content
+    assert 'id="id_tipo_persona_0" checked' in content
+    assert 'value="CEDULA" selected' in content
 
 
 @pytest.mark.django_db
@@ -334,6 +359,25 @@ def test_filtrar_por_rol(ingresada):
 
 
 @pytest.mark.django_db
+def test_filtrar_por_tipo_persona(ingresada):
+    crear_persona(documento="1111111", razon_social="Ana Gómez", tipo_persona=TipoPersona.FISICO)
+    crear_persona(
+        documento="80012345-6",
+        razon_social="Comercial Este",
+        tipo_documento=TipoDocumento.RUC,
+        tipo_persona=TipoPersona.JURIDICO,
+        genero=Genero.SIN_DEFINIR,
+    )
+
+    response = ingresada.get("/personas/?tipo_persona=JURIDICO")
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "Comercial Este" in content
+    assert "Ana Gómez" not in content
+
+
+@pytest.mark.django_db
 def test_guardar_desde_el_listado_cierra_el_panel(ingresada):
     response = ingresada.post(
         "/personas/nueva/",
@@ -409,6 +453,7 @@ def test_exporta_tipo_y_documento_en_excel(ingresada):
     crear_persona(
         documento="80012345-6",
         tipo_documento=TipoDocumento.RUC,
+        tipo_persona=TipoPersona.JURIDICO,
         razon_social="Comercial Este",
         es_cliente=True,
         es_proveedor=True,
@@ -422,14 +467,16 @@ def test_exporta_tipo_y_documento_en_excel(ingresada):
     assert response.status_code == 200
     assert list(filas[0]) == [
         "Razón social",
-        "Tipo",
+        "Persona",
+        "Roles",
         "Documento",
         "Celular",
         "Activo",
     ]
-    assert filas[1][1] == "Cliente, Proveedor, Personal"
-    assert filas[1][2] == "80012345-6"
-    assert filas[1][4] is True
+    assert filas[1][1] == "Jurídico"
+    assert filas[1][2] == "Cliente, Proveedor, Personal"
+    assert filas[1][3] == "80012345-6"
+    assert filas[1][5] is True
 
 
 @pytest.mark.django_db
@@ -437,6 +484,7 @@ def test_imprimir_incluye_el_tipo(ingresada):
     crear_persona(
         documento="80012345-6",
         tipo_documento=TipoDocumento.RUC,
+        tipo_persona=TipoPersona.JURIDICO,
         razon_social="Comercial Este",
         es_cliente=True,
         es_proveedor=True,
@@ -447,6 +495,7 @@ def test_imprimir_incluye_el_tipo(ingresada):
 
     contenido = response.content.decode()
     assert response.status_code == 200
+    assert "Jurídico" in contenido
     assert "Cliente, Proveedor, Personal" in contenido
     assert "80012345-6" in contenido
     assert "RUC 80012345-6" not in contenido
@@ -479,6 +528,7 @@ def test_ficha_mapea_ruc_con_dv():
     )
 
     assert ficha["tipo_documento"] == TipoDocumento.RUC
+    assert ficha["tipo_persona"] == TipoPersona.JURIDICO
     assert ficha["documento"] == "80009735-1"
     assert ficha["razon_social"] == "ADMINISTRACION NACIONAL DE ELECTRICIDAD - ANDE"
     assert ficha["fecha_nacimiento"] is None
@@ -497,6 +547,7 @@ def test_ficha_mapea_cedula_sin_dv_y_fecha():
     )
 
     assert ficha["tipo_documento"] == TipoDocumento.CEDULA
+    assert ficha["tipo_persona"] == TipoPersona.FISICO
     assert ficha["documento"] == "1234567"
     assert ficha["razon_social"] == "GOMEZ ANA"
     assert ficha["fecha_nacimiento"] == "1990-01-15"
@@ -594,3 +645,8 @@ def test_formulario_publica_la_consulta(ingresada):
     assert 'data-persona-campo="documento"' in content
     assert 'data-persona-campo="razon_social"' in content
     assert "js/rupia-personas.js" in content
+    assert "Buscar en el padrón" not in content
+    assert "data-persona-modal" not in content
+    assert "Tipo de persona" in content
+    assert "Físico" in content
+    assert "Jurídico" in content

@@ -1,0 +1,38 @@
+{% for hidden in form.hidden_fields %}
+  {{ hidden }}
+{% endfor %}
+{% for error in form.non_field_errors %}
+  <p class="field-error">{{ error }}</p>
+{% endfor %}
+
+<fieldset class="persona-tipo{% if form.tipo_persona.errors %} has-error{% endif %}">
+  <legend>{{ form.tipo_persona.label }}</legend>
+  <div class="persona-tipo-opciones">
+    {% for radio in form.tipo_persona %}
+      <label class="persona-tipo-opcion">
+        {{ radio.tag }}
+        <span>{{ radio.choice_label }}</span>
+      </label>
+    {% endfor %}
+  </div>
+  {% for error in form.tipo_persona.errors %}
+    <p class="field-error">{{ error }}</p>
+  {% endfor %}
+</fieldset>
+
+{% include "core/form_field.html" with field=form.tipo_documento %}
+{% include "core/form_field.html" with field=form.documento %}
+{% include "core/form_field.html" with field=form.razon_social %}
+<div data-persona-solo-fisico>
+  {% include "core/form_field.html" with field=form.fecha_nacimiento %}
+</div>
+<div data-persona-solo-fisico>
+  {% include "core/form_field.html" with field=form.genero %}
+</div>
+{% include "core/form_field.html" with field=form.direccion %}
+{% include "core/form_field.html" with field=form.celular %}
+{% include "core/form_field.html" with field=form.observacion %}
+{% include "core/form_field.html" with field=form.es_cliente %}
+{% include "core/form_field.html" with field=form.es_proveedor %}
+{% include "core/form_field.html" with field=form.es_empleado %}
+{% include "core/form_field.html" with field=form.activo %}

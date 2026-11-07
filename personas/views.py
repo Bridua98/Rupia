@@ -11,7 +11,7 @@ from core.mantenimiento import (
 )
 from personas.consulta import buscar, consultar_ruc
 from personas.forms import PersonaForm
-from personas.models import Genero, Persona, TipoDocumento
+from personas.models import Genero, Persona, TipoDocumento, TipoPersona
 from personas.tables import PersonaTable
 
 
@@ -31,8 +31,15 @@ class PersonaMantenimiento:
     search_placeholder = "Buscar por razón social, documento o celular..."
     search_field = "razon_social"
     search_fields = ("razon_social", "documento", "celular")
+    form_fields_template = "personas/form_fields.html"
 
     filters = (
+        {
+            "name": "tipo_persona",
+            "label": "Tipo de persona",
+            "kind": "choice",
+            "choices": TipoPersona.choices,
+        },
         {
             "name": "tipo_documento",
             "label": "Tipo de documento",

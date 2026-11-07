@@ -368,7 +368,6 @@ class PrecioListView(LoginRequiredMixin, PermisoRequeridoMixin, SingleTableView)
         "categoria__descripcion",
     )
     filters = (
-        {"name": "tipo", "label": "Tipo", "kind": "choice", "choices": TipoItem.choices},
         {
             "name": "marca",
             "label": "Marca",
@@ -399,7 +398,11 @@ class PrecioListView(LoginRequiredMixin, PermisoRequeridoMixin, SingleTableView)
         return values
 
     def get_queryset(self):
-        queryset = Item.objects.select_related("marca", "categoria").order_by("descripcion", "pk")
+        queryset = (
+            Item.objects.filter(tipo=TipoItem.PRODUCTO)
+            .select_related("marca", "categoria")
+            .order_by("descripcion", "pk")
+        )
         queryset = apply_search(queryset, self.query(), self.search_fields)
         return apply_filters(queryset, self._filter_values(), filter_specs_for(self))
 
