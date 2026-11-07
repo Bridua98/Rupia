@@ -317,6 +317,7 @@ def test_ticket_y_factura_avanzan_series_distintas(ingresada):
     assert "Monto" in ticket_html
     assert "Total" in ticket_html
     assert "Bombón de helado sabor frutillas" in ticket_html
+    assert "Cliente" not in ticket_html
 
     ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
     response = ingresada.post(
@@ -342,6 +343,25 @@ def test_ticket_y_factura_avanzan_series_distintas(ingresada):
     assert "Factura N° 001-002-0000124" in factura_html
     assert "Cliente SA" in factura_html
     assert "IVA 10%" in factura_html
+
+
+@pytest.mark.django_db
+def test_ticket_impreso_muestra_el_cliente_si_se_elige(ingresada):
+    _preparar()
+    cliente = _cliente()
+    item = Item.objects.get(codigo_barra="PROD-001")
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
+    response = ingresada.post(
+        "/ventas/punto-de-venta/confirmar/",
+        {"tipo_comprobante": TipoComprobante.TICKET, "cliente": cliente.pk},
+    )
+    venta = Venta.objects.get(tipo_comprobante=TipoComprobante.TICKET, estado=EstadoVenta.COBRADA)
+    assert response.url == f"/ventas/{venta.pk}/ticket/"
+    ticket_html = ingresada.get(f"/ventas/{venta.pk}/ticket/").content.decode()
+    assert "Cliente" in ticket_html
+    assert "Cliente SA" in ticket_html
+    assert "RUC" in ticket_html
+    assert "80009735-8" in ticket_html
 
 
 @pytest.mark.django_db
