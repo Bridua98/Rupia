@@ -2447,6 +2447,17 @@ body.is-visor {
   vertical-align: middle;
 }
 
+.sheet-origen {
+  color: var(--forest);
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.sheet-origen:hover {
+  color: var(--accent);
+}
+
 .ledger.is-reporte .sheet-wrap {
   overflow-x: auto;
 }

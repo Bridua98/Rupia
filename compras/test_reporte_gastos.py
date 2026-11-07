@@ -267,6 +267,35 @@ def test_agrupa_por_unidad_cuenta_y_producto(ingresada, usuario):
 
 
 @pytest.mark.django_db
+def test_comprobante_abre_la_compra(ingresada, usuario):
+    cuenta = _cuenta()
+    proveedor = _proveedor()
+    deposito = _negocio()
+    item = _item("Arroz", TipoItem.PRODUCTO, deposito)
+    compra = _compra(
+        usuario,
+        cuenta,
+        proveedor,
+        estado=EstadoCompra.CONFIRMADA,
+        tipo=TipoCompra.FACTURA_CONTADO,
+        numero="001-001-0000001",
+        fecha=date(2026, 10, 2),
+    )
+    _linea(compra, item, deposito)
+
+    content = ingresada.get("/compras/reportes/gastos/").content.decode()
+    cuerpo = content.split("<tbody>")[1].split("</tbody>")[0]
+
+    assert f'href="/compras/?compra={compra.pk}&amp;ver=1"' in cuerpo
+    assert "sheet-origen" in cuerpo
+
+    agrupado = ingresada.get("/compras/reportes/gastos/?agrupar=producto").content.decode()
+    cuerpo_agrupado = agrupado.split("<tbody>")[1].split("</tbody>")[0]
+    assert "sheet-origen" not in cuerpo_agrupado
+    assert f'href="/compras/?compra={compra.pk}' not in cuerpo_agrupado
+
+
+@pytest.mark.django_db
 def test_excel_separa_gravado_e_iva(ingresada, usuario):
     cuenta = _cuenta()
     proveedor = _proveedor()

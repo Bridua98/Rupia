@@ -5,7 +5,9 @@ from io import BytesIO
 import pytest
 from openpyxl import load_workbook
 
+from cuentas.models import Cuenta
 from inventario.models import (
+    AjusteStock,
     Item,
     ItemCategoria,
     ItemMovimiento,
@@ -16,6 +18,7 @@ from inventario.models import (
     UnidadMedida,
 )
 from negocio.models import UnidadNegocio
+from ventas.models import EstadoVenta, MedioPago, Venta
 
 
 def _unidad_negocio():
@@ -53,7 +56,17 @@ def _gasto(descripcion, marca, categoria, unidad):
     )
 
 
-def _movimiento(item, unidad, *, pk, cantidad, subtotal, fecha=None, tipo=TipoMovimiento.VENTA):
+def _movimiento(
+    item,
+    unidad,
+    *,
+    pk,
+    cantidad,
+    subtotal,
+    fecha=None,
+    tipo=TipoMovimiento.VENTA,
+    secuencia=None,
+):
     return ItemMovimiento.objects.create(
         id=pk,
         item=item,
@@ -64,6 +77,7 @@ def _movimiento(item, unidad, *, pk, cantidad, subtotal, fecha=None, tipo=TipoMo
         precio=Decimal("1000"),
         costo=Decimal("800"),
         subtotal=Decimal(subtotal),
+        secuencia_origen=secuencia,
     )
 
 
@@ -178,11 +192,16 @@ def test_excel_incluye_fila_total(ingresada):
     libro = load_workbook(BytesIO(response.content))
     hoja = libro.active
     ultima = hoja.max_row
+    headers = [celda.value for celda in hoja[1]]
+    cantidad = headers.index("Cantidad") + 1
+    subtotal = headers.index("Subtotal") + 1
+    origen = headers.index("Origen") + 1
     assert hoja.cell(ultima, 1).value == "Total"
-    assert hoja.cell(2, 7).value == "-2"
-    assert hoja.cell(2, 10).value == "-Gs. 2.000"
-    assert hoja.cell(ultima, 7).value == "-2"
-    assert hoja.cell(ultima, 10).value == "-Gs. 2.000"
+    assert hoja.cell(2, cantidad).value == "-2"
+    assert hoja.cell(2, subtotal).value == "-Gs. 2.000"
+    assert hoja.cell(2, origen).value in (None, "")
+    assert hoja.cell(ultima, cantidad).value == "-2"
+    assert hoja.cell(ultima, subtotal).value == "-Gs. 2.000"
 
 
 @pytest.mark.django_db
@@ -251,3 +270,70 @@ def test_agrupado_compensa_entrada_y_salida(ingresada):
     assert "valor-num is-pos" in cuerpo
     assert ">6</span>" in cuerpo or ">6<" in cuerpo
     assert "6.000" in content
+
+
+@pytest.mark.django_db
+def test_origen_abre_venta_compra_y_ajuste(ingresada, usuario):
+    marca = Marca.objects.create(descripcion="M")
+    categoria = ItemCategoria.objects.create(descripcion="C")
+    unidad = UnidadMedida.objects.create(descripcion="Unidad", simbolo="UND")
+    producto = _producto("Prod Origen", marca, categoria, unidad)
+    caja = Cuenta.objects.create(descripcion="Caja origen", nombre_corto="CORIGEN")
+    venta = Venta.objects.create(
+        fecha=date(2026, 10, 1),
+        estado=EstadoVenta.COBRADA,
+        caja=caja,
+        cuenta_cobro=caja,
+        usuario=usuario,
+        medio=MedioPago.EFECTIVO,
+        numero_completo="001-001-0000777",
+    )
+    _movimiento(
+        producto,
+        unidad,
+        pk=70,
+        cantidad="1",
+        subtotal="1000",
+        tipo=TipoMovimiento.VENTA,
+        secuencia=venta.numero_completo,
+    )
+    _movimiento(
+        producto,
+        unidad,
+        pk=71,
+        cantidad="2",
+        subtotal="2000",
+        tipo=TipoMovimiento.COMPRA,
+        secuencia="C88",
+    )
+    AjusteStock.objects.create(fecha=date(2026, 10, 1), observacion="Conteo", id=12)
+    _movimiento(
+        producto,
+        unidad,
+        pk=72,
+        cantidad="3",
+        subtotal="3000",
+        tipo=TipoMovimiento.AJUSTE_POSITIVO,
+        secuencia="A12",
+    )
+
+    content = ingresada.get("/inventario/reportes/productos/").content.decode()
+    cuerpo = content.split("<tbody>")[1].split("</tbody>")[0]
+
+    assert "Origen" in content
+    assert f'href="/ventas/?venta={venta.pk}&amp;ver=1"' in cuerpo
+    assert 'href="/compras/?compra=88&amp;ver=1"' in cuerpo
+    assert 'href="/inventario/ajustes/?ajuste=12&amp;ver=1"' in cuerpo
+    assert "sheet-origen" in cuerpo
+
+    libro = load_workbook(
+        BytesIO(ingresada.get("/inventario/reportes/productos/exportar.xlsx").content)
+    )
+    hoja = libro.active
+    headers = [celda.value for celda in hoja[1]]
+    origen = headers.index("Origen") + 1
+    valores = {hoja.cell(fila, origen).value for fila in range(2, hoja.max_row)}
+    assert "001-001-0000777" in valores
+    assert "C88" in valores
+    assert "A12" in valores
+    assert all("<a" not in str(valor or "") for valor in valores)

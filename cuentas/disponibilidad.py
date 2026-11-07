@@ -45,6 +45,7 @@ class FilaDisponibilidad:
     salida: Decimal | None
     saldo: Decimal
     es_saldo_anterior: bool = False
+    origen_id: int | None = None
 
 
 @dataclass
@@ -265,6 +266,7 @@ def mayor_disponibilidad(*, cuenta_id=None, fecha_desde=None, fecha_hasta=None, 
                     salida=salida_anterior,
                     saldo=entra_anterior - salida_anterior,
                     es_saldo_anterior=True,
+                    origen_id=None,
                 )
             )
         for movimiento in periodo:
@@ -280,6 +282,7 @@ def mayor_disponibilidad(*, cuenta_id=None, fecha_desde=None, fecha_hasta=None, 
                     entra=movimiento["entra"] if movimiento["entra"] else None,
                     salida=movimiento["salida"] if movimiento["salida"] else None,
                     saldo=saldo,
+                    origen_id=movimiento["origen_id"],
                 )
             )
     totales = {

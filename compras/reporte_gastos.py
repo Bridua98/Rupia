@@ -51,6 +51,7 @@ CERO = Decimal("0")
 @dataclass
 class FilaGasto:
     pk: int
+    compra_id: int
     fecha: object
     comprobante: str
     tipo_comprobante: str
@@ -230,6 +231,7 @@ class ReporteGastosListView(MantenimientoListView):
             filas.append(
                 FilaGasto(
                     pk=detalle.pk,
+                    compra_id=compra.pk,
                     fecha=compra.fecha,
                     comprobante=compra.numero_completo or f"Egreso {compra.pk}",
                     tipo_comprobante=compra.get_tipo_display(),
