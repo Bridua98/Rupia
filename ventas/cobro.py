@@ -278,29 +278,50 @@ def punto_de(tipo) -> PuntoExpedicion | None:
     return PuntoExpedicion.objects.filter(tipo=tipo).first()
 
 
-def _estado_emision(punto, fecha=None):
+def _etiqueta_comprobante(tipo) -> str:
+    if tipo == TipoComprobante.TICKET:
+        return "ticket"
+    if tipo == TipoComprobante.FACTURA:
+        return "factura"
+    return "comprobante"
+
+
+def _tipo_emision(punto, tipo):
+    if tipo:
+        return tipo
+    if punto is not None:
+        return punto.tipo
+    return None
+
+
+def _estado_emision(punto, fecha=None, tipo=None):
     fecha = fecha or timezone.localdate()
+    tipo = _tipo_emision(punto, tipo)
+    etiqueta = _etiqueta_comprobante(tipo)
     if punto is None:
-        return False, "No hay un timbrado registrado para ese comprobante.", "punto"
+        return False, f"No hay un timbrado registrado para {etiqueta}.", "punto"
     if not punto.habilitado:
-        return False, "El timbrado no está habilitado.", "habilitado"
+        return False, f"El timbrado de {etiqueta} no está habilitado.", "habilitado"
     if not (punto.vigencia_desde <= fecha <= punto.vigencia_hasta):
-        return False, "El timbrado no está vigente.", "timbrado"
+        return False, f"El timbrado de {etiqueta} no está vigente.", "timbrado"
     if not (punto.numero_desde <= punto.numero_proximo <= punto.numero_hasta):
-        return False, "Se acabó el rango de números de ese comprobante.", "rango"
+        return False, f"Se acabó el rango de números de {etiqueta}.", "rango"
     return True, "", ""
 
 
-def puede_emitir(punto, fecha=None) -> bool:
-    return _estado_emision(punto, fecha)[0]
+def puede_emitir(punto, fecha=None, tipo=None) -> bool:
+    return _estado_emision(punto, fecha, tipo)[0]
 
 
-def motivo_emision(punto, fecha=None) -> str:
-    return _estado_emision(punto, fecha)[1]
+def motivo_emision(punto, fecha=None, tipo=None) -> str:
+    return _estado_emision(punto, fecha, tipo)[1]
 
 
-def exigir_emision(punto, fecha=None) -> PuntoExpedicion:
-    ok, mensaje, code = _estado_emision(punto, fecha)
+def exigir_emision(punto, fecha=None, tipo=None) -> PuntoExpedicion:
+    if tipo is not None:
+        if punto is None or punto.tipo != tipo:
+            punto = punto_de(tipo)
+    ok, mensaje, code = _estado_emision(punto, fecha, tipo)
     if not ok:
         raise ValidationError(mensaje, code=code)
     return punto
@@ -308,7 +329,7 @@ def exigir_emision(punto, fecha=None) -> PuntoExpedicion:
 
 def punto_para(tipo) -> PuntoExpedicion | None:
     punto = punto_de(tipo)
-    if not puede_emitir(punto):
+    if not puede_emitir(punto, tipo=tipo):
         return None
     return punto
 
@@ -329,20 +350,30 @@ def exigir_cliente_factura(venta):
 def motivo_pos(venta) -> str:
     if factura_pide_cliente(venta):
         return "La factura pide un cliente."
-    return motivo_emision(punto_de(venta.tipo_comprobante))
+    return motivo_emision(
+        punto_de(venta.tipo_comprobante),
+        tipo=venta.tipo_comprobante,
+    )
 
 
 def puede_cobrar(venta) -> bool:
     if factura_pide_cliente(venta):
         return False
-    return puede_emitir(punto_de(venta.tipo_comprobante))
+    return puede_emitir(
+        punto_de(venta.tipo_comprobante),
+        tipo=venta.tipo_comprobante,
+    )
+
+
+def puede_guardar(venta) -> bool:
+    return puede_cobrar(venta)
 
 
 def comprobantes_emitibles():
     return [
         (tipo, etiqueta)
         for tipo, etiqueta in TipoComprobante.choices
-        if puede_emitir(punto_de(tipo))
+        if puede_emitir(punto_de(tipo), tipo=tipo)
     ]
 
 
@@ -666,8 +697,14 @@ def actualizar_cabecera(
         venta.caja = caja
         campos.append("caja")
     if tipo_comprobante is not None:
+        anterior = venta.tipo_comprobante
         venta.tipo_comprobante = tipo_comprobante
         campos.append("tipo_comprobante")
+        if tipo_comprobante != anterior:
+            venta.establecimiento = ""
+            venta.punto_codigo = ""
+            venta.secuencial = None
+            campos.extend(["establecimiento", "punto_codigo", "secuencial"])
     if medio is not None:
         venta.medio = medio
         campos.append("medio")
@@ -766,22 +803,32 @@ def interpretar_secuencial(valor, por_defecto: int) -> int:
     return int(texto)
 
 
-def numero_ya_usado(timbrado: str, numero: str) -> bool:
+def numero_ya_usado(timbrado: str, numero: str, tipo=None) -> bool:
     if not timbrado or not numero:
         return False
-    return Venta.objects.filter(
+    consulta = Venta.objects.filter(
         numero_reservado_q(),
         timbrado=timbrado,
         numero_completo=numero,
-    ).exists()
+    )
+    if tipo:
+        consulta = consulta.filter(tipo_comprobante=tipo)
+    return consulta.exists()
 
 
-def exigir_numero_libre(timbrado: str, numero: str):
-    if numero_ya_usado(timbrado, numero):
+def exigir_numero_libre(timbrado: str, numero: str, tipo=None):
+    if numero_ya_usado(timbrado, numero, tipo=tipo):
         raise ValidationError(
             "Ya hay un comprobante con ese timbrado y número.",
             code="numero",
         )
+
+
+def _es_numero_duplicado(exc: IntegrityError) -> bool:
+    detalle = " ".join(str(parte) for parte in exc.args).lower()
+    return "ventas_timbrado_numero_completo" in detalle or (
+        "vent_timbrado" in detalle and "vent_numero_completo" in detalle
+    )
 
 
 def confirmar(venta, *, establecimiento=None, punto_codigo=None, secuencial=None) -> Venta:
@@ -819,6 +866,7 @@ def confirmar(venta, *, establecimiento=None, punto_codigo=None, secuencial=None
         punto = exigir_emision(
             PuntoExpedicion.objects.select_for_update().filter(tipo=venta.tipo_comprobante).first(),
             fecha,
+            tipo=venta.tipo_comprobante,
         )
         _validar_stock(venta)
         if venta.tipo_comprobante == TipoComprobante.FACTURA:
@@ -832,12 +880,13 @@ def confirmar(venta, *, establecimiento=None, punto_codigo=None, secuencial=None
             punto_codigo = punto.codigo
             secuencial = punto.numero_proximo
         if not (punto.numero_desde <= secuencial <= punto.numero_hasta):
+            etiqueta = _etiqueta_comprobante(venta.tipo_comprobante)
             raise ValidationError(
-                "Ese número está fuera del rango del timbrado.",
+                f"Ese número está fuera del rango del timbrado de {etiqueta}.",
                 code="rango",
             )
         numero = formatear_numero_comprobante(establecimiento, punto_codigo, secuencial)
-        exigir_numero_libre(punto.timbrado, numero)
+        exigir_numero_libre(punto.timbrado, numero, tipo=venta.tipo_comprobante)
         if secuencial >= punto.numero_proximo:
             punto.numero_proximo = secuencial + 1
             punto.save(update_fields=["numero_proximo"])
@@ -861,6 +910,8 @@ def confirmar(venta, *, establecimiento=None, punto_codigo=None, secuencial=None
         try:
             venta.save()
         except IntegrityError as exc:
+            if not _es_numero_duplicado(exc):
+                raise
             raise ValidationError(
                 "Ya hay un comprobante con ese timbrado y número.",
                 code="numero",
