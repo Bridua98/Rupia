@@ -59,6 +59,12 @@ class Cuenta(models.Model):
             return "Banco"
         return "Caja"
 
+    def etiqueta_cobro(self) -> str:
+        numero = (self.numero or "").strip()
+        if numero:
+            return f"{self.descripcion} · {numero}"
+        return self.descripcion
+
 
 class Transferencia(models.Model):
     id = models.AutoField(primary_key=True, db_column="trans_id")

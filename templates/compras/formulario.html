@@ -40,7 +40,7 @@
         <select name="cuenta" aria-label="Cuenta" data-compra-cuenta>
           <option value="">Elegí la cuenta</option>
           {% for cuenta in cuentas %}
-            <option value="{{ cuenta.pk }}"{% if compra.cuenta_id == cuenta.pk %} selected{% endif %}>{{ cuenta.nombre_corto }} · {{ cuenta.descripcion }}</option>
+            <option value="{{ cuenta.pk }}"{% if compra.cuenta_id == cuenta.pk %} selected{% endif %}>{{ cuenta.etiqueta_cobro }}</option>
           {% endfor %}
         </select>
       </label>

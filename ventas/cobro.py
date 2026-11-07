@@ -116,9 +116,7 @@ def cajas():
 
 def cuentas_para_medio(medio, caja=None):
     if medio == MedioPago.EFECTIVO:
-        if caja is None:
-            return Cuenta.objects.none()
-        return Cuenta.objects.filter(pk=caja.pk)
+        return cajas()
     if medio == MedioPago.TARJETA:
         return Cuenta.objects.filter(es_tarjeta=True).order_by("descripcion")
     if medio in (MedioPago.TRANSFERENCIA, MedioPago.QR):
@@ -148,6 +146,44 @@ def caja_por_defecto():
     return None
 
 
+def cuenta_unica_para_medio(medio):
+    qs = cuentas_para_medio(medio)
+    if qs.count() == 1:
+        return qs.first()
+    return None
+
+
+def asegurar_cuenta_cobro(venta) -> Venta:
+    campos = []
+    permitidas = set(cuentas_para_medio(venta.medio).values_list("pk", flat=True))
+    if venta.cuenta_cobro_id:
+        if venta.cuenta_cobro_id in permitidas:
+            if venta.medio == MedioPago.EFECTIVO and venta.caja_id != venta.cuenta_cobro_id:
+                venta.caja = venta.cuenta_cobro
+                campos.append("caja")
+            if campos:
+                venta.save(update_fields=campos)
+            return venta
+        venta.cuenta_cobro = None
+        campos.append("cuenta_cobro")
+        if venta.medio == MedioPago.EFECTIVO:
+            venta.caja = None
+            campos.append("caja")
+    unica = cuenta_unica_para_medio(venta.medio)
+    if unica:
+        venta.cuenta_cobro = unica
+        campos.append("cuenta_cobro")
+        if venta.medio == MedioPago.EFECTIVO:
+            venta.caja = unica
+            campos.append("caja")
+    elif venta.medio == MedioPago.EFECTIVO and venta.caja_id and not venta.cuenta_cobro_id:
+        venta.cuenta_cobro = venta.caja
+        campos.append("cuenta_cobro")
+    if campos:
+        venta.save(update_fields=list(dict.fromkeys(campos)))
+    return venta
+
+
 def cliente_ocasional():
     return (
         Persona.objects.filter(
@@ -167,7 +203,7 @@ def borrador(usuario) -> Venta:
         .first()
     )
     if venta:
-        return venta
+        return asegurar_cuenta_cobro(venta)
     caja = caja_por_defecto()
     venta = Venta.objects.create(
         fecha=timezone.localdate(),
@@ -180,7 +216,7 @@ def borrador(usuario) -> Venta:
         condicion_venta=CondicionVenta.CONTADO,
         cliente=cliente_ocasional(),
     )
-    return venta
+    return asegurar_cuenta_cobro(venta)
 
 
 def cancelar(venta):
@@ -635,20 +671,39 @@ def actualizar_cabecera(
     if medio is not None:
         venta.medio = medio
         campos.append("medio")
-        if medio == MedioPago.EFECTIVO and venta.caja_id:
-            venta.cuenta_cobro = venta.caja
-            campos.append("cuenta_cobro")
+        if medio == MedioPago.EFECTIVO:
+            if venta.caja_id:
+                venta.cuenta_cobro = venta.caja
+                campos.append("cuenta_cobro")
+            elif venta.cuenta_cobro_id and not venta.cuenta_cobro.es_banco:
+                venta.caja = venta.cuenta_cobro
+                campos.append("caja")
+            else:
+                opciones = list(cuentas_para_medio(medio)[:2])
+                if len(opciones) == 1:
+                    venta.caja = opciones[0]
+                    venta.cuenta_cobro = opciones[0]
+                    campos.extend(["caja", "cuenta_cobro"])
+                elif venta.cuenta_cobro_id:
+                    permitidas = set(cuentas_para_medio(medio).values_list("pk", flat=True))
+                    if venta.cuenta_cobro_id not in permitidas:
+                        venta.cuenta_cobro = None
+                        venta.caja = None
+                        campos.extend(["cuenta_cobro", "caja"])
         elif venta.cuenta_cobro_id:
-            permitidas = set(cuentas_para_medio(medio, venta.caja).values_list("pk", flat=True))
+            permitidas = set(cuentas_para_medio(medio).values_list("pk", flat=True))
             if venta.cuenta_cobro_id not in permitidas:
-                opciones = list(cuentas_para_medio(medio, venta.caja)[:2])
+                opciones = list(cuentas_para_medio(medio)[:2])
                 venta.cuenta_cobro = opciones[0] if len(opciones) == 1 else None
                 campos.append("cuenta_cobro")
     if cuenta_cobro is not None:
-        permitidas = set(cuentas_para_medio(venta.medio, venta.caja).values_list("pk", flat=True))
+        permitidas = set(cuentas_para_medio(venta.medio).values_list("pk", flat=True))
         if cuenta_cobro.pk in permitidas:
             venta.cuenta_cobro = cuenta_cobro
             campos.append("cuenta_cobro")
+            if venta.medio == MedioPago.EFECTIVO:
+                venta.caja = cuenta_cobro
+                campos.append("caja")
         elif medio is None:
             raise ValidationError("Elegí la cuenta de cobro.", code="cuenta")
     if descuento is not None:
@@ -682,7 +737,7 @@ def actualizar_cabecera(
             campos.append("importe_recibido")
     if campos:
         venta.save(update_fields=campos)
-    return venta
+    return asegurar_cuenta_cobro(venta)
 
 
 def interpretar_serie(valor, esperado: str, etiqueta: str) -> str:
@@ -733,10 +788,13 @@ def confirmar(venta, *, establecimiento=None, punto_codigo=None, secuencial=None
     _exige_borrador(venta)
     if not venta.detalles.exists():
         raise ValidationError("Agregá un producto.", code="vacia")
-    if venta.caja_id is None:
-        raise ValidationError("Elegí una caja.", code="caja")
     if venta.cuenta_cobro_id is None:
         raise ValidationError("Elegí la cuenta de cobro.", code="cuenta")
+    if venta.medio == MedioPago.EFECTIVO:
+        if venta.caja_id is None:
+            raise ValidationError("Elegí la cuenta de cobro.", code="cuenta")
+        if venta.cuenta_cobro_id != venta.caja_id:
+            raise ValidationError("Elegí la cuenta de cobro.", code="cuenta")
     exigir_cliente_factura(venta)
     descuento = redondear_guarani(venta.descuento or CERO)
     subtotal = subtotal_venta(venta)

@@ -654,6 +654,60 @@ def test_medios_de_cobro_siguen_a_las_cuentas(ingresada):
 
 
 @pytest.mark.django_db
+def test_efectivo_lista_varias_cajas_y_sincroniza_cobro(ingresada):
+    _punto(TipoComprobante.TICKET)
+    _punto(TipoComprobante.FACTURA)
+    caja1 = Cuenta.objects.create(descripcion="Caja mostrador", nombre_corto="MOST")
+    caja2 = Cuenta.objects.create(descripcion="Caja depósito", nombre_corto="DEP")
+    item = _item()
+    _stock(item)
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "Caja mostrador" in content
+    assert "Caja depósito" in content
+    venta = Venta.objects.get(estado=EstadoVenta.EN_CURSO)
+    assert venta.caja_id is None
+    ingresada.post("/ventas/punto-de-venta/", {"cuenta_cobro": caja2.pk})
+    venta.refresh_from_db()
+    assert venta.medio == MedioPago.EFECTIVO
+    assert venta.caja_id == caja2.pk
+    assert venta.cuenta_cobro_id == caja2.pk
+
+
+@pytest.mark.django_db
+def test_medio_con_una_sola_cuenta_la_selecciona(ingresada):
+    _preparar()
+    tarjeta = _tarjeta()
+    ingresada.get("/ventas/punto-de-venta/")
+    ingresada.post("/ventas/punto-de-venta/", {"medio": MedioPago.TARJETA})
+    venta = Venta.objects.get(estado=EstadoVenta.EN_CURSO)
+    assert venta.cuenta_cobro_id == tarjeta.pk
+
+
+@pytest.mark.django_db
+def test_tarjeta_confirma_sin_caja_si_hay_varias(ingresada):
+    _punto(TipoComprobante.TICKET)
+    _punto(TipoComprobante.FACTURA)
+    Cuenta.objects.create(descripcion="Caja 01", nombre_corto="CAJA01")
+    Cuenta.objects.create(descripcion="Caja 02", nombre_corto="CAJA02")
+    tarjeta = _tarjeta()
+    item = _item()
+    _stock(item)
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    ingresada.post(
+        "/ventas/punto-de-venta/",
+        {"medio": MedioPago.TARJETA, "cuenta_cobro": tarjeta.pk},
+    )
+    venta = Venta.objects.get(estado=EstadoVenta.EN_CURSO)
+    assert venta.caja_id is None
+    assert venta.cuenta_cobro_id == tarjeta.pk
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "Tarjeta · 999" in content
+    response = ingresada.post("/ventas/punto-de-venta/confirmar/")
+    assert response.status_code == 302
+    assert Venta.objects.filter(estado=EstadoVenta.COBRADA).count() == 1
+
+
+@pytest.mark.django_db
 def test_cambiar_a_efectivo_usa_la_caja_aunque_venga_otra_cuenta(ingresada):
     caja, _item = _preparar()
     tarjeta = _tarjeta()

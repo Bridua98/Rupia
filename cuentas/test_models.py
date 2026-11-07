@@ -52,6 +52,7 @@ def test_tarjeta_es_un_banco():
 
     assert cuenta.tipo_caja() == "Tarjeta"
     assert cuenta.numero == "4111111111111111"
+    assert cuenta.etiqueta_cobro() == "Visa Itaú · 4111111111111111"
 
 
 @pytest.mark.django_db
