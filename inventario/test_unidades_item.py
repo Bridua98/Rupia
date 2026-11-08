@@ -154,6 +154,30 @@ def test_ficha_muestra_unidades_relacionadas(ingresada):
 
 
 @pytest.mark.django_db
+def test_alta_guarda_relacion_con_valor_decimal(ingresada):
+    marca, categoria, litro = _foraneos(simbolo="l")
+    litro.descripcion = "Litro"
+    litro.save(update_fields=["descripcion"])
+    vaso = UnidadMedida.objects.create(descripcion="Vaso", simbolo="vaso")
+
+    response = ingresada.post(
+        "/inventario/items/nueva/",
+        _datos(
+            marca,
+            categoria,
+            litro,
+            **_fila(0, vaso, RelacionUnidad.MAYOR, "0,250"),
+        ),
+    )
+
+    item = Item.objects.get(descripcion="Helado")
+    assert response.status_code == 302
+    relacionada = item.unidades.get()
+    assert relacionada.valor == Decimal("0.250")
+    assert convertir_a_base(item, vaso, "4") == Decimal("1.000")
+
+
+@pytest.mark.django_db
 def test_alta_guarda_unidad_relacionada(ingresada):
     marca, categoria, kilo = _foraneos()
     gramo = UnidadMedida.objects.create(descripcion="Gramo", simbolo="g")

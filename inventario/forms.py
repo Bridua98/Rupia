@@ -407,16 +407,23 @@ class ItemUnidadForm(RupiaModelForm):
         required=False,
         max_digits=15,
         decimal_places=3,
-        min_value=Decimal("0.001"),
         error_messages={
             "invalid": "Escribí el valor.",
-            "min_value": "El valor tiene que ser mayor a 0.",
         },
     )
 
     class Meta:
         model = ItemUnidad
         fields = ["unidad_medida", "relacion", "valor"]
+
+    def clean_valor(self):
+        valor = self.cleaned_data.get("valor")
+        if valor is not None and valor <= 0:
+            raise ValidationError(
+                "El valor tiene que ser mayor a 0.",
+                code="min_value",
+            )
+        return valor
 
     def clean(self):
         cleaned = super().clean()

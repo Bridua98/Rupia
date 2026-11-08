@@ -9,6 +9,20 @@
     function partes(texto) {
       var crudo = String(texto || "").replace(/\s/g, "");
       var coma = crudo.lastIndexOf(",");
+      if (coma < 0) {
+        var punto = crudo.lastIndexOf(".");
+        if (punto >= 0) {
+          var der = crudo.slice(punto + 1);
+          var izq = crudo.slice(0, punto).replace(/\D/g, "");
+          var fracDer = der.replace(/\D/g, "");
+          if (/^\d*$/.test(der) && fracDer.length <= maxDec) {
+            var miles = fracDer.length === 3 && /^(?:0|[1-9]\d{0,2})$/.test(izq || "0");
+            if (!miles) {
+              coma = punto;
+            }
+          }
+        }
+      }
       var puntoFinal = coma < 0 && /[.,]$/.test(crudo);
       var entero;
       var frac = "";

@@ -20,6 +20,8 @@ def test_formatea_con_coma_decimal_y_punto_de_miles():
 
 def test_interpreta_cantidad_paraguaya():
     assert interpretar_cantidad("0,300") == "0.300"
+    assert interpretar_cantidad("0,25") == "0.25"
+    assert interpretar_cantidad("0.25") == "0.25"
     assert interpretar_cantidad("12,000") == "12.000"
     assert interpretar_cantidad("1.000,000") == "1000.000"
     assert interpretar_cantidad("1.250,5") == "1250.5"
@@ -31,8 +33,6 @@ def test_interpreta_cantidad_paraguaya():
 def test_rechaza_cantidad_invalida():
     with pytest.raises(ValidationError, match="cantidad"):
         interpretar_cantidad("1,2,3")
-    with pytest.raises(ValidationError, match="cantidad"):
-        interpretar_cantidad("1.00")
     with pytest.raises(ValidationError, match="cantidad"):
         interpretar_cantidad("12a")
 

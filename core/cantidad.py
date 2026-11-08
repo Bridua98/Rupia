@@ -52,6 +52,12 @@ def interpretar_cantidad(valor, *, decimales=3) -> str:
         if not frac.isdigit() or len(frac) > decimales:
             raise ValidationError("Escribí la cantidad.", code="invalid")
         return f"{_entero(entero)}.{frac}"
+    if texto.count(".") == 1:
+        entero, frac = texto.split(".", 1)
+        if frac.isdigit() and len(frac) <= decimales:
+            if len(frac) == 3 and _ENTERO.fullmatch(entero or "0") is not None:
+                return _entero(texto)
+            return f"{_entero(entero or '0')}.{frac}"
     return _entero(texto)
 
 
