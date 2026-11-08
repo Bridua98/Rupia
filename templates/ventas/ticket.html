@@ -59,6 +59,9 @@
     </table>
     <p class="ticket-sep"></p>
     <p class="ticket-total"><span>Total</span><strong class="valor-gs is-texto" dir="ltr">{{ total_txt }}</strong></p>
+    {% if venta.numero_comprobante_pago %}
+      <p class="ticket-meta"><span>{{ venta.get_medio_display }}</span><span>{{ venta.numero_comprobante_pago }}</span></p>
+    {% endif %}
   </div>
 </article>
 {% endblock %}

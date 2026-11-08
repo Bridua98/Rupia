@@ -201,6 +201,12 @@ class Venta(models.Model):
         default=MedioPago.EFECTIVO,
         db_column="vent_medio",
     )
+    numero_comprobante_pago = models.CharField(
+        "comprobante de pago",
+        max_length=80,
+        blank=True,
+        db_column="vent_numero_comprobante_pago",
+    )
     descuento = models.DecimalField(
         "descuento",
         max_digits=15,

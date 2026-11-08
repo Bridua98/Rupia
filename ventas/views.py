@@ -178,7 +178,12 @@ class VentaListado:
     search_label = "Buscar"
     search_placeholder = "Buscar por número, cliente o timbrado..."
     search_field = "numero_completo"
-    search_fields = ("numero_completo", "cliente__razon_social", "timbrado")
+    search_fields = (
+        "numero_completo",
+        "cliente__razon_social",
+        "timbrado",
+        "numero_comprobante_pago",
+    )
     filters = (
         {
             "name": "tipo_comprobante",
@@ -347,6 +352,7 @@ class PuntoVentaView(PosPermisoView):
             consumidor_final=consumidor,
             observacion=datos.get("observacion"),
             importe_recibido=_monto(datos.get("importe_recibido"), None),
+            numero_comprobante_pago=datos.get("numero_comprobante_pago"),
         )
 
     def _contexto(self, venta):

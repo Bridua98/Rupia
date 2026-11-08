@@ -59,6 +59,6 @@
   <p>Gravadas 5% {{ gravadas_5_txt }} · IVA 5% {{ iva_5_txt }}</p>
   <p>Exentas {{ exentas_txt }}</p>
   <p><strong>Total a pagar {{ total_txt }}</strong></p>
-  <p>{{ venta.get_medio_display }} · Recibido {{ recibido_txt }} · Vuelto {{ vuelto_txt }}</p>
+  <p>{{ venta.get_medio_display }} · Recibido {{ recibido_txt }} · Vuelto {{ vuelto_txt }}{% if venta.numero_comprobante_pago %} · Comp. {{ venta.numero_comprobante_pago }}{% endif %}</p>
 </article>
 {% endblock %}
