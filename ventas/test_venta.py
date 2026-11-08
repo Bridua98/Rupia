@@ -266,6 +266,82 @@ def test_tarjeta_sin_vuelto(ingresada):
     assert venta.importe_recibido == Decimal("12000")
     content = ingresada.get("/ventas/punto-de-venta/").content.decode()
     assert "Vuelto" not in content
+    assert "N.º de comprobante" in content
+
+
+@pytest.mark.django_db
+def test_tarjeta_guarda_numero_de_comprobante(ingresada):
+    _preparar()
+    tarjeta = _tarjeta()
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"q": "PROD-001"})
+    ingresada.post(
+        "/ventas/punto-de-venta/",
+        {
+            "medio": MedioPago.TARJETA,
+            "cuenta_cobro": tarjeta.pk,
+            "numero_comprobante_pago": "  VCH-88421  ",
+        },
+    )
+    venta = Venta.objects.get(estado=EstadoVenta.EN_CURSO)
+    assert venta.numero_comprobante_pago == "VCH-88421"
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "N.º de comprobante" in content
+    assert "VCH-88421" in content
+    ingresada.post(
+        "/ventas/punto-de-venta/confirmar/",
+        {
+            "medio": MedioPago.TARJETA,
+            "cuenta_cobro": tarjeta.pk,
+            "numero_comprobante_pago": "VCH-88421",
+        },
+    )
+    venta = Venta.objects.get(estado=EstadoVenta.COBRADA)
+    assert venta.numero_comprobante_pago == "VCH-88421"
+    ticket = ingresada.get(f"/ventas/{venta.pk}/ticket/").content.decode()
+    assert "VCH-88421" in ticket
+    assert "Tarjeta" in ticket
+
+
+@pytest.mark.django_db
+def test_qr_y_transferencia_cargan_comprobante_y_efectivo_lo_limpia(ingresada):
+    _preparar()
+    banco = Cuenta.objects.create(
+        descripcion="Banco Itau",
+        nombre_corto="ITAU",
+        es_banco=True,
+        es_tarjeta=False,
+        numero="001",
+    )
+    ingresada.post(
+        "/ventas/punto-de-venta/",
+        {
+            "medio": MedioPago.QR,
+            "cuenta_cobro": banco.pk,
+            "numero_comprobante_pago": "QR-991",
+        },
+    )
+    venta = Venta.objects.get(estado=EstadoVenta.EN_CURSO)
+    assert venta.medio == MedioPago.QR
+    assert venta.numero_comprobante_pago == "QR-991"
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "N.º de comprobante" in content
+    ingresada.post(
+        "/ventas/punto-de-venta/",
+        {
+            "medio": MedioPago.TRANSFERENCIA,
+            "cuenta_cobro": banco.pk,
+            "numero_comprobante_pago": "TRX-12",
+        },
+    )
+    venta.refresh_from_db()
+    assert venta.medio == MedioPago.TRANSFERENCIA
+    assert venta.numero_comprobante_pago == "TRX-12"
+    ingresada.post("/ventas/punto-de-venta/", {"medio": MedioPago.EFECTIVO})
+    venta.refresh_from_db()
+    assert venta.medio == MedioPago.EFECTIVO
+    assert venta.numero_comprobante_pago == ""
+    content = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "N.º de comprobante" not in content
 
 
 @pytest.mark.django_db
@@ -789,10 +865,12 @@ def test_medios_de_cobro_siguen_a_las_cuentas(ingresada):
     content = ingresada.get("/ventas/punto-de-venta/").content.decode()
     assert 'value="TARJETA"' in content
     assert 'value="TRANSFERENCIA"' in content
+    assert 'value="QR"' in content
     assert medios_disponibles() == [
         (MedioPago.EFECTIVO, "Efectivo"),
         (MedioPago.TARJETA, "Tarjeta"),
         (MedioPago.TRANSFERENCIA, "Transferencia"),
+        (MedioPago.QR, "QR"),
     ]
 
 

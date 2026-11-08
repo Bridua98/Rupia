@@ -124,6 +124,13 @@ def cuentas_para_medio(medio, caja=None):
     return Cuenta.objects.none()
 
 
+MEDIOS_CON_COMPROBANTE = (MedioPago.TRANSFERENCIA, MedioPago.TARJETA, MedioPago.QR)
+
+
+def medio_pide_comprobante(medio) -> bool:
+    return medio in MEDIOS_CON_COMPROBANTE
+
+
 def medios_disponibles(medio_actual=None):
     opciones = []
     if cajas().exists():
@@ -132,6 +139,7 @@ def medios_disponibles(medio_actual=None):
         opciones.append((MedioPago.TARJETA, "Tarjeta"))
     if cuentas_para_medio(MedioPago.TRANSFERENCIA).exists():
         opciones.append((MedioPago.TRANSFERENCIA, "Transferencia"))
+        opciones.append((MedioPago.QR, "QR"))
     vistos = {valor for valor, _etiqueta in opciones}
     if medio_actual and medio_actual not in vistos:
         etiqueta = dict(MedioPago.choices).get(medio_actual, medio_actual)
@@ -689,6 +697,7 @@ def actualizar_cabecera(
     consumidor_final=False,
     observacion=None,
     importe_recibido=None,
+    numero_comprobante_pago=None,
 ):
     _exige_borrador(venta)
     campos = []
@@ -773,6 +782,13 @@ def actualizar_cabecera(
         venta.importe_recibido = total_venta(venta)
         if "importe_recibido" not in campos:
             campos.append("importe_recibido")
+    if medio_pide_comprobante(venta.medio):
+        if numero_comprobante_pago is not None:
+            venta.numero_comprobante_pago = str(numero_comprobante_pago).strip()[:80]
+            campos.append("numero_comprobante_pago")
+    elif venta.numero_comprobante_pago:
+        venta.numero_comprobante_pago = ""
+        campos.append("numero_comprobante_pago")
     if campos:
         venta.save(update_fields=campos)
     return asegurar_cuenta_cobro(venta)

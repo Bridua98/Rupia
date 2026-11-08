@@ -193,6 +193,7 @@
               {% if value == "EFECTIVO" %}{% include "core/icon.html" with name="cash" %}
               {% elif value == "TARJETA" %}{% include "core/icon.html" with name="card" %}
               {% elif value == "TRANSFERENCIA" %}{% include "core/icon.html" with name="bank" %}
+              {% elif value == "QR" %}{% include "core/icon.html" with name="qr" %}
               {% else %}{% include "core/icon.html" with name="tag" %}{% endif %}
               {{ label }}
             </label>
@@ -207,6 +208,20 @@
             {% endfor %}
           </select>
         </label>
+        {% if venta.medio == "TARJETA" or venta.medio == "TRANSFERENCIA" or venta.medio == "QR" %}
+          <label class="field">
+            <span>N.º de comprobante</span>
+            <input
+              type="text"
+              name="numero_comprobante_pago"
+              value="{{ venta.numero_comprobante_pago }}"
+              maxlength="80"
+              autocomplete="off"
+              placeholder="Comprobante, voucher u operación"
+              aria-label="Número de comprobante del pago"
+            >
+          </label>
+        {% endif %}
         {% if venta.medio == "EFECTIVO" %}
           <label class="pos-recibido">
             <span>Monto recibido</span>
