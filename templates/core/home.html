@@ -1,16 +1,25 @@
 {% extends "app.html" %}
+{% load static %}
 
 {% block title %}Inicio · Rupia{% endblock %}
 
 {% block work %}
 <div class="dash">
   <header class="dash-head">
-    <p class="eyebrow">Tablero de gestión</p>
-    <h1>Hola, {{ user.get_username }}.</h1>
-    {% if user.is_staff %}
-      <p class="lede">Resumen de disponibilidad, ventas, compras y liquidez de la empresa.</p>
-    {% else %}
-      <p class="lede">Tu sesión quedó abierta. Acá está el estado del negocio.</p>
+    <div>
+      <p class="eyebrow">Tablero de gestión</p>
+      <h1>Hola, {{ user.get_username }}.</h1>
+      {% if user.is_staff %}
+        <p class="lede">Resumen de disponibilidad, ventas, compras y liquidez de la empresa.</p>
+      {% else %}
+        <p class="lede">Tu sesión quedó abierta. Acá está el estado del negocio.</p>
+      {% endif %}
+    </div>
+    {% if tablero.periodo_txt %}
+      <p class="dash-period">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.5v3M16 3.5v3M4 10h16"/></svg>
+        {{ tablero.periodo_txt }}
+      </p>
     {% endif %}
   </header>
 
@@ -22,21 +31,20 @@
 
   {% if tablero.mostrar_resumen %}
   <section class="dash-section" aria-labelledby="dash-overview">
-    <header class="dash-section-head">
-      <h2 id="dash-overview">Resumen</h2>
-    </header>
+    <h2 id="dash-overview" class="sr-only">Resumen</h2>
     <div class="dash-kpis dash-kpis-4">
       {% if tablero.mostrar_ventas %}
-        {% include "core/dash_indicador.html" with indicador=tablero.ventas_hoy %}
+        {% include "core/dash_indicador.html" with indicador=tablero.ventas_hoy icono="venta" %}
       {% endif %}
       {% if tablero.mostrar_compras %}
-        {% include "core/dash_indicador.html" with indicador=tablero.compras_hoy %}
+        {% include "core/dash_indicador.html" with indicador=tablero.compras_hoy icono="compra" %}
       {% endif %}
       {% if tablero.mostrar_disponibilidad %}
-        {% include "core/dash_indicador.html" with indicador=tablero.disponibilidad %}
+        {% url 'reporte_disponibilidad' as mayor_url %}
+        {% include "core/dash_indicador.html" with indicador=tablero.disponibilidad icono="caja" enlace_url=mayor_url enlace_txt="Ver mayor" cuentas=tablero.cuentas %}
       {% endif %}
       {% if tablero.mostrar_resultado %}
-        {% include "core/dash_indicador.html" with indicador=tablero.resultado_mes %}
+        {% include "core/dash_indicador.html" with indicador=tablero.resultado_mes icono="resultado" %}
       {% endif %}
     </div>
   </section>
@@ -47,73 +55,119 @@
     <header class="dash-section-head">
       <h2 id="dash-gestion">Informes de gestión</h2>
     </header>
-    {% if tablero.mostrar_disponibilidad or tablero.mostrar_resultado %}
-    <div class="dash-grid-main">
-      {% if tablero.mostrar_disponibilidad %}
-      <article class="dash-card dash-list dash-span-2">
-        <div class="dash-card-head">
-          <p class="eyebrow">Disponibilidad</p>
-          <a class="dash-link" href="{% url 'reporte_disponibilidad' %}">Ver mayor</a>
+    {{ tablero.graficos|json_script:"dash-chart-data" }}
+    <div class="dash-charts">
+      {% if tablero.mostrar_ventas or tablero.mostrar_compras %}
+      <article class="dash-panel dash-chart-line">
+        <header class="dash-panel-head">
+          <h3>
+            {% if tablero.mostrar_ventas and tablero.mostrar_compras %}
+              Ventas y compras
+            {% elif tablero.mostrar_ventas %}
+              Ventas
+            {% else %}
+              Compras
+            {% endif %}
+          </h3>
+          <div class="dash-seg" role="tablist" aria-label="Período del gráfico">
+            <button type="button" data-rango="7" aria-pressed="true">7 días</button>
+            <button type="button" data-rango="30" aria-pressed="false">30 días</button>
+            <button type="button" data-rango="12" aria-pressed="false">12 meses</button>
+          </div>
+        </header>
+        <div class="dash-panel-body">
+          <div class="dash-legend-row">
+            {% if tablero.mostrar_ventas %}
+              <button type="button" class="dash-key is-ventas" data-serie="ventas" aria-pressed="true">Ventas</button>
+            {% endif %}
+            {% if tablero.mostrar_compras %}
+              <button type="button" class="dash-key is-compras" data-serie="compras" aria-pressed="true">Compras</button>
+            {% endif %}
+          </div>
+          <div class="dash-plot" data-dash-line>
+            <svg data-line-svg role="img" aria-label="Evolución de ventas y compras"></svg>
+            <div class="dash-tip" data-line-tip hidden></div>
+          </div>
+          {% if tablero.mostrar_resultado %}
+            <p class="dash-chart-note">
+              Venta vs compras · hoy
+              <strong class="valor-gs is-texto{% if tablero.comparacion_dia.diferencia < 0 %} is-alerta{% endif %}" dir="ltr">{{ tablero.comparacion_dia.diferencia_txt }}</strong>
+            </p>
+            <p class="dash-chart-note">
+              Venta vs compras · mes
+              <strong class="valor-gs is-texto{% if tablero.comparacion_mes.diferencia < 0 %} is-alerta{% endif %}" dir="ltr">{{ tablero.comparacion_mes.diferencia_txt }}</strong>
+            </p>
+          {% endif %}
         </div>
-        <p class="dash-value valor-gs is-texto" dir="ltr">{{ tablero.disponibilidad.valor_txt }}</p>
-        <p class="dash-meta">{{ tablero.disponibilidad.meta }}</p>
-        {% if tablero.cuentas %}
-          <ul>
-            {% for fila in tablero.cuentas %}
+      </article>
+      {% endif %}
+
+      {% if tablero.mostrar_disponibilidad %}
+      <article class="dash-panel dash-chart-bars">
+        <header class="dash-panel-head">
+          <h3>Flujo de caja</h3>
+        </header>
+        <div class="dash-panel-body">
+          <div class="dash-legend-row">
+            <span class="dash-key is-ventas">Entradas</span>
+            <span class="dash-key is-salidas">Salidas</span>
+          </div>
+          <div class="dash-plot" data-dash-bars>
+            <svg data-bars-svg role="img" aria-label="Entradas y salidas de caja"></svg>
+            <div class="dash-tip" data-bars-tip hidden></div>
+          </div>
+        </div>
+      </article>
+      {% endif %}
+
+      {% if tablero.mostrar_ventas %}
+      <article class="dash-panel dash-chart-donut">
+        <header class="dash-panel-head">
+          <h3>Distribución de ventas</h3>
+        </header>
+        <div class="dash-panel-body dash-donut-body">
+          <div class="dash-donut" data-dash-donut>
+            <svg viewBox="0 0 180 180" role="img" aria-label="Distribución del día">
+              <g transform="rotate(-90 90 90)">
+                {% if tablero.ventas_dia_importe %}
+                  {% for porcion in tablero.distribucion %}
+                    {% if porcion.porcentaje %}
+                      <circle
+                        class="dash-arc"
+                        data-slice="{{ porcion.nombre }}"
+                        cx="90"
+                        cy="90"
+                        r="62"
+                        stroke="{{ porcion.color }}"
+                        stroke-dasharray="{{ porcion.trazo }}"
+                        stroke-dashoffset="{{ porcion.offset }}"
+                      ></circle>
+                    {% endif %}
+                  {% endfor %}
+                {% else %}
+                  <circle class="dash-arc is-empty" cx="90" cy="90" r="62"></circle>
+                {% endif %}
+              </g>
+            </svg>
+            <div class="dash-donut-center">
+              <strong class="valor-gs is-texto" dir="ltr">{{ tablero.ventas_dia_importe_txt }}</strong>
+              <span>Total del día</span>
+            </div>
+          </div>
+          <ul class="dash-donut-legend">
+            {% for porcion in tablero.distribucion %}
               <li>
-                <span>{{ fila.nombre }}</span>
-                <strong class="valor-gs is-texto{% if fila.importe < 0 %} is-alerta{% endif %}" dir="ltr">{{ fila.importe_txt }}</strong>
+                <button type="button" data-slice="{{ porcion.nombre }}">
+                  <i style="background: {{ porcion.color }}"></i>
+                  <span>{{ porcion.nombre }}</span>
+                  <strong>{{ porcion.porcentaje }}%</strong>
+                </button>
+                <small class="valor-gs is-texto" dir="ltr">{{ porcion.importe_txt }}</small>
               </li>
             {% endfor %}
           </ul>
-        {% else %}
-          <p class="dash-empty">Sin saldos de caja, banco o tarjeta</p>
-        {% endif %}
+        </div>
       </article>
-      {% endif %}
-
-      {% if tablero.mostrar_resultado %}
-        {% include "core/dash_comparacion.html" with titulo="Venta vs compras · hoy" comparacion=tablero.comparacion_dia %}
-        {% include "core/dash_comparacion.html" with titulo="Venta vs compras · mes" comparacion=tablero.comparacion_mes %}
-      {% endif %}
-    </div>
-    {% endif %}
-
-    <div class="dash-kpis dash-kpis-4">
-      {% if tablero.mostrar_ventas %}
-        {% include "core/dash_indicador.html" with indicador=tablero.ventas_mes %}
-      {% endif %}
-      {% if tablero.mostrar_compras %}
-        {% include "core/dash_indicador.html" with indicador=tablero.compras_mes %}
-        {% include "core/dash_indicador.html" with indicador=tablero.egresos_mes %}
-      {% endif %}
-      {% if tablero.mostrar_resultado %}
-        {% include "core/dash_indicador.html" with indicador=tablero.margen %}
-      {% endif %}
-      {% if tablero.mostrar_ventas %}
-        {% include "core/dash_indicador.html" with indicador=tablero.ticket_promedio %}
-      <article class="dash-card">
-        <p class="eyebrow">Última venta</p>
-        {% if tablero.ultima %}
-          <p class="dash-value valor-gs is-texto" dir="ltr">{{ tablero.ultima.importe_txt }}</p>
-          <p class="dash-meta">{{ tablero.ultima.numero }} · {{ tablero.ultima.fecha|date:"d/m/Y" }}</p>
-          <p class="dash-meta">{{ tablero.ultima.cliente }}</p>
-        {% else %}
-          <p class="dash-empty">Sin ventas cobradas</p>
-        {% endif %}
-      </article>
-      <article class="dash-card">
-        <p class="eyebrow">Producto más vendido</p>
-        {% if tablero.producto %}
-          <p class="dash-value dash-value-name">{{ tablero.producto.descripcion }}</p>
-          <p class="dash-meta">{{ tablero.producto.cantidad_txt }} · {{ tablero.producto.importe_txt }}</p>
-        {% else %}
-          <p class="dash-empty">Sin ventas cobradas hoy</p>
-        {% endif %}
-      </article>
-      {% endif %}
-      {% if tablero.mostrar_disponibilidad %}
-        {% include "core/dash_indicador.html" with indicador=tablero.flujo_mes %}
       {% endif %}
     </div>
   </section>
@@ -126,32 +180,148 @@
     </header>
     <div class="dash-kpis dash-kpis-4">
       {% if tablero.mostrar_liquidez %}
-        {% include "core/dash_indicador.html" with indicador=tablero.liquidez %}
+        {% include "core/dash_indicador.html" with indicador=tablero.liquidez icono="caja" %}
       {% endif %}
       {% if tablero.mostrar_cuentas_pagar %}
-        {% include "core/dash_indicador.html" with indicador=tablero.por_pagar %}
+        {% include "core/dash_indicador.html" with indicador=tablero.por_pagar icono="pagar" %}
       {% endif %}
       {% if tablero.mostrar_liquidez %}
-        {% include "core/dash_indicador.html" with indicador=tablero.cobertura %}
+        {% include "core/dash_indicador.html" with indicador=tablero.cobertura icono="cobertura" %}
       {% endif %}
       {% if tablero.mostrar_disponibilidad %}
-        {% include "core/dash_indicador.html" with indicador=tablero.flujo_mes %}
+        {% include "core/dash_indicador.html" with indicador=tablero.flujo_mes icono="flujo" %}
       {% endif %}
     </div>
   </section>
   {% endif %}
 
-  {% if tablero.mostrar_ventas %}
-  <section class="dash-section" aria-labelledby="dash-cortes">
+  {% if tablero.mostrar_ventas or tablero.mostrar_compras or tablero.mostrar_disponibilidad %}
+  <section class="dash-section dash-bottom" aria-label="Detalle operativo">
+    {% if tablero.mostrar_ventas %}
+    <article class="dash-panel">
+      <header class="dash-panel-head">
+        <h3>Ventas del día</h3>
+        <a class="dash-head-link" href="{% url 'venta_list' %}">Ver todas</a>
+      </header>
+      <div class="dash-panel-body">
+        <div class="dash-seg dash-seg-light" role="tablist" aria-label="Cortes de venta">
+          <button type="button" data-corte="productos" aria-pressed="true">Top productos</button>
+          <button type="button" data-corte="categorias" aria-pressed="false">Por categoría</button>
+          <button type="button" data-corte="marcas" aria-pressed="false">Por marca</button>
+          <button type="button" data-corte="unidades" aria-pressed="false">Por unidad de negocio</button>
+        </div>
+        <div data-corte-panel="productos">
+          {% if tablero.ranking %}
+            <ol class="dash-rank">
+              {% for fila in tablero.ranking %}
+                <li>
+                  <span class="dash-rank-n">{{ fila.puesto }}</span>
+                  <span class="dash-rank-name">{{ fila.descripcion }}</span>
+                  <span class="dash-rank-bar" aria-hidden="true"><i style="width: {{ fila.porcentaje }}%"></i></span>
+                  <strong class="valor-gs is-texto" dir="ltr">{{ fila.importe_txt }}</strong>
+                  <span class="dash-rank-pct">{{ fila.porcentaje }}%</span>
+                </li>
+              {% endfor %}
+            </ol>
+          {% else %}
+            <p class="dash-empty">Sin ventas cobradas hoy</p>
+          {% endif %}
+        </div>
+        <div data-corte-panel="categorias" hidden>
+          {% include "core/dash_corte_filas.html" with filas=tablero.categorias %}
+        </div>
+        <div data-corte-panel="marcas" hidden>
+          {% include "core/dash_corte_filas.html" with filas=tablero.marcas %}
+        </div>
+        <div data-corte-panel="unidades" hidden>
+          {% include "core/dash_corte_filas.html" with filas=tablero.unidades %}
+        </div>
+      </div>
+    </article>
+    {% endif %}
+
+    <article class="dash-panel">
+      <header class="dash-panel-head">
+        <h3>Últimas actividades</h3>
+        {% if tablero.mostrar_ventas %}
+          <a class="dash-head-link" href="{% url 'venta_list' %}">Ver todas</a>
+        {% elif tablero.mostrar_compras %}
+          <a class="dash-head-link" href="{% url 'compra_list' %}">Ver todas</a>
+        {% endif %}
+      </header>
+      <div class="dash-panel-body">
+        {% if tablero.actividades %}
+          <ul class="dash-feed">
+            {% for act in tablero.actividades %}
+              <li>
+                <a class="dash-act" href="{{ act.href }}">
+                  <span class="dash-act-ico is-{{ act.tipo }}" aria-hidden="true"></span>
+                  <span class="dash-act-copy">
+                    <strong>{{ act.titulo }}</strong>
+                    <small>{{ act.cuando }}</small>
+                  </span>
+                  <span class="dash-act-detail">{{ act.detalle }}</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="dash-empty">Sin movimientos recientes</p>
+        {% endif %}
+      </div>
+    </article>
+
+    <article class="dash-promo">
+      <div class="dash-promo-mark" aria-hidden="true">{% include "core/rupee.html" %}</div>
+      <div>
+        <p class="dash-promo-kicker">Rupia</p>
+        <h3>Tu gestión, en buenas manos</h3>
+        <p>El estado del negocio, en un solo lugar.</p>
+      </div>
+      {% if tablero.mostrar_ventas %}
+        <a class="dash-promo-btn" href="{% url 'punto_de_venta' %}">Abrir el punto de venta</a>
+      {% elif tablero.mostrar_compras %}
+        <a class="dash-promo-btn" href="{% url 'compra_list' %}">Ver compras</a>
+      {% endif %}
+    </article>
+  </section>
+  {% endif %}
+
+  {% if tablero.mostrar_compras or tablero.mostrar_resultado or tablero.mostrar_ventas %}
+  <section class="dash-section" aria-labelledby="dash-mes">
     <header class="dash-section-head">
-      <h2 id="dash-cortes">Ventas del día</h2>
+      <h2 id="dash-mes">Mes en curso</h2>
     </header>
-    <div class="dash-cortes">
-      {% include "core/dash_corte.html" with titulo="Por categoría" filas=tablero.categorias %}
-      {% include "core/dash_corte.html" with titulo="Por marca" filas=tablero.marcas %}
-      {% include "core/dash_corte.html" with titulo="Por unidad de negocio" filas=tablero.unidades %}
+    <div class="dash-kpis dash-kpis-4">
+      {% if tablero.mostrar_ventas %}
+        {% include "core/dash_indicador.html" with indicador=tablero.ventas_mes icono="venta" %}
+        {% include "core/dash_indicador.html" with indicador=tablero.ticket_promedio icono="resultado" %}
+      {% endif %}
+      {% if tablero.mostrar_compras %}
+        {% include "core/dash_indicador.html" with indicador=tablero.compras_mes icono="compra" %}
+        {% include "core/dash_indicador.html" with indicador=tablero.egresos_mes icono="pagar" %}
+      {% endif %}
+      {% if tablero.mostrar_resultado %}
+        {% include "core/dash_indicador.html" with indicador=tablero.margen icono="resultado" %}
+      {% endif %}
+      {% if tablero.mostrar_ventas and tablero.producto %}
+      <article class="dash-card dash-kpi">
+        <div class="dash-kpi-top">
+          <span class="dash-ico is-venta" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3l2.2 4.6 5 .7-3.6 3.5.9 5.1L12 14.8 7.5 17l.9-5.1L4.8 8.3l5-.7z"/></svg>
+          </span>
+          <p class="eyebrow">Producto más vendido</p>
+        </div>
+        <p class="dash-value dash-value-name">{{ tablero.producto.descripcion }}</p>
+        <p class="dash-meta">{{ tablero.producto.cantidad_txt }} · {{ tablero.producto.importe_txt }}</p>
+      </article>
+      {% endif %}
     </div>
   </section>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/rupia-dash.js' %}"></script>
 {% endblock %}

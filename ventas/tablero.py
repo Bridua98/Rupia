@@ -1,3 +1,4 @@
+import math
 from calendar import monthrange
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -6,23 +7,50 @@ from decimal import Decimal
 
 from django.db.models import DecimalField, ExpressionWrapper, F, Sum, Value
 from django.db.models.functions import Coalesce
+from django.urls import reverse
 from django.utils import timezone
 
 from compras.cuotas import total_saldo_pendiente
-from compras.models import Compra, EstadoCompra, TipoCompra
+from compras.models import (
+    Compra,
+    EstadoCompra,
+    EstadoPagoProveedor,
+    PagoProveedor,
+    TipoCompra,
+)
 from configuracion.permisos import tiene_permiso
 from core.cantidad import formatear_cantidad
 from core.moneda import mostrar_guaranies
 from cuentas.disponibilidad import mayor_disponibilidad
+from inventario.models import AjusteStock
 from inventario.precios import redondear_guarani
 from ventas.cobro import CERO, total_venta
-from ventas.models import EstadoVenta, Venta, VentaDetalle
+from ventas.models import CondicionVenta, EstadoVenta, MedioPago, Venta, VentaDetalle
 
 SIN_UNIDAD = "Sin unidad"
 SIN_CLIENTE = "Sin cliente"
 CIEN = Decimal("100")
 IMPORTE = DecimalField(max_digits=15, decimal_places=3)
 TIPOS_COMPRA = (TipoCompra.FACTURA_CONTADO, TipoCompra.FACTURA_CREDITO)
+MESES_CORTOS = (
+    "ene",
+    "feb",
+    "mar",
+    "abr",
+    "may",
+    "jun",
+    "jul",
+    "ago",
+    "sep",
+    "oct",
+    "nov",
+    "dic",
+)
+COLOR_CONTADO = "#1e8a4c"
+COLOR_CREDITO = "#3b6fd8"
+COLOR_OTROS = "#e08a2f"
+RADIO_ANILLO = 62
+LARGO_ANILLO = 2 * math.pi * RADIO_ANILLO
 
 
 @dataclass
@@ -91,6 +119,35 @@ class ComparacionTablero:
 
 
 @dataclass
+class PorcionTablero:
+    nombre: str
+    importe: Decimal
+    importe_txt: str
+    porcentaje: int
+    color: str
+    trazo: str = ""
+    offset: str = "0"
+
+
+@dataclass
+class RankingTablero:
+    puesto: int
+    descripcion: str
+    importe: Decimal
+    importe_txt: str
+    porcentaje: int
+
+
+@dataclass
+class ActividadTablero:
+    tipo: str
+    titulo: str
+    cuando: str
+    detalle: str
+    href: str
+
+
+@dataclass
 class TableroVentas:
     ventas_dia_cantidad: int
     ventas_dia_importe: Decimal
@@ -142,6 +199,11 @@ class TableroVentas:
     mostrar_disponibilidad: bool = True
     mostrar_cuentas_pagar: bool = True
     mostrar_liquidez: bool = True
+    periodo_txt: str = ""
+    graficos: dict = field(default_factory=dict)
+    distribucion: list[PorcionTablero] = field(default_factory=list)
+    ranking: list[RankingTablero] = field(default_factory=list)
+    actividades: list[ActividadTablero] = field(default_factory=list)
 
     @property
     def mostrar_resumen(self) -> bool:
@@ -448,6 +510,223 @@ def _permisos_tablero(user):
     return ventas, compras, disponibilidad, cuentas_pagar
 
 
+def _inicio_mes_desplazado(dia, meses: int) -> date:
+    total = dia.year * 12 + (dia.month - 1) - meses
+    anio, mes = divmod(total, 12)
+    return date(anio, mes + 1, 1)
+
+
+def _fin_de_mes(inicio: date, tope: date) -> date:
+    ultimo = monthrange(inicio.year, inicio.month)[1]
+    return min(inicio.replace(day=ultimo), tope)
+
+
+def _entero(valor: Decimal) -> int:
+    return int(redondear_guarani(valor or CERO))
+
+
+def _parte(valor: Decimal, total: Decimal) -> int:
+    if total <= 0 or valor <= 0:
+        return 0
+    return int(redondear_guarani((valor / total) * CIEN))
+
+
+def _etiqueta_mes(dia: date) -> str:
+    return MESES_CORTOS[dia.month - 1].capitalize()
+
+
+def _periodo_txt(dia: date) -> str:
+    return f"Este mes ({MESES_CORTOS[dia.month - 1]}. {dia.year})"
+
+
+def _puntos(fechas, ventas_map, compras_map, etiqueta) -> list[dict]:
+    puntos = []
+    for dia in fechas:
+        ventas = ventas_map.get(dia, CERO)
+        compras = compras_map.get(dia, CERO)
+        puntos.append(
+            {
+                "e": etiqueta(dia),
+                "v": _entero(ventas),
+                "c": _entero(compras),
+                "vt": _dinero(ventas),
+                "ct": _dinero(compras),
+            }
+        )
+    return puntos
+
+
+def _fechas(desde, hasta):
+    dia = desde
+    while dia <= hasta:
+        yield dia
+        dia += timedelta(days=1)
+
+
+def _por_mes(mapa) -> dict:
+    acumulado = defaultdict(lambda: CERO)
+    for fecha, importe in mapa.items():
+        acumulado[fecha.replace(day=1)] += importe or CERO
+    return acumulado
+
+
+def _trazar_anillo(porciones: list[PorcionTablero]) -> None:
+    visibles = [porcion for porcion in porciones if porcion.porcentaje]
+    separacion = 4 if len(visibles) > 1 else 0
+    acumulado = 0.0
+    for porcion in porciones:
+        if not porcion.porcentaje:
+            porcion.trazo = f"0 {LARGO_ANILLO:.3f}"
+            porcion.offset = "0"
+            continue
+        largo = LARGO_ANILLO * porcion.porcentaje / 100
+        dibujo = max(largo - separacion, 1)
+        porcion.trazo = f"{dibujo:.3f} {LARGO_ANILLO:.3f}"
+        porcion.offset = f"{-(acumulado + separacion / 2):.3f}"
+        acumulado += largo
+
+
+def _distribucion(contado, credito, otros) -> list[PorcionTablero]:
+    total = redondear_guarani(contado + credito + otros)
+    porciones = [
+        PorcionTablero(
+            "Contado",
+            redondear_guarani(contado),
+            _dinero(contado),
+            _parte(contado, total),
+            COLOR_CONTADO,
+        ),
+        PorcionTablero(
+            "Crédito",
+            redondear_guarani(credito),
+            _dinero(credito),
+            _parte(credito, total),
+            COLOR_CREDITO,
+        ),
+        PorcionTablero(
+            "Otros",
+            redondear_guarani(otros),
+            _dinero(otros),
+            _parte(otros, total),
+            COLOR_OTROS,
+        ),
+    ]
+    ajuste = 100 - sum(porcion.porcentaje for porcion in porciones)
+    if total > 0 and ajuste:
+        mayor = max(porciones, key=lambda porcion: porcion.importe)
+        mayor.porcentaje += ajuste
+    _trazar_anillo(porciones)
+    return porciones
+
+
+def _ranking(productos: dict, total: Decimal) -> list[RankingTablero]:
+    ordenados = sorted(
+        productos.values(),
+        key=lambda dato: (-dato["importe"], dato["descripcion"]),
+    )[:3]
+    return [
+        RankingTablero(
+            puesto=indice,
+            descripcion=dato["descripcion"],
+            importe=redondear_guarani(dato["importe"]),
+            importe_txt=_dinero(dato["importe"]),
+            porcentaje=_parte(dato["importe"], total),
+        )
+        for indice, dato in enumerate(ordenados, start=1)
+    ]
+
+
+def _puede(user, formulario: str) -> bool:
+    if user is None:
+        return True
+    return tiene_permiso(user, formulario, "ver")
+
+
+def _actividades(*, ventas: bool, compras: bool, pagos: bool, stock: bool):
+    eventos = []
+    if ventas:
+        for venta in (
+            _cobradas().annotate(importe=_importe_venta()).order_by("-fecha", "-id")[:4]
+        ):
+            eventos.append(
+                (
+                    venta.fecha,
+                    venta.id,
+                    ActividadTablero(
+                        tipo="venta",
+                        titulo="Nueva venta registrada",
+                        cuando=venta.fecha.strftime("%d/%m/%Y"),
+                        detalle=_dinero(venta.importe or CERO),
+                        href=reverse("venta_list"),
+                    ),
+                )
+            )
+    if compras:
+        for compra in (
+            Compra.objects.filter(estado=EstadoCompra.CONFIRMADA)
+            .annotate(importe=Coalesce(Sum("detalles__subtotal"), _cero()))
+            .order_by("-fecha", "-id")[:4]
+        ):
+            eventos.append(
+                (
+                    compra.fecha,
+                    compra.id,
+                    ActividadTablero(
+                        tipo="compra",
+                        titulo="Compra confirmada",
+                        cuando=compra.fecha.strftime("%d/%m/%Y"),
+                        detalle=_dinero(compra.importe or CERO),
+                        href=reverse("compra_list"),
+                    ),
+                )
+            )
+    if pagos:
+        for pago in (
+            PagoProveedor.objects.filter(estado=EstadoPagoProveedor.CONFIRMADO)
+            .order_by("-fecha", "-id")[:4]
+        ):
+            eventos.append(
+                (
+                    pago.fecha,
+                    pago.id,
+                    ActividadTablero(
+                        tipo="pago",
+                        titulo="Pago a proveedor",
+                        cuando=pago.fecha.strftime("%d/%m/%Y"),
+                        detalle=_dinero(pago.importe or CERO),
+                        href=reverse("pago_proveedor_list"),
+                    ),
+                )
+            )
+    if stock:
+        ajustes = AjusteStock.objects.prefetch_related("detalles__item").order_by(
+            "-fecha", "-id"
+        )[:4]
+        for ajuste in ajustes:
+            nombres = [linea.item.descripcion for linea in ajuste.detalles.all()]
+            if not nombres:
+                detalle = "Ajuste"
+            elif len(nombres) == 1:
+                detalle = nombres[0]
+            else:
+                detalle = f"{nombres[0]} +{len(nombres) - 1}"
+            eventos.append(
+                (
+                    ajuste.fecha,
+                    ajuste.id,
+                    ActividadTablero(
+                        tipo="stock",
+                        titulo="Stock actualizado",
+                        cuando=ajuste.fecha.strftime("%d/%m/%Y"),
+                        detalle=detalle,
+                        href=reverse("ajuste_stock_list"),
+                    ),
+                )
+            )
+    eventos.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    return [item[2] for item in eventos[:5]]
+
+
 def tablero_inicio(hoy=None, user=None) -> TableroVentas:
     hoy = hoy or timezone.localdate()
     ayer = hoy - timedelta(days=1)
@@ -481,6 +760,10 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
     margen_valor = CERO
     margen_meta = "Sin ventas cobradas en el mes"
     meta_ventas = "Sin ventas cobradas hoy"
+    contado_dia = CERO
+    credito_dia = CERO
+    otros_dia = CERO
+    productos = {}
 
     if mostrar_ventas:
         ultima_venta = _cobradas().select_related("cliente").first()
@@ -511,14 +794,20 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
         for linea in lineas:
             por_venta[linea.venta_id].append(linea)
 
-        productos = {}
         categorias = defaultdict(lambda: CERO)
         marcas = defaultdict(lambda: CERO)
         unidades = defaultdict(lambda: CERO)
 
         for venta in ventas_dia:
             netos = _netos_lineas(venta, por_venta.get(venta.id, []))
-            importe_dia += sum(netos.values(), CERO)
+            neto_venta = sum(netos.values(), CERO)
+            importe_dia += neto_venta
+            if venta.condicion_venta != CondicionVenta.CONTADO:
+                credito_dia += neto_venta
+            elif venta.medio == MedioPago.EFECTIVO:
+                contado_dia += neto_venta
+            else:
+                otros_dia += neto_venta
             for linea in por_venta.get(venta.id, []):
                 neto = netos[linea.id]
                 item = linea.item
@@ -676,6 +965,62 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
         else:
             cobertura_dias_txt = "Sin salidas"
 
+    mapa_ventas = {}
+    mapa_compras = {}
+    if mostrar_ventas or mostrar_compras:
+        desde_grafico = _inicio_mes_desplazado(hoy.replace(day=1), 11)
+        if mostrar_ventas:
+            mapa_ventas = _mapa_ventas(desde_grafico, hoy)
+        if mostrar_compras:
+            mapa_compras = _mapa_compras(desde_grafico, hoy)
+    ventas_por_mes = _por_mes(mapa_ventas)
+    compras_por_mes = _por_mes(mapa_compras)
+    meses = [
+        _inicio_mes_desplazado(hoy.replace(day=1), desplazamiento)
+        for desplazamiento in range(11, -1, -1)
+    ]
+    graficos = {
+        "ventas": mostrar_ventas,
+        "compras": mostrar_compras,
+        "lineas": {
+            "7": _puntos(
+                list(_fechas(hoy - timedelta(days=6), hoy)),
+                mapa_ventas,
+                mapa_compras,
+                lambda dia: dia.strftime("%d/%m"),
+            ),
+            "30": _puntos(
+                list(_fechas(hoy - timedelta(days=29), hoy)),
+                mapa_ventas,
+                mapa_compras,
+                lambda dia: dia.strftime("%d/%m"),
+            ),
+            "12": _puntos(meses, ventas_por_mes, compras_por_mes, _etiqueta_mes),
+        },
+        "flujo": [],
+    }
+    if mostrar_disponibilidad:
+        for desplazamiento in (2, 1, 0):
+            inicio_barra = _inicio_mes_desplazado(hoy.replace(day=1), desplazamiento)
+            if desplazamiento == 0:
+                entra, sale = entradas_mes, salidas_mes
+            else:
+                _, _, totales_barra = mayor_disponibilidad(
+                    fecha_desde=inicio_barra,
+                    fecha_hasta=_fin_de_mes(inicio_barra, hoy),
+                )
+                entra = redondear_guarani(totales_barra["entra"])
+                sale = redondear_guarani(totales_barra["salida"])
+            graficos["flujo"].append(
+                {
+                    "e": _etiqueta_mes(inicio_barra),
+                    "entra": _entero(entra),
+                    "sale": _entero(sale),
+                    "et": _dinero(entra),
+                    "st": _dinero(sale),
+                }
+            )
+
     return TableroVentas(
         ventas_dia_cantidad=len(ventas_dia),
         ventas_dia_importe=importe_dia,
@@ -794,6 +1139,18 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
         mostrar_disponibilidad=mostrar_disponibilidad,
         mostrar_cuentas_pagar=mostrar_cuentas_pagar,
         mostrar_liquidez=mostrar_liquidez,
+        periodo_txt=_periodo_txt(hoy),
+        graficos=graficos,
+        distribucion=_distribucion(contado_dia, credito_dia, otros_dia)
+        if mostrar_ventas
+        else [],
+        ranking=_ranking(productos, importe_dia) if mostrar_ventas else [],
+        actividades=_actividades(
+            ventas=mostrar_ventas,
+            compras=mostrar_compras,
+            pagos=_puede(user, "pagos_proveedor"),
+            stock=_puede(user, "ajustes_stock"),
+        ),
     )
 
 
