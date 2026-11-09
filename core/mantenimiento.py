@@ -269,7 +269,11 @@ class MantenimientoListView(
         return None
 
     def page_number_for_pk(self, pk):
-        ids = list(self.get_queryset().values_list("pk", flat=True))
+        queryset = self.get_queryset()
+        if isinstance(queryset, list):
+            ids = [getattr(row, "pk", None) for row in queryset]
+        else:
+            ids = list(queryset.values_list("pk", flat=True))
         try:
             index = ids.index(pk)
         except ValueError:

@@ -6544,3 +6544,42 @@ body.pos-screen .app-stage {
     grid-template-columns: 1fr;
   }
 }
+
+.pago-proveedor-form {
+  display: grid;
+  gap: 1.15rem;
+}
+
+.pago-proveedor-form .item-form-grid .field-wide {
+  grid-column: 1 / -1;
+}
+
+.pago-proveedor-form .sheet-wrap {
+  overflow-x: auto;
+}
+
+.pago-proveedor-form .sheet-cuotas td {
+  vertical-align: middle;
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+
+.pago-proveedor-form .sheet-cuotas .field-inline {
+  margin: 0;
+  padding-top: 0;
+}
+
+.pago-proveedor-form .sheet-cuotas .field-inline input {
+  height: 2.15rem;
+  padding: 0.35rem 0 0.3rem;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.pago-proveedor-form .hint {
+  margin: 0.85rem 0 0.75rem;
+}
+
+.pago-proveedor-form .button {
+  margin-top: 0.35rem;
+}

@@ -193,7 +193,7 @@
     }
 
     root.addEventListener("click", function (event) {
-      if (event.target.closest("[data-rupia='action-menu']")) return;
+      if (event.target.closest("a, button, input, textarea, select, [data-rupia='action-menu']")) return;
       var row = event.target.closest("tr[data-href]");
       if (!row || !root.contains(row)) return;
       window.location.href = row.getAttribute("data-href");
