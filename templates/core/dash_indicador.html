@@ -1,6 +1,32 @@
 <article class="dash-card dash-kpi{% if indicador.tono %} is-{{ indicador.tono }}{% endif %}">
-  <p class="eyebrow">{{ indicador.etiqueta }}</p>
-  <p class="dash-value valor-gs is-texto" dir="ltr">{{ indicador.valor_txt }}</p>
+  <div class="dash-kpi-top">
+    <span class="dash-ico is-{{ icono|default:'punto' }}" aria-hidden="true">
+      {% if icono == "venta" %}
+        <svg viewBox="0 0 24 24"><path d="M6 7h12l-1 11H7L6 7z"/><path d="M9 7V6a3 3 0 0 1 6 0v1"/></svg>
+      {% elif icono == "compra" %}
+        <svg viewBox="0 0 24 24"><path d="M4 7h16v11H4z"/><path d="M8 7V5h8v2M8 12h8"/></svg>
+      {% elif icono == "caja" %}
+        <svg viewBox="0 0 24 24"><rect x="3.5" y="6" width="17" height="12" rx="2"/><path d="M3.5 10h17M16 13.5h2.5"/></svg>
+      {% elif icono == "resultado" %}
+        <svg viewBox="0 0 24 24"><path d="M4 16l5-5 3.5 3.5L20 7"/><path d="M14 7h6v6"/></svg>
+      {% elif icono == "flujo" %}
+        <svg viewBox="0 0 24 24"><path d="M5 7h10M12 4l3 3-3 3M19 17H9M12 14l-3 3 3 3"/></svg>
+      {% elif icono == "pagar" %}
+        <svg viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M3.5 10h17M7 14.5h4"/></svg>
+      {% elif icono == "cobertura" %}
+        <svg viewBox="0 0 24 24"><path d="M12 3.5l7 2.6v6.2c0 3.8-2.8 6-7 7.4-4.2-1.4-7-3.6-7-7.4V6.1z"/></svg>
+      {% else %}
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 4v2.2M12 17.8V20M4 12h2.2M17.8 12H20"/></svg>
+      {% endif %}
+    </span>
+    <div class="dash-kpi-copy">
+      <p class="eyebrow">{{ indicador.etiqueta }}</p>
+      {% if enlace_url %}
+        <a class="dash-link" href="{{ enlace_url }}">{{ enlace_txt }}</a>
+      {% endif %}
+    </div>
+  </div>
+  <p class="dash-value valor-gs is-texto{% if indicador.tono == 'alerta' %} is-alerta{% endif %}" dir="ltr">{{ indicador.valor_txt }}</p>
   {% if indicador.meta %}
     <p class="dash-meta">{{ indicador.meta }}</p>
   {% endif %}
@@ -9,6 +35,16 @@
       <polygon points="{{ indicador.serie.area }}"></polygon>
       <polyline points="{{ indicador.serie.puntos }}"></polyline>
     </svg>
+  {% endif %}
+  {% if cuentas %}
+    <ul class="dash-mini">
+      {% for fila in cuentas %}
+        <li>
+          <span>{{ fila.nombre }}</span>
+          <strong class="valor-gs is-texto{% if fila.importe < 0 %} is-alerta{% endif %}" dir="ltr">{{ fila.importe_txt }}</strong>
+        </li>
+      {% endfor %}
+    </ul>
   {% endif %}
   {% if indicador.periodo or indicador.anio %}
     <div class="dash-deltas">

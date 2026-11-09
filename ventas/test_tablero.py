@@ -183,6 +183,30 @@ def test_empate_de_cantidad_gana_el_de_mayor_importe(usuario):
 
 
 @pytest.mark.django_db
+@pytest.mark.django_db
+def test_graficos_cubren_periodos_ranking_y_actividades(usuario):
+    venta = _cobrar(usuario, _item(), fecha=_hoy())
+    venta.medio = MedioPago.TARJETA
+    venta.save(update_fields=["medio"])
+    tablero = tablero_inicio(_hoy())
+
+    assert [len(tablero.graficos["lineas"][clave]) for clave in ("7", "30", "12")] == [7, 30, 12]
+    assert tablero.graficos["lineas"]["7"][-1]["v"] == 12000
+    assert tablero.graficos["lineas"]["7"][-1]["e"] == _hoy().strftime("%d/%m")
+    assert len(tablero.graficos["flujo"]) == 3
+    assert tablero.ranking[0].descripcion == "Bombón de helado"
+    assert tablero.ranking[0].porcentaje == 100
+    assert [(p.nombre, p.porcentaje) for p in tablero.distribucion] == [
+        ("Contado", 0),
+        ("Crédito", 0),
+        ("Otros", 100),
+    ]
+    assert tablero.actividades[0].titulo == "Nueva venta registrada"
+    assert tablero.actividades[0].detalle == "Gs. 12.000"
+    assert tablero.periodo_txt.startswith("Este mes (")
+
+
+@pytest.mark.django_db
 def test_inicio_muestra_el_tablero(client, usuario):
     client.force_login(usuario)
 
