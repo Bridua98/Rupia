@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -12,7 +12,7 @@ from negocio.models import UnidadNegocio
 from personas.models import Genero, Persona, TipoDocumento
 from ventas.cobro import agregar_producto, cambiar_cantidad
 from ventas.models import EstadoVenta, MedioPago, TipoComprobante, Venta
-from ventas.tablero import tablero_inicio
+from ventas.tablero import resolver_periodo, tablero_inicio
 
 
 def _hoy():
@@ -204,6 +204,8 @@ def test_graficos_cubren_periodos_ranking_y_actividades(usuario):
     assert tablero.actividades[0].titulo == "Nueva venta registrada"
     assert tablero.actividades[0].detalle == "Gs. 12.000"
     assert tablero.periodo_txt.startswith("Este mes (")
+    assert tablero.periodo_clave == "mes"
+    assert tablero.seccion_periodo == "Mes en curso"
 
 
 @pytest.mark.django_db
@@ -374,3 +376,89 @@ def test_inicio_acceso_total_no_recorta_el_tablero(client, usuario):
     assert "Ver mayor" in html
     assert "Por categoría" in html
     assert "No hay indicadores para tu perfil" not in html
+    assert "data-dash-period" in html
+    assert "Esta semana" in html
+    assert "Rango personalizado" in html
+
+
+def test_resolver_periodo_mes_semana_y_rango():
+    hoy = date(2026, 11, 9)
+    mes = resolver_periodo(None, hoy)
+    assert mes.clave == "mes"
+    assert mes.desde == date(2026, 11, 1)
+    assert mes.hasta == hoy
+    assert mes.txt.startswith("Este mes (nov.")
+
+    semana = resolver_periodo({"periodo": "semana"}, hoy)
+    assert semana.clave == "semana"
+    assert semana.desde == date(2026, 11, 9)
+    assert semana.hasta == hoy
+    assert semana.txt.startswith("Esta semana")
+
+    pasado = resolver_periodo({"periodo": "mes", "mes": "2026-10"}, hoy)
+    assert pasado.desde == date(2026, 10, 1)
+    assert pasado.hasta == date(2026, 10, 31)
+    assert pasado.txt == "oct. 2026"
+
+    rango = resolver_periodo(
+        {"periodo": "rango", "desde": "2026-10-01", "hasta": "2026-10-15"},
+        hoy,
+    )
+    assert rango.clave == "rango"
+    assert rango.desde == date(2026, 10, 1)
+    assert rango.hasta == date(2026, 10, 15)
+    assert rango.txt == "1–15 oct. 2026"
+
+
+@pytest.mark.django_db
+def test_tablero_filtra_ventas_por_semana(usuario):
+    hoy = _hoy()
+    item = _item()
+    _cobrar(usuario, item, fecha=hoy)
+    _cobrar(
+        usuario,
+        _item(codigo_barra="VIEJO", descripcion="Fuera de semana"),
+        fecha=hoy - timedelta(days=8),
+    )
+
+    tablero = tablero_inicio(hoy, params={"periodo": "semana"})
+
+    assert tablero.periodo_clave == "semana"
+    assert tablero.ventas_mes.valor == Decimal("12000")
+    assert tablero.ventas_mes.etiqueta == "Ventas de la semana"
+    assert tablero.seccion_periodo == "Semana en curso"
+
+
+@pytest.mark.django_db
+def test_tablero_filtra_ventas_por_rango(usuario):
+    hoy = _hoy()
+    item = _item()
+    _cobrar(usuario, item, fecha=hoy)
+    _cobrar(
+        usuario,
+        _item(codigo_barra="ANTES", descripcion="Fuera de rango"),
+        fecha=hoy - timedelta(days=10),
+    )
+
+    tablero = tablero_inicio(
+        hoy,
+        params={
+            "periodo": "rango",
+            "desde": (hoy - timedelta(days=3)).isoformat(),
+            "hasta": hoy.isoformat(),
+        },
+    )
+
+    assert tablero.periodo_clave == "rango"
+    assert tablero.ventas_mes.valor == Decimal("12000")
+    assert tablero.ventas_mes.etiqueta == "Ventas del período"
+
+
+@pytest.mark.django_db
+def test_inicio_filtra_por_semana(client, usuario):
+    client.force_login(usuario)
+    html = client.get("/?periodo=semana").content.decode()
+
+    assert "Esta semana" in html
+    assert "Semana en curso" in html
+    assert "Ventas de la semana" in html

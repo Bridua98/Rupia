@@ -16,10 +16,56 @@
       {% endif %}
     </div>
     {% if tablero.periodo_txt %}
-      <p class="dash-period">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.5v3M16 3.5v3M4 10h16"/></svg>
-        {{ tablero.periodo_txt }}
-      </p>
+      <div class="dash-period-wrap">
+        <button
+          type="button"
+          class="dash-period"
+          data-dash-period
+          aria-expanded="false"
+          aria-controls="dash-period-panel"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.5v3M16 3.5v3M4 10h16"/></svg>
+          {{ tablero.periodo_txt }}
+          <svg class="dash-period-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="dash-period-panel" id="dash-period-panel" hidden>
+          <p class="dash-period-label">Filtrar el tablero</p>
+          <a
+            class="dash-period-opt{% if tablero.periodo_clave == 'semana' and tablero.periodo_actual %} is-on{% endif %}"
+            href="{% url 'home' %}?periodo=semana"
+          >Esta semana</a>
+          <a
+            class="dash-period-opt{% if tablero.periodo_clave == 'mes' and tablero.periodo_actual %} is-on{% endif %}"
+            href="{% url 'home' %}"
+          >Este mes</a>
+          <form class="dash-period-form" method="get" action="{% url 'home' %}">
+            <label class="dash-period-field">
+              Mes
+              <input
+                type="month"
+                name="mes"
+                value="{{ tablero.periodo_mes }}"
+                min="2000-01"
+                max="{{ tablero.periodo_mes_max }}"
+                data-dash-mes
+              >
+              <input type="hidden" name="periodo" value="mes" data-dash-periodo>
+            </label>
+            <p class="dash-period-label">Rango personalizado</p>
+            <div class="dash-period-dates">
+              <label class="dash-period-field">
+                Desde
+                <input type="date" name="desde" value="{{ tablero.periodo_desde }}" max="{{ tablero.periodo_hoy }}">
+              </label>
+              <label class="dash-period-field">
+                Hasta
+                <input type="date" name="hasta" value="{{ tablero.periodo_hasta }}" max="{{ tablero.periodo_hoy }}">
+              </label>
+            </div>
+            <button type="submit" class="dash-period-apply" name="periodo" value="rango">Aplicar rango</button>
+          </form>
+        </div>
+      </div>
     {% endif %}
   </header>
 
@@ -90,11 +136,11 @@
           </div>
           {% if tablero.mostrar_resultado %}
             <p class="dash-chart-note">
-              Venta vs compras · hoy
+              Venta vs compras · {{ tablero.texto_vs_dia }}
               <strong class="valor-gs is-texto{% if tablero.comparacion_dia.diferencia < 0 %} is-alerta{% endif %}" dir="ltr">{{ tablero.comparacion_dia.diferencia_txt }}</strong>
             </p>
             <p class="dash-chart-note">
-              Venta vs compras · mes
+              Venta vs compras · {{ tablero.texto_vs_periodo }}
               <strong class="valor-gs is-texto{% if tablero.comparacion_mes.diferencia < 0 %} is-alerta{% endif %}" dir="ltr">{{ tablero.comparacion_mes.diferencia_txt }}</strong>
             </p>
           {% endif %}
@@ -224,7 +270,7 @@
               {% endfor %}
             </ol>
           {% else %}
-            <p class="dash-empty">Sin ventas cobradas hoy</p>
+            <p class="dash-empty">{{ tablero.vacio_ranking }}</p>
           {% endif %}
         </div>
         <div data-corte-panel="categorias" hidden>
@@ -290,7 +336,7 @@
   {% if tablero.mostrar_compras or tablero.mostrar_resultado or tablero.mostrar_ventas %}
   <section class="dash-section" aria-labelledby="dash-mes">
     <header class="dash-section-head">
-      <h2 id="dash-mes">Mes en curso</h2>
+      <h2 id="dash-mes">{{ tablero.seccion_periodo }}</h2>
     </header>
     <div class="dash-kpis dash-kpis-4">
       {% if tablero.mostrar_ventas %}
