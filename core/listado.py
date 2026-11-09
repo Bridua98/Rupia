@@ -1,4 +1,20 @@
 from django.db.models import Q
+from django.utils import timezone
+
+DEFAULT_MONTH_START = "month_start"
+DEFAULT_TODAY = "today"
+
+
+def default_date_value(spec):
+    default = spec.get("default")
+    if not default:
+        return ""
+    hoy = timezone.localdate()
+    if default == DEFAULT_MONTH_START:
+        return hoy.replace(day=1).isoformat()
+    if default == DEFAULT_TODAY:
+        return hoy.isoformat()
+    return str(default)
 
 
 def search_fields_for(view):
@@ -19,6 +35,8 @@ def filter_values(request, specs):
         value = request.GET.get(name, "").strip()
         if not value and request.method == "POST":
             value = request.POST.get(f"filtro_{name}", "").strip()
+        if not value:
+            value = default_date_value(spec)
         if value:
             values[name] = value
     return values

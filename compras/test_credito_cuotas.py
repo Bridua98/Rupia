@@ -16,6 +16,7 @@ from compras.cuotas import total_saldo_pendiente
 from compras.test_compra import _cabecera, _cuota_total, _preparar
 from cuentas.disponibilidad import mayor_disponibilidad
 from inventario.models import ItemMovimiento, TipoMovimiento
+from personas.models import Genero, Persona, TipoDocumento
 
 
 def _confirmar_credito(ingresada, cuenta, proveedor, *, costo="8.000", cuotas=None):
@@ -233,7 +234,10 @@ def test_reporte_cuentas_pagar(ingresada):
         cuotas=[(ayer.isoformat(), Decimal("8000"))],
     )
     cuota = CompraCuota.objects.get(compra=compra)
-    respuesta = ingresada.get("/compras/reportes/cuentas-a-pagar/?situacion=vencida")
+    respuesta = ingresada.get(
+        "/compras/reportes/cuentas-a-pagar/"
+        f"?situacion=vencida&vencimiento_desde={ayer.isoformat()}&vencimiento_hasta={hoy.isoformat()}"
+    )
     assert respuesta.status_code == 200
     cuerpo = respuesta.content.decode().replace("&amp;", "&")
     assert proveedor.razon_social in cuerpo
@@ -241,8 +245,107 @@ def test_reporte_cuentas_pagar(ingresada):
     assert f"/compras/?compra={compra.pk}&ver=1" in cuerpo
     assert "data-href" not in cuerpo
 
-    seleccion = ingresada.get(f"/compras/reportes/cuentas-a-pagar/?reporte_sel={cuota.pk}")
+    seleccion = ingresada.get(
+        f"/compras/reportes/cuentas-a-pagar/?reporte_sel={cuota.pk}"
+        f"&vencimiento_desde={ayer.isoformat()}&vencimiento_hasta={hoy.isoformat()}"
+    )
     assert seleccion.status_code == 200
+
+
+def _proveedor_nombre(nombre, documento):
+    return Persona.objects.create(
+        tipo_documento=TipoDocumento.RUC,
+        documento=documento,
+        razon_social=nombre,
+        genero=Genero.SIN_DEFINIR,
+        direccion="Centro",
+        es_proveedor=True,
+    )
+
+
+def _cuota_credito(usuario, proveedor, *, numero, vencimiento, importe):
+    compra = Compra.objects.create(
+        fecha=vencimiento,
+        estado=EstadoCompra.CONFIRMADA,
+        tipo=TipoCompra.FACTURA_CREDITO,
+        proveedor=proveedor,
+        usuario=usuario,
+        timbrado="12345678",
+        establecimiento="001",
+        punto_codigo="001",
+        secuencial=int(numero.split("-")[-1]),
+        numero_completo=numero,
+    )
+    return CompraCuota.objects.create(
+        compra=compra,
+        numero=1,
+        vencimiento=vencimiento,
+        importe=importe,
+    )
+
+
+@pytest.mark.django_db
+def test_reporte_cuentas_pagar_por_defecto_filtra_el_mes(ingresada, usuario):
+    hoy = timezone.localdate()
+    mes_anterior = hoy.replace(day=1) - timedelta(days=1)
+    actual = _proveedor_nombre("Proveedor mes", "80003333-4")
+    viejo = _proveedor_nombre("Proveedor viejo", "80004444-5")
+    _cuota_credito(
+        usuario, actual, numero="001-001-0000101", vencimiento=hoy, importe=Decimal("8000")
+    )
+    _cuota_credito(
+        usuario,
+        viejo,
+        numero="001-001-0000102",
+        vencimiento=mes_anterior,
+        importe=Decimal("1500"),
+    )
+
+    content = ingresada.get("/compras/reportes/cuentas-a-pagar/").content.decode()
+    cuerpo = content.split("<tbody>")[1].split("</tbody>")[0]
+    assert "Proveedor mes" in cuerpo
+    assert "Proveedor viejo" not in cuerpo
+    assert f'value="{hoy.replace(day=1).isoformat()}"' in content
+    assert f'value="{hoy.isoformat()}"' in content
+
+
+@pytest.mark.django_db
+def test_reporte_cuentas_pagar_agrupa_saldo_por_proveedor(ingresada, usuario):
+    hoy = timezone.localdate()
+    alfa = _proveedor_nombre("Alfa SA", "80005555-6")
+    beta = _proveedor_nombre("Beta SRL", "80006666-7")
+    _cuota_credito(
+        usuario, alfa, numero="001-001-0000201", vencimiento=hoy, importe=Decimal("3000")
+    )
+    _cuota_credito(
+        usuario, alfa, numero="001-001-0000202", vencimiento=hoy, importe=Decimal("2000")
+    )
+    _cuota_credito(
+        usuario, beta, numero="001-001-0000203", vencimiento=hoy, importe=Decimal("4000")
+    )
+
+    detalle = ingresada.get("/compras/reportes/cuentas-a-pagar/").content.decode()
+    thead_detalle = detalle.split("<thead>")[1].split("</thead>")[0]
+    cuerpo_detalle = detalle.split("<tbody>")[1].split("</tbody>")[0]
+    assert "Alfa SA" in cuerpo_detalle
+    assert "Beta SRL" in cuerpo_detalle
+    assert "3 cuotas" in detalle
+    assert "Factura" in thead_detalle
+    assert "Vencimiento" in thead_detalle
+
+    agrupado = ingresada.get("/compras/reportes/cuentas-a-pagar/?agrupar=proveedor")
+    content = agrupado.content.decode()
+    thead = content.split("<thead>")[1].split("</thead>")[0]
+    cuerpo = content.split("<tbody>")[1].split("</tbody>")[0]
+    assert agrupado.status_code == 200
+    assert "Por proveedor" in content
+    assert "Alfa SA" in cuerpo
+    assert "Beta SRL" in cuerpo
+    assert "2 filas" in content
+    assert "5.000" in cuerpo
+    assert "4.000" in cuerpo
+    assert "Factura" not in thead
+    assert "Vencimiento" not in thead
 
 
 @pytest.mark.django_db

@@ -105,6 +105,7 @@ class ReporteProductosListView(MantenimientoListView):
             "kind": "date",
             "field": "fecha_movimiento",
             "lookup": "gte",
+            "default": "month_start",
         },
         {
             "name": "fecha_hasta",
@@ -112,6 +113,7 @@ class ReporteProductosListView(MantenimientoListView):
             "kind": "date",
             "field": "fecha_movimiento",
             "lookup": "lte",
+            "default": "today",
         },
         {
             "name": "agrupar",

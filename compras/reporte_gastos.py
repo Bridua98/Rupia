@@ -129,6 +129,7 @@ class ReporteGastosListView(MantenimientoListView):
             "kind": "date",
             "field": "compra__fecha",
             "lookup": "gte",
+            "default": "month_start",
         },
         {
             "name": "fecha_hasta",
@@ -136,6 +137,7 @@ class ReporteGastosListView(MantenimientoListView):
             "kind": "date",
             "field": "compra__fecha",
             "lookup": "lte",
+            "default": "today",
         },
         {
             "name": "compra__tipo",

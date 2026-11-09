@@ -1,8 +1,9 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from io import BytesIO
 
 import pytest
+from django.utils import timezone
 from openpyxl import load_workbook
 
 from cuentas.models import Cuenta
@@ -72,7 +73,7 @@ def _movimiento(
         item=item,
         unidad_medida=unidad,
         tipo=tipo,
-        fecha_movimiento=fecha or date(2026, 10, 1),
+        fecha_movimiento=fecha or timezone.localdate(),
         cantidad=Decimal(cantidad),
         precio=Decimal("1000"),
         costo=Decimal("800"),
@@ -337,3 +338,24 @@ def test_origen_abre_venta_compra_y_ajuste(ingresada, usuario):
     assert "C88" in valores
     assert "A12" in valores
     assert all("<a" not in str(valor or "") for valor in valores)
+
+
+@pytest.mark.django_db
+def test_por_defecto_filtra_el_mes_en_curso(ingresada):
+    marca = Marca.objects.create(descripcion="M")
+    categoria = ItemCategoria.objects.create(descripcion="C")
+    unidad = UnidadMedida.objects.create(descripcion="Unidad", simbolo="UND")
+    producto = _producto("Prod periodo", marca, categoria, unidad)
+    hoy = timezone.localdate()
+    mes_anterior = hoy.replace(day=1) - timedelta(days=1)
+    _movimiento(producto, unidad, pk=80, cantidad="1", subtotal="1000", fecha=hoy)
+    _movimiento(
+        producto, unidad, pk=81, cantidad="9", subtotal="9000", fecha=mes_anterior
+    )
+
+    content = ingresada.get("/inventario/reportes/productos/").content.decode()
+    cuerpo = content.split("<tbody>")[1].split("</tbody>")[0]
+    assert "1.000" in cuerpo
+    assert "9.000" not in cuerpo
+    assert f'value="{hoy.replace(day=1).isoformat()}"' in content
+    assert f'value="{hoy.isoformat()}"' in content
