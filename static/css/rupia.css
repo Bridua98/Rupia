@@ -5560,6 +5560,12 @@ body.pos-screen .app-stage {
   gap: 1rem;
 }
 
+.dash-period-wrap {
+  position: relative;
+  flex: none;
+  z-index: 3;
+}
+
 .dash-period {
   display: inline-flex;
   align-items: center;
@@ -5570,9 +5576,17 @@ body.pos-screen .app-stage {
   border-radius: 999px;
   background: #fff;
   color: var(--forest);
+  font: inherit;
   font-size: 0.86rem;
   font-weight: 650;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.dash-period:hover,
+.dash-period[aria-expanded="true"] {
+  border-color: #c5d9cc;
+  background: #f6faf7;
 }
 
 .dash-period svg {
@@ -5583,6 +5597,125 @@ body.pos-screen .app-stage {
   stroke-width: 1.7;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.dash-period-caret {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-left: 0.1rem;
+}
+
+.dash-period[aria-expanded="true"] .dash-period-caret {
+  transform: rotate(180deg);
+}
+
+.dash-period-panel {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: min(20.5rem, calc(100vw - 2rem));
+  padding: 0.7rem;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgba(26, 36, 33, 0.08),
+    0 12px 32px rgba(26, 36, 33, 0.14);
+}
+
+.dash-period-label {
+  margin: 0.35rem 0 0.15rem;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dash-period-label:first-child {
+  margin-top: 0;
+}
+
+.dash-period-opt {
+  display: block;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  color: var(--forest);
+  font-size: 0.88rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.dash-period-opt:hover {
+  background: #eef4f0;
+}
+
+.dash-period-opt.is-on {
+  background: #e7f6ee;
+  color: #1e8a4c;
+}
+
+.dash-period-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-top: 0.25rem;
+}
+
+.dash-period-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.dash-period-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.dash-period-field input {
+  width: 100%;
+  min-height: 2.2rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #e3ebe6;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--forest);
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+.dash-period-field input:focus {
+  outline: 2px solid #1e8a4c;
+  outline-offset: 1px;
+}
+
+.dash-period-apply {
+  margin-top: 0.15rem;
+  padding: 0.45rem 0.7rem;
+  border: 0;
+  border-radius: 10px;
+  background: var(--forest);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.dash-period-apply:hover {
+  filter: brightness(1.08);
+}
+
+.dash-period-panel[hidden] {
+  display: none;
 }
 
 .dash-kpi-top {
@@ -6543,4 +6676,43 @@ body.pos-screen .app-stage {
   .ajuste-stock-cabecera .item-form-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.pago-proveedor-form {
+  display: grid;
+  gap: 1.15rem;
+}
+
+.pago-proveedor-form .item-form-grid .field-wide {
+  grid-column: 1 / -1;
+}
+
+.pago-proveedor-form .sheet-wrap {
+  overflow-x: auto;
+}
+
+.pago-proveedor-form .sheet-cuotas td {
+  vertical-align: middle;
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+
+.pago-proveedor-form .sheet-cuotas .field-inline {
+  margin: 0;
+  padding-top: 0;
+}
+
+.pago-proveedor-form .sheet-cuotas .field-inline input {
+  height: 2.15rem;
+  padding: 0.35rem 0 0.3rem;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.pago-proveedor-form .hint {
+  margin: 0.85rem 0 0.75rem;
+}
+
+.pago-proveedor-form .button {
+  margin-top: 0.35rem;
 }

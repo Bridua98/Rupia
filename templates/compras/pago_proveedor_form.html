@@ -5,96 +5,122 @@
 
 {% block work %}
 <div class="ledger">
-  <a class="back" href="{% url 'pago_proveedor_list' %}">
-    {% include "core/icon.html" with name="back" %}
-    <span>Volver</span>
-  </a>
-  <div class="stage-head">
-    <div>
-      <p class="eyebrow">Compras</p>
-      <h1>Nuevo pago a proveedor</h1>
-      <p class="list-hint">Aplicá el importe a una o más cuotas abiertas del proveedor.</p>
+  <div class="ledger-main">
+    <a class="back" href="{% url 'pago_proveedor_list' %}">
+      {% include "core/icon.html" with name="back" %}
+      <span>Volver</span>
+    </a>
+    <div class="stage-head">
+      <div>
+        <p class="eyebrow">Compras</p>
+        <h1>Nuevo pago a proveedor</h1>
+        <p class="list-hint">Elegí el proveedor y aplicá el importe a una o más cuotas abiertas.</p>
+      </div>
+    </div>
+
+    <div class="pago-proveedor-form">
+      <section class="item-form-card" aria-labelledby="pago-datos">
+        <header class="item-form-card-head">
+          {% include "core/icon.html" with name="cash" %}
+          <h2 id="pago-datos">Datos del pago</h2>
+        </header>
+        <form method="get" action="{% url 'pago_proveedor_nuevo' %}" class="item-form-grid">
+          <div class="field">
+            <select name="proveedor" id="pago-proveedor" onchange="this.form.submit()">
+              <option value="">Elegí el proveedor</option>
+              {% for p in proveedores %}
+                <option value="{{ p.pk }}"{% if proveedor_id == p.pk %} selected{% endif %}>{{ p }}</option>
+              {% endfor %}
+            </select>
+            <label for="pago-proveedor">Proveedor</label>
+          </div>
+        </form>
+        <form method="post" class="item-form-grid" id="pago-confirmar">
+          {% csrf_token %}
+          {% if proveedor_id %}
+            <input type="hidden" name="proveedor" value="{{ proveedor_id }}">
+          {% endif %}
+          <div class="field">
+            <input type="date" name="fecha" id="pago-fecha" value="{{ fecha }}" required>
+            <label for="pago-fecha">Fecha</label>
+          </div>
+          <div class="field">
+            <select name="cuenta" id="pago-cuenta" required>
+              <option value="">Elegí la cuenta</option>
+              {% for cuenta in cuentas %}
+                <option value="{{ cuenta.pk }}"{% if cuenta_id|stringformat:"s" == cuenta.pk|stringformat:"s" %} selected{% endif %}>{{ cuenta.etiqueta_cobro }}</option>
+              {% endfor %}
+            </select>
+            <label for="pago-cuenta">Cuenta</label>
+          </div>
+          <div class="field field-wide">
+            <input type="text" name="observacion" id="pago-observacion" value="{{ observacion }}" maxlength="300" autocomplete="off">
+            <label for="pago-observacion">Observación</label>
+          </div>
+        </form>
+      </section>
+
+      <section class="item-form-card" aria-labelledby="pago-cuotas">
+        <header class="item-form-card-head">
+          {% include "core/icon.html" with name="calendar" %}
+          <h2 id="pago-cuotas">Cuotas a cancelar</h2>
+        </header>
+        <div class="sheet-wrap">
+          <table class="sheet sheet-form sheet-cuotas">
+            <thead>
+              <tr>
+                <th>Factura</th>
+                <th>Cuota</th>
+                <th>Vence</th>
+                <th>Saldo</th>
+                <th>Aplicar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cuota in cuotas %}
+                <tr>
+                  <td>{{ cuota.compra }}</td>
+                  <td>{{ cuota.numero }}</td>
+                  <td>{{ cuota.vencimiento_txt }}</td>
+                  <td><span class="valor-gs is-texto" dir="ltr">Gs. {{ cuota.saldo_txt }}</span></td>
+                  <td class="sheet-aplicar">
+                    <div class="field field-inline">
+                      <input
+                        type="text"
+                        name="aplicar_{{ cuota.pk }}"
+                        id="aplicar-{{ cuota.pk }}"
+                        form="pago-confirmar"
+                        value="{{ cuota.aplicar }}"
+                        inputmode="numeric"
+                        data-moneda="guarani"
+                        data-moneda-max="12"
+                        placeholder="0"
+                      >
+                      <label class="sr-only" for="aplicar-{{ cuota.pk }}">Aplicar cuota {{ cuota.numero }}</label>
+                    </div>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="5">
+                    {% if proveedor_id %}
+                      Este proveedor no tiene cuotas con saldo pendiente.
+                    {% else %}
+                      Elegí un proveedor para ver las cuotas abiertas.
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if cuotas %}
+          <p class="hint">La suma de los importes aplicados es el total del pago.</p>
+          <button type="submit" class="button" form="pago-confirmar">Confirmar pago</button>
+        {% endif %}
+      </section>
     </div>
   </div>
-
-  <form method="get" action="{% url 'pago_proveedor_nuevo' %}" class="list-toolbar">
-    <label class="field">
-      <span>Proveedor</span>
-      <select name="proveedor" onchange="this.form.submit()">
-        <option value="">Elegí el proveedor</option>
-        {% for p in proveedores %}
-          <option value="{{ p.pk }}"{% if proveedor_id == p.pk %} selected{% endif %}>{{ p }}</option>
-        {% endfor %}
-      </select>
-    </label>
-  </form>
-
-  {% if proveedor_id %}
-    <form method="post" class="form-card">
-      {% csrf_token %}
-      <input type="hidden" name="proveedor" value="{{ proveedor_id }}">
-      <div class="form-grid">
-        <label class="field">
-          <span>Fecha</span>
-          <input type="date" name="fecha" value="{{ fecha }}" required>
-        </label>
-        <label class="field">
-          <span>Cuenta</span>
-          <select name="cuenta" required>
-            <option value="">Elegí la cuenta</option>
-            {% for cuenta in cuentas %}
-              <option value="{{ cuenta.pk }}"{% if cuenta_id|stringformat:"s" == cuenta.pk|stringformat:"s" %} selected{% endif %}>{{ cuenta.etiqueta_cobro }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="field field-wide">
-          <span>Observación</span>
-          <input type="text" name="observacion" value="{{ observacion }}" maxlength="300" autocomplete="off">
-        </label>
-      </div>
-
-      {% if cuotas %}
-        <table class="sheet">
-          <thead>
-            <tr>
-              <th>Factura</th>
-              <th>Cuota</th>
-              <th>Vence</th>
-              <th>Saldo</th>
-              <th>Aplicar</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for cuota in cuotas %}
-              <tr>
-                <td>{{ cuota.compra }}</td>
-                <td>{{ cuota.numero }}</td>
-                <td>{{ cuota.vencimiento_txt }}</td>
-                <td><span class="valor-gs is-texto" dir="ltr">Gs. {{ cuota.saldo_txt }}</span></td>
-                <td>
-                  <input
-                    type="text"
-                    name="aplicar_{{ cuota.pk }}"
-                    value="{{ cuota.aplicar }}"
-                    inputmode="numeric"
-                    data-rupia-moneda
-                    placeholder="0"
-                    aria-label="Aplicar cuota {{ cuota.numero }}"
-                  >
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        <p class="pos-hint">La suma de los importes aplicados es el total del pago.</p>
-        <button type="submit" class="button">Confirmar pago</button>
-      {% else %}
-        <p class="pos-hint">Este proveedor no tiene cuotas con saldo pendiente.</p>
-      {% endif %}
-    </form>
-  {% else %}
-    <p class="pos-hint">Elegí un proveedor para ver las cuotas abiertas.</p>
-  {% endif %}
 </div>
 {% endblock %}
 

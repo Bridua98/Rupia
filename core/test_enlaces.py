@@ -28,6 +28,7 @@ def test_url_origen_caja_segun_etiqueta():
     assert url_origen_caja("Transferencia", 4) == (
         "/cuentas/transferencias/?transferencia=4&ver=1"
     )
+    assert url_origen_caja("Pago proveedor", 5) == "/compras/pagos/?pago=5&ver=1"
     assert url_origen_caja("", 1) == ""
 
 

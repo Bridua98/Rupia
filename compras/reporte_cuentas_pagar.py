@@ -241,6 +241,9 @@ class ReporteCuentasPagarListView(MantenimientoListView):
     def panel_pk(self):
         return None
 
+    def get_table_kwargs(self):
+        return {}
+
     def totales_raw(self):
         filas = self._armar_filas()
         return {

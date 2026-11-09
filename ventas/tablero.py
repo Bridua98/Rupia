@@ -200,6 +200,17 @@ class TableroVentas:
     mostrar_cuentas_pagar: bool = True
     mostrar_liquidez: bool = True
     periodo_txt: str = ""
+    periodo_clave: str = "mes"
+    periodo_mes: str = ""
+    periodo_mes_max: str = ""
+    periodo_hoy: str = ""
+    periodo_desde: str = ""
+    periodo_hasta: str = ""
+    periodo_actual: bool = True
+    seccion_periodo: str = "Mes en curso"
+    texto_vs_dia: str = "hoy"
+    texto_vs_periodo: str = "mes"
+    vacio_ranking: str = "Sin ventas cobradas hoy"
     graficos: dict = field(default_factory=dict)
     distribucion: list[PorcionTablero] = field(default_factory=list)
     ranking: list[RankingTablero] = field(default_factory=list)
@@ -539,6 +550,195 @@ def _periodo_txt(dia: date) -> str:
     return f"Este mes ({MESES_CORTOS[dia.month - 1]}. {dia.year})"
 
 
+@dataclass
+class PeriodoTablero:
+    clave: str
+    desde: date
+    hasta: date
+    txt: str
+    mes: str
+    nombre: str
+    seccion: str
+    actual: bool
+    prev_desde: date
+    prev_hasta: date
+    anio_desde: date
+    anio_hasta: date
+
+
+def _parse_fecha(valor) -> date | None:
+    if not valor:
+        return None
+    try:
+        return date.fromisoformat(str(valor)[:10])
+    except ValueError:
+        return None
+
+
+def _parse_mes(valor) -> date | None:
+    if not valor:
+        return None
+    texto = str(valor).strip()
+    if len(texto) < 7:
+        return None
+    try:
+        return date(int(texto[:4]), int(texto[5:7]), 1)
+    except ValueError:
+        return None
+
+
+def _lunes(dia: date) -> date:
+    return dia - timedelta(days=dia.weekday())
+
+
+def _fin_calendario(inicio: date) -> date:
+    return inicio.replace(day=monthrange(inicio.year, inicio.month)[1])
+
+
+def _iso_mes(dia: date) -> str:
+    return f"{dia.year:04d}-{dia.month:02d}"
+
+
+def _de_periodo(clave: str) -> str:
+    if clave == "semana":
+        return "de la semana"
+    if clave == "rango":
+        return "del período"
+    return "del mes"
+
+
+def _en_periodo(clave: str) -> str:
+    if clave == "semana":
+        return "en la semana"
+    if clave == "rango":
+        return "en el período"
+    return "en el mes"
+
+
+def _periodo_txt_semana(desde: date, hasta: date, actual: bool) -> str:
+    if desde == hasta:
+        rango = f"{desde.day} {MESES_CORTOS[desde.month - 1]}."
+    elif desde.month == hasta.month:
+        rango = f"{desde.day}–{hasta.day} {MESES_CORTOS[hasta.month - 1]}."
+    else:
+        rango = (
+            f"{desde.day} {MESES_CORTOS[desde.month - 1]}. – "
+            f"{hasta.day} {MESES_CORTOS[hasta.month - 1]}."
+        )
+    if actual:
+        return f"Esta semana ({rango})"
+    return f"Semana ({rango} {hasta.year})"
+
+
+def _periodo_txt_rango(desde: date, hasta: date) -> str:
+    if desde == hasta:
+        return f"{desde.day} {MESES_CORTOS[desde.month - 1]}. {desde.year}"
+    if desde.year == hasta.year and desde.month == hasta.month:
+        return f"{desde.day}–{hasta.day} {MESES_CORTOS[hasta.month - 1]}. {hasta.year}"
+    if desde.year == hasta.year:
+        return (
+            f"{desde.day} {MESES_CORTOS[desde.month - 1]}. – "
+            f"{hasta.day} {MESES_CORTOS[hasta.month - 1]}. {hasta.year}"
+        )
+    return (
+        f"{desde.day} {MESES_CORTOS[desde.month - 1]}. {desde.year} – "
+        f"{hasta.day} {MESES_CORTOS[hasta.month - 1]}. {hasta.year}"
+    )
+
+
+def resolver_periodo(params=None, hoy=None) -> PeriodoTablero:
+    hoy = hoy or timezone.localdate()
+    valor = getattr(params, "get", lambda _clave, default=None: default)
+    clave = str(valor("periodo") or "mes").strip().lower()
+    if clave not in ("mes", "semana", "rango"):
+        clave = "mes"
+
+    if clave == "rango":
+        desde = _parse_fecha(valor("desde"))
+        hasta = _parse_fecha(valor("hasta"))
+        if desde is None or hasta is None or desde > hasta:
+            clave = "mes"
+        else:
+            if hasta > hoy:
+                hasta = hoy
+            if desde > hoy:
+                desde = hoy
+            if desde > hasta:
+                desde = hasta
+            prev_hasta = desde - timedelta(days=1)
+            prev_desde = prev_hasta - (hasta - desde)
+            return PeriodoTablero(
+                clave="rango",
+                desde=desde,
+                hasta=hasta,
+                txt=_periodo_txt_rango(desde, hasta),
+                mes=_iso_mes(hasta),
+                nombre="período",
+                seccion="En el período",
+                actual=False,
+                prev_desde=prev_desde,
+                prev_hasta=prev_hasta,
+                anio_desde=_fecha_anio_anterior(desde),
+                anio_hasta=_fecha_anio_anterior(hasta),
+            )
+
+    if clave == "semana":
+        ancla = _parse_fecha(valor("desde")) or hoy
+        if ancla > hoy:
+            ancla = hoy
+        desde = _lunes(ancla)
+        hasta = min(desde + timedelta(days=6), hoy)
+        actual = desde == _lunes(hoy)
+        return PeriodoTablero(
+            clave="semana",
+            desde=desde,
+            hasta=hasta,
+            txt=_periodo_txt_semana(desde, hasta, actual),
+            mes=_iso_mes(hasta),
+            nombre="semana",
+            seccion="Semana en curso" if actual else "La semana",
+            actual=actual,
+            prev_desde=desde - timedelta(days=7),
+            prev_hasta=hasta - timedelta(days=7),
+            anio_desde=_fecha_anio_anterior(desde),
+            anio_hasta=_fecha_anio_anterior(hasta),
+        )
+
+    inicio = _parse_mes(valor("mes"))
+    actual_inicio = hoy.replace(day=1)
+    if inicio is None or inicio > actual_inicio:
+        inicio = actual_inicio
+    fin = _fin_calendario(inicio)
+    hasta = min(fin, hoy)
+    actual = inicio == actual_inicio
+    if actual:
+        prev_desde, prev_hasta = _rango_mes_anterior(hoy)
+        anio_desde, anio_hasta = _rango_mes_anio_anterior(hoy)
+        txt = _periodo_txt(hoy)
+        seccion = "Mes en curso"
+    else:
+        prev_hasta = inicio - timedelta(days=1)
+        prev_desde = prev_hasta.replace(day=1)
+        anio_desde = _fecha_anio_anterior(inicio)
+        anio_hasta = _fin_calendario(anio_desde)
+        txt = f"{MESES_CORTOS[inicio.month - 1]}. {inicio.year}"
+        seccion = f"{MESES_CORTOS[inicio.month - 1].capitalize()} {inicio.year}"
+    return PeriodoTablero(
+        clave="mes",
+        desde=inicio,
+        hasta=hasta,
+        txt=txt,
+        mes=_iso_mes(inicio),
+        nombre="mes",
+        seccion=seccion,
+        actual=actual,
+        prev_desde=prev_desde,
+        prev_hasta=prev_hasta,
+        anio_desde=anio_desde,
+        anio_hasta=anio_hasta,
+    )
+
+
 def _puntos(fechas, ventas_map, compras_map, etiqueta) -> list[dict]:
     puntos = []
     for dia in fechas:
@@ -727,14 +927,18 @@ def _actividades(*, ventas: bool, compras: bool, pagos: bool, stock: bool):
     return [item[2] for item in eventos[:5]]
 
 
-def tablero_inicio(hoy=None, user=None) -> TableroVentas:
+def tablero_inicio(hoy=None, user=None, params=None) -> TableroVentas:
     hoy = hoy or timezone.localdate()
-    ayer = hoy - timedelta(days=1)
-    mismo_anio = _fecha_anio_anterior(hoy)
-    mes_inicio, mes_fin = _rango_mes(hoy)
-    mes_ant_inicio, mes_ant_fin = _rango_mes_anterior(hoy)
-    mes_anio_inicio, mes_anio_fin = _rango_mes_anio_anterior(hoy)
-    semana_inicio = hoy - timedelta(days=6)
+    periodo = resolver_periodo(params, hoy)
+    dia = periodo.hasta
+    ayer = dia - timedelta(days=1)
+    mismo_anio = _fecha_anio_anterior(dia)
+    mes_inicio, mes_fin = periodo.desde, periodo.hasta
+    mes_ant_inicio, mes_ant_fin = periodo.prev_desde, periodo.prev_hasta
+    mes_anio_inicio, mes_anio_fin = periodo.anio_desde, periodo.anio_hasta
+    semana_inicio = dia - timedelta(days=6)
+    de_periodo = _de_periodo(periodo.clave)
+    en_periodo = _en_periodo(periodo.clave)
     mostrar_ventas, mostrar_compras, mostrar_disponibilidad, mostrar_cuentas_pagar = (
         _permisos_tablero(user)
     )
@@ -758,8 +962,13 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
     ticket = CERO
     costo_mes = CERO
     margen_valor = CERO
-    margen_meta = "Sin ventas cobradas en el mes"
-    meta_ventas = "Sin ventas cobradas hoy"
+    margen_meta = f"Sin ventas cobradas {en_periodo}"
+    vacio_dia = (
+        "Sin ventas cobradas hoy"
+        if dia == hoy
+        else f"Sin ventas cobradas el {dia.strftime('%d/%m/%Y')}"
+    )
+    meta_ventas = vacio_dia
     contado_dia = CERO
     credito_dia = CERO
     otros_dia = CERO
@@ -781,7 +990,7 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
                 importe_txt=_dinero(importe),
             )
 
-        ventas_dia = list(_cobradas().filter(fecha=hoy))
+        ventas_dia = list(_cobradas().filter(fecha=dia))
         lineas = list(
             VentaDetalle.objects.filter(venta__in=ventas_dia).select_related(
                 "item",
@@ -846,21 +1055,21 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
         ventas_mes, ventas_mes_cantidad = _total_ventas(mes_inicio, mes_fin)
         ventas_mes_ant, _ = _total_ventas(mes_ant_inicio, mes_ant_fin)
         ventas_mes_anio, _ = _total_ventas(mes_anio_inicio, mes_anio_fin)
-        serie_ventas = _serie_diaria(semana_inicio, hoy, _mapa_ventas(semana_inicio, hoy))
+        serie_ventas = _serie_diaria(semana_inicio, dia, _mapa_ventas(semana_inicio, dia))
         ticket = (
             redondear_guarani(importe_dia / Decimal(len(ventas_dia))) if ventas_dia else CERO
         )
         meta_ventas = (
             f"{len(ventas_dia)} comprobante{'' if len(ventas_dia) == 1 else 's'}"
             if ventas_dia
-            else "Sin ventas cobradas hoy"
+            else vacio_dia
         )
         if mostrar_resultado:
             costo_mes = _costo_ventas(mes_inicio, mes_fin)
             margen_valor = redondear_guarani(ventas_mes - costo_mes)
             if ventas_mes > 0:
                 margen_pct = int(redondear_guarani((margen_valor / ventas_mes) * CIEN))
-                margen_meta = f"{margen_pct}% sobre ventas del mes"
+                margen_meta = f"{margen_pct}% sobre ventas {de_periodo}"
 
     compras_hoy = CERO
     compras_ayer = CERO
@@ -874,7 +1083,7 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
     serie_compras = _serie([])
 
     if mostrar_compras:
-        compras_hoy = _total_compras(hoy, hoy)
+        compras_hoy = _total_compras(dia, dia)
         compras_ayer = _total_compras(ayer, ayer)
         compras_anio = _total_compras(mismo_anio, mismo_anio)
         compras_mes = _total_compras(mes_inicio, mes_fin)
@@ -887,7 +1096,7 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
         egresos_mes_anio = _total_compras(
             mes_anio_inicio, mes_anio_fin, tipos=(TipoCompra.EGRESO,)
         )
-        serie_compras = _serie_diaria(semana_inicio, hoy, _mapa_compras(semana_inicio, hoy))
+        serie_compras = _serie_diaria(semana_inicio, dia, _mapa_compras(semana_inicio, dia))
 
     resultado_mes = CERO
     resultado_mes_ant = CERO
@@ -952,7 +1161,7 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
             liquidez_tono = "ok" if ratio >= 1 else "alerta"
         else:
             liquidez_tono = "ok" if disponible >= 0 else "alerta"
-        dias_mes = max((hoy - mes_inicio).days + 1, 1)
+        dias_mes = max((dia - mes_inicio).days + 1, 1)
         promedio_salida = (
             redondear_guarani(salidas_mes / Decimal(dias_mes)) if salidas_mes else CERO
         )
@@ -968,15 +1177,15 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
     mapa_ventas = {}
     mapa_compras = {}
     if mostrar_ventas or mostrar_compras:
-        desde_grafico = _inicio_mes_desplazado(hoy.replace(day=1), 11)
+        desde_grafico = _inicio_mes_desplazado(dia.replace(day=1), 11)
         if mostrar_ventas:
-            mapa_ventas = _mapa_ventas(desde_grafico, hoy)
+            mapa_ventas = _mapa_ventas(desde_grafico, dia)
         if mostrar_compras:
-            mapa_compras = _mapa_compras(desde_grafico, hoy)
+            mapa_compras = _mapa_compras(desde_grafico, dia)
     ventas_por_mes = _por_mes(mapa_ventas)
     compras_por_mes = _por_mes(mapa_compras)
     meses = [
-        _inicio_mes_desplazado(hoy.replace(day=1), desplazamiento)
+        _inicio_mes_desplazado(dia.replace(day=1), desplazamiento)
         for desplazamiento in range(11, -1, -1)
     ]
     graficos = {
@@ -984,16 +1193,16 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
         "compras": mostrar_compras,
         "lineas": {
             "7": _puntos(
-                list(_fechas(hoy - timedelta(days=6), hoy)),
+                list(_fechas(dia - timedelta(days=6), dia)),
                 mapa_ventas,
                 mapa_compras,
-                lambda dia: dia.strftime("%d/%m"),
+                lambda punto: punto.strftime("%d/%m"),
             ),
             "30": _puntos(
-                list(_fechas(hoy - timedelta(days=29), hoy)),
+                list(_fechas(dia - timedelta(days=29), dia)),
                 mapa_ventas,
                 mapa_compras,
-                lambda dia: dia.strftime("%d/%m"),
+                lambda punto: punto.strftime("%d/%m"),
             ),
             "12": _puntos(meses, ventas_por_mes, compras_por_mes, _etiqueta_mes),
         },
@@ -1001,13 +1210,13 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
     }
     if mostrar_disponibilidad:
         for desplazamiento in (2, 1, 0):
-            inicio_barra = _inicio_mes_desplazado(hoy.replace(day=1), desplazamiento)
-            if desplazamiento == 0:
+            inicio_barra = _inicio_mes_desplazado(dia.replace(day=1), desplazamiento)
+            if desplazamiento == 0 and periodo.clave == "mes":
                 entra, sale = entradas_mes, salidas_mes
             else:
                 _, _, totales_barra = mayor_disponibilidad(
                     fecha_desde=inicio_barra,
-                    fecha_hasta=_fin_de_mes(inicio_barra, hoy),
+                    fecha_hasta=_fin_de_mes(inicio_barra, dia),
                 )
                 entra = redondear_guarani(totales_barra["entra"])
                 sale = redondear_guarani(totales_barra["salida"])
@@ -1057,7 +1266,7 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
             tono="ok" if disponible > 0 else "alerta" if disponible < 0 else "",
         ),
         resultado_mes=_indicador(
-            "Resultado del mes",
+            f"Resultado {de_periodo}",
             resultado_mes,
             resultado_mes_ant,
             resultado_mes_anio,
@@ -1082,7 +1291,7 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
             tono="alerta" if mostrar_cuentas_pagar and por_pagar > disponible else "",
         ),
         flujo_mes=_indicador(
-            "Flujo de caja del mes",
+            f"Flujo de caja {de_periodo}",
             flujo_mes,
             flujo_mes_ant,
             flujo_mes_anio,
@@ -1097,7 +1306,7 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
             tono=liquidez_tono,
         ),
         ventas_mes=_indicador(
-            "Ventas del mes",
+            f"Ventas {de_periodo}",
             ventas_mes,
             ventas_mes_ant,
             ventas_mes_anio,
@@ -1105,7 +1314,7 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
             f"{'' if ventas_mes_cantidad == 1 else 's'}",
         ),
         compras_mes=_indicador(
-            "Compras del mes",
+            f"Compras {de_periodo}",
             compras_mes,
             compras_mes_ant,
             compras_mes_anio,
@@ -1116,7 +1325,9 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
             etiqueta="Ticket promedio",
             valor=ticket,
             valor_txt=_dinero(ticket),
-            meta="Sobre ventas cobradas hoy",
+            meta="Sobre ventas cobradas hoy"
+            if dia == hoy
+            else f"Sobre ventas cobradas el {dia.strftime('%d/%m/%Y')}",
         ),
         margen=IndicadorTablero(
             etiqueta="Margen estimado",
@@ -1126,7 +1337,7 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
             tono="ok" if margen_valor >= 0 else "alerta",
         ),
         egresos_mes=_indicador(
-            "Egresos del mes",
+            f"Egresos {de_periodo}",
             egresos_mes,
             egresos_mes_ant,
             egresos_mes_anio,
@@ -1139,7 +1350,18 @@ def tablero_inicio(hoy=None, user=None) -> TableroVentas:
         mostrar_disponibilidad=mostrar_disponibilidad,
         mostrar_cuentas_pagar=mostrar_cuentas_pagar,
         mostrar_liquidez=mostrar_liquidez,
-        periodo_txt=_periodo_txt(hoy),
+        periodo_txt=periodo.txt,
+        periodo_clave=periodo.clave,
+        periodo_mes=periodo.mes,
+        periodo_mes_max=_iso_mes(hoy),
+        periodo_hoy=hoy.isoformat(),
+        periodo_desde=periodo.desde.isoformat(),
+        periodo_hasta=periodo.hasta.isoformat(),
+        periodo_actual=periodo.actual,
+        seccion_periodo=periodo.seccion,
+        texto_vs_dia="hoy" if dia == hoy else dia.strftime("%d/%m"),
+        texto_vs_periodo=periodo.nombre,
+        vacio_ranking=vacio_dia,
         graficos=graficos,
         distribucion=_distribucion(contado_dia, credito_dia, otros_dia)
         if mostrar_ventas

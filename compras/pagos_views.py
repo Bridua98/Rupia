@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
@@ -9,7 +10,7 @@ from compras.cuotas import cuotas_abiertas_proveedor
 from compras.pago_proveedor import anular, confirmar_pago_desde_post
 from compras.models import EstadoPagoProveedor, PagoProveedor
 from compras.tables import PagoProveedorTable
-from configuracion.permisos import PermisoRequeridoMixin, tiene_permiso
+from configuracion.permisos import PermisoRequeridoMixin
 from core.mantenimiento import MantenimientoListView
 from core.moneda import formatear_guaranies
 from cuentas.models import Cuenta
@@ -88,6 +89,9 @@ class PagoProveedorListado:
 
 
 class PagoProveedorListView(PagoProveedorListado, MantenimientoListView):
+    def creating(self):
+        return False
+
     def get_queryset(self):
         return super().get_queryset().select_related("proveedor", "cuenta")
 
@@ -95,6 +99,12 @@ class PagoProveedorListView(PagoProveedorListado, MantenimientoListView):
         table = super().get_table(**kwargs)
         table.puede_anular = self.puede("anular")
         return table
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.puede("alta"):
+            context["create_url"] = reverse("pago_proveedor_nuevo")
+        return context
 
 
 class PagoProveedorNuevoView(LoginRequiredMixin, PermisoRequeridoMixin, View):
@@ -116,8 +126,8 @@ class PagoProveedorNuevoView(LoginRequiredMixin, PermisoRequeridoMixin, View):
                 "compras/pago_proveedor_form.html",
                 self._contexto(request, post=request.POST),
             )
-        except Persona.DoesNotExist:
-            messages.error(request, "Elegí un proveedor válido.")
+        except (Persona.DoesNotExist, Cuenta.DoesNotExist):
+            messages.error(request, "Elegí un proveedor y una cuenta válidos.")
             return redirect("pago_proveedor_nuevo")
 
     def _contexto(self, request, post=None):
@@ -154,11 +164,6 @@ class PagoProveedorNuevoView(LoginRequiredMixin, PermisoRequeridoMixin, View):
             "cuentas": Cuenta.objects.order_by("descripcion"),
             "proveedores": Persona.objects.filter(es_proveedor=True).order_by("razon_social"),
             "cuotas": cuotas,
-            "persona_nueva_url": (
-                "/personas/?nueva=1&proveedor=1"
-                if tiene_permiso(request.user, "personas", "alta")
-                else ""
-            ),
         }
 
 

@@ -393,8 +393,56 @@
     });
   }
 
+  function activarPeriodo() {
+    var boton = document.querySelector("[data-dash-period]");
+    var panel = document.getElementById("dash-period-panel");
+    if (!boton || !panel) return;
+
+    function abierto() {
+      return boton.getAttribute("aria-expanded") === "true";
+    }
+
+    function cerrar() {
+      boton.setAttribute("aria-expanded", "false");
+      panel.hidden = true;
+    }
+
+    function abrir() {
+      boton.setAttribute("aria-expanded", "true");
+      panel.hidden = false;
+    }
+
+    boton.addEventListener("click", function (event) {
+      event.stopPropagation();
+      if (abierto()) cerrar();
+      else abrir();
+    });
+    panel.addEventListener("click", function (event) {
+      event.stopPropagation();
+    });
+    document.addEventListener("click", cerrar);
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && abierto()) {
+        cerrar();
+        boton.focus();
+      }
+    });
+
+    var mes = panel.querySelector("[data-dash-mes]");
+    if (mes) {
+      mes.addEventListener("change", function () {
+        var form = mes.form;
+        if (!form) return;
+        var clave = form.querySelector("[data-dash-periodo]");
+        if (clave) clave.value = "mes";
+        form.submit();
+      });
+    }
+  }
+
   dibujarLinea();
   dibujarBarras();
   activarCorte();
   activarDonut();
+  activarPeriodo();
 })();

@@ -23,7 +23,9 @@ class RupiaLoginView(LoginView):
 @login_required
 def home(request):
     return render(
-        request, "core/home.html", {"tablero": tablero_inicio(user=request.user)}
+        request,
+        "core/home.html",
+        {"tablero": tablero_inicio(user=request.user, params=request.GET)},
     )
 
 
