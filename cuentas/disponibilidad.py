@@ -325,7 +325,8 @@ class ReporteDisponibilidadListView(MantenimientoListView):
     create_label = ""
     show_create = False
     list_hint = (
-        "Elegí desde y hasta. El saldo de cada fila es el saldo anterior más la entra menos la salida. "
+        "Por defecto muestra el mes en curso hasta hoy. "
+        "El saldo de cada fila es el saldo anterior más la entra menos la salida. "
         "Los movimientos de antes de esa fecha se agrupan en Saldo anterior."
     )
     search_label = "Buscar"
@@ -343,12 +344,14 @@ class ReporteDisponibilidadListView(MantenimientoListView):
             "label": "Desde",
             "kind": "date",
             "required": True,
+            "default": "month_start",
         },
         {
             "name": "fecha_hasta",
             "label": "Hasta",
             "kind": "date",
             "required": True,
+            "default": "today",
         },
         {
             "name": "vista",

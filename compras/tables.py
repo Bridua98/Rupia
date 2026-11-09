@@ -264,3 +264,26 @@ class ReporteCuentasPagarTable(tables.Table):
         }
         clase = clases.get(value, "")
         return format_html('<span class="rupia-badge {}">{}</span>', clase, value)
+
+
+class ReporteCuentasPagarAgrupadoTable(tables.Table):
+    proveedor = tables.Column(verbose_name="Proveedor")
+    cuotas = tables.Column(verbose_name="Cuotas", attrs=ATTRS_NUM)
+    importe = tables.Column(verbose_name="Importe", attrs=ATTRS_MONEDA)
+    pagado = tables.Column(verbose_name="Pagado", attrs=ATTRS_MONEDA)
+    saldo = tables.Column(verbose_name="Saldo", attrs=ATTRS_MONEDA)
+
+    class Meta:
+        orderable = False
+        template_name = "django_tables2/rupia_totales.html"
+        empty_text = "No hay cuotas para los filtros elegidos."
+        attrs = {"class": "sheet sheet-reporte sheet-cuentas-pagar-agrupado"}
+
+    def render_importe(self, value):
+        return html_guaranies(value)
+
+    def render_pagado(self, value):
+        return html_guaranies(value)
+
+    def render_saldo(self, value):
+        return html_guaranies(value)

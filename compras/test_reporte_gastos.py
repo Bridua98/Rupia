@@ -1,8 +1,9 @@
-from datetime import date
+from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
 
 import pytest
+from django.utils import timezone
 from openpyxl import load_workbook
 
 from compras.models import Compra, CompraDetalle, EstadoCompra, TipoCompra
@@ -17,6 +18,10 @@ from inventario.models import (
 )
 from negocio.models import UnidadNegocio
 from personas.models import Genero, Persona, TipoDocumento
+
+
+def _hoy():
+    return timezone.localdate()
 
 
 def _cuenta(nombre="Caja gastos", corto="GASTOS"):
@@ -130,7 +135,7 @@ def test_incluye_gastos_y_mercaderia_confirmados(ingresada, usuario):
         estado=EstadoCompra.CONFIRMADA,
         tipo=TipoCompra.FACTURA_CONTADO,
         numero="001-001-0000001",
-        fecha=date(2026, 10, 2),
+        fecha=_hoy(),
     )
     anulada = _compra(
         usuario,
@@ -139,7 +144,7 @@ def test_incluye_gastos_y_mercaderia_confirmados(ingresada, usuario):
         estado=EstadoCompra.ANULADA,
         tipo=TipoCompra.FACTURA_CONTADO,
         numero="001-001-0000002",
-        fecha=date(2026, 10, 3),
+        fecha=_hoy(),
     )
     borrador = _compra(
         usuario,
@@ -148,7 +153,7 @@ def test_incluye_gastos_y_mercaderia_confirmados(ingresada, usuario):
         estado=EstadoCompra.EN_CURSO,
         tipo=TipoCompra.EGRESO,
         numero=None,
-        fecha=date(2026, 10, 4),
+        fecha=_hoy(),
     )
     _linea(confirmada, mercaderia, deposito)
     _linea(confirmada, gasto, deposito, costo="5500", subtotal="5500")
@@ -188,7 +193,7 @@ def test_filtra_por_cuenta_y_clase(ingresada, usuario):
         estado=EstadoCompra.CONFIRMADA,
         tipo=TipoCompra.EGRESO,
         numero=None,
-        fecha=date(2026, 9, 1),
+        fecha=_hoy(),
     )
     compra_banco = _compra(
         usuario,
@@ -197,7 +202,7 @@ def test_filtra_por_cuenta_y_clase(ingresada, usuario):
         estado=EstadoCompra.CONFIRMADA,
         tipo=TipoCompra.FACTURA_CREDITO,
         numero="001-001-0000099",
-        fecha=date(2026, 9, 2),
+        fecha=_hoy(),
     )
     _linea(compra_caja, gasto, deposito)
     _linea(compra_banco, mercaderia, deposito)
@@ -229,7 +234,7 @@ def test_agrupa_por_unidad_cuenta_y_producto(ingresada, usuario):
         estado=EstadoCompra.CONFIRMADA,
         tipo=TipoCompra.FACTURA_CONTADO,
         numero="001-001-0000007",
-        fecha=date(2026, 8, 1),
+        fecha=_hoy(),
     )
     otra_compra = _compra(
         usuario,
@@ -238,7 +243,7 @@ def test_agrupa_por_unidad_cuenta_y_producto(ingresada, usuario):
         estado=EstadoCompra.CONFIRMADA,
         tipo=TipoCompra.FACTURA_CONTADO,
         numero="001-001-0000008",
-        fecha=date(2026, 8, 2),
+        fecha=_hoy(),
     )
     _linea(compra, leche, lacteos, cantidad="2", costo="11000", subtotal="22000")
     _linea(compra, jabon, limpieza)
@@ -279,7 +284,7 @@ def test_comprobante_abre_la_compra(ingresada, usuario):
         estado=EstadoCompra.CONFIRMADA,
         tipo=TipoCompra.FACTURA_CONTADO,
         numero="001-001-0000001",
-        fecha=date(2026, 10, 2),
+        fecha=_hoy(),
     )
     _linea(compra, item, deposito)
 
@@ -308,7 +313,7 @@ def test_excel_separa_gravado_e_iva(ingresada, usuario):
         estado=EstadoCompra.CONFIRMADA,
         tipo=TipoCompra.FACTURA_CONTADO,
         numero="001-001-0000010",
-        fecha=date(2026, 7, 1),
+        fecha=_hoy(),
     )
     _linea(compra, item, deposito, subtotal="11000", costo="11000")
 
@@ -340,7 +345,7 @@ def test_imprimir_incluye_comprobante(ingresada, usuario):
         estado=EstadoCompra.CONFIRMADA,
         tipo=TipoCompra.EGRESO,
         numero=None,
-        fecha=date(2026, 6, 15),
+        fecha=_hoy(),
     )
     _linea(compra, item, deposito)
 
@@ -352,3 +357,50 @@ def test_imprimir_incluye_comprobante(ingresada, usuario):
     assert f"Egreso {compra.pk}" in content
     assert "Flete interno" in content
     assert "Total" in content
+
+
+@pytest.mark.django_db
+def test_por_defecto_filtra_el_mes_en_curso(ingresada, usuario):
+    cuenta = _cuenta()
+    proveedor = _proveedor()
+    deposito = _negocio()
+    actual = _item("Gasto del mes", TipoItem.GASTO)
+    anterior = _item("Gasto anterior", TipoItem.GASTO)
+    hoy = _hoy()
+    mes_anterior = hoy.replace(day=1) - timedelta(days=1)
+    compra_mes = _compra(
+        usuario,
+        cuenta,
+        proveedor,
+        estado=EstadoCompra.CONFIRMADA,
+        tipo=TipoCompra.EGRESO,
+        numero=None,
+        fecha=hoy,
+        pk=21,
+    )
+    compra_antes = _compra(
+        usuario,
+        cuenta,
+        proveedor,
+        estado=EstadoCompra.CONFIRMADA,
+        tipo=TipoCompra.EGRESO,
+        numero=None,
+        fecha=mes_anterior,
+        pk=22,
+    )
+    _linea(compra_mes, actual, deposito)
+    _linea(compra_antes, anterior, deposito)
+
+    content = ingresada.get("/compras/reportes/gastos/").content.decode()
+    cuerpo = content.split("<tbody>")[1].split("</tbody>")[0]
+    assert "Gasto del mes" in cuerpo
+    assert "Gasto anterior" not in cuerpo
+    assert f'value="{hoy.replace(day=1).isoformat()}"' in content
+    assert f'value="{hoy.isoformat()}"' in content
+
+    amplio = ingresada.get(
+        f"/compras/reportes/gastos/?fecha_desde={mes_anterior.isoformat()}"
+        f"&fecha_hasta={hoy.isoformat()}"
+    ).content.decode()
+    assert "Gasto del mes" in amplio
+    assert "Gasto anterior" in amplio

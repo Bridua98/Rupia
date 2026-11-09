@@ -5,11 +5,16 @@ from decimal import Decimal
 from django.utils import timezone
 
 from compras.models import CompraCuota, EstadoCompra, TipoCompra
-from compras.tables import ReporteCuentasPagarTable
-from core.listado import apply_filters, apply_search, filter_specs_for, filter_values, search_fields_for
+from compras.tables import ReporteCuentasPagarAgrupadoTable, ReporteCuentasPagarTable
+from core.listado import (
+    apply_filters,
+    apply_search,
+    filter_specs_for,
+    filter_values,
+    search_fields_for,
+)
 from core.mantenimiento import MantenimientoListView
 from core.moneda import html_guaranies, mostrar_guaranies
-from inventario.precios import redondear_guarani
 from personas.models import Persona
 
 CERO = Decimal("0")
@@ -26,13 +31,24 @@ ESTADO_CHOICES = (
     (ESTADO_CANCELADA, "Cancelada"),
 )
 
-ESTADO_LABELS = dict(ESTADO_CHOICES)
+AGRUPAR_DETALLE = ""
+AGRUPAR_PROVEEDOR = "proveedor"
+
+AGRUPAR_CHOICES = (
+    (AGRUPAR_DETALLE, "Sin agrupar (cada cuota)"),
+    (AGRUPAR_PROVEEDOR, "Por proveedor"),
+)
+
+AGRUPAR_LABELS = {
+    AGRUPAR_PROVEEDOR: "Por proveedor",
+}
 
 
 @dataclass
 class FilaCuentaPagar:
     pk: int
     compra_id: int
+    proveedor_id: int
     proveedor: str
     comprobante: str
     numero: int
@@ -42,6 +58,16 @@ class FilaCuentaPagar:
     saldo: Decimal
     estado: str
     estado_clave: str
+
+
+@dataclass
+class FilaCuentaPagarAgrupada:
+    pk: int
+    proveedor: str
+    cuotas: int
+    importe: Decimal
+    pagado: Decimal
+    saldo: Decimal
 
 
 def _estado_cuota(vencimiento: date, pagado: Decimal, saldo: Decimal, hoy: date):
@@ -57,14 +83,16 @@ def _estado_cuota(vencimiento: date, pagado: Decimal, saldo: Decimal, hoy: date)
 class ReporteCuentasPagarListView(MantenimientoListView):
     template_name = "compras/reporte_cuentas_pagar_list.html"
     model = CompraCuota
-    table_class = ReporteCuentasPagarTable
     permiso_formulario = "reporte_cuentas_pagar"
     page_title = "Cuentas a pagar"
     eyebrow = "Gestión"
     title = "Cuentas a pagar"
     create_label = ""
     show_create = False
-    list_hint = "Cuotas de facturas a crédito confirmadas, con pagos aplicados."
+    list_hint = (
+        "Cuotas de facturas a crédito confirmadas, con pagos aplicados. "
+        "Por defecto vence desde el primer día del mes hasta hoy."
+    )
     search_label = "Buscar"
     search_placeholder = "Buscar por proveedor o número de factura..."
     search_fields = (
@@ -85,6 +113,7 @@ class ReporteCuentasPagarListView(MantenimientoListView):
             "kind": "date",
             "field": "vencimiento",
             "lookup": "gte",
+            "default": "month_start",
         },
         {
             "name": "vencimiento_hasta",
@@ -92,12 +121,19 @@ class ReporteCuentasPagarListView(MantenimientoListView):
             "kind": "date",
             "field": "vencimiento",
             "lookup": "lte",
+            "default": "today",
         },
         {
             "name": "situacion",
             "label": "Estado",
             "kind": "skip",
             "choices": ESTADO_CHOICES,
+        },
+        {
+            "name": "agrupar",
+            "label": "Agrupar por",
+            "kind": "skip",
+            "choices": AGRUPAR_CHOICES,
         },
     )
     record_noun = "cuota"
@@ -114,6 +150,11 @@ class ReporteCuentasPagarListView(MantenimientoListView):
 
     def situacion(self):
         return filter_values(self.request, filter_specs_for(self)).get("situacion", "")
+
+    def agrupar(self):
+        return filter_values(self.request, filter_specs_for(self)).get(
+            "agrupar", AGRUPAR_DETALLE
+        )
 
     def cuotas_queryset(self):
         queryset = (
@@ -144,6 +185,7 @@ class ReporteCuentasPagarListView(MantenimientoListView):
                     FilaCuentaPagar(
                         pk=cuota.pk,
                         compra_id=compra.pk,
+                        proveedor_id=compra.proveedor_id or 0,
                         proveedor=(
                             compra.proveedor.razon_social if compra.proveedor_id else "—"
                         ),
@@ -160,8 +202,38 @@ class ReporteCuentasPagarListView(MantenimientoListView):
             self._detalle_cache = filas
         return self._detalle_cache
 
+    def _filas_agrupadas(self, filas):
+        grupos = {}
+        for fila in filas:
+            clave = fila.proveedor_id
+            grupo = grupos.get(clave)
+            if grupo is None:
+                grupo = FilaCuentaPagarAgrupada(
+                    pk=clave or 0,
+                    proveedor=fila.proveedor,
+                    cuotas=0,
+                    importe=CERO,
+                    pagado=CERO,
+                    saldo=CERO,
+                )
+                grupos[clave] = grupo
+            grupo.cuotas += 1
+            grupo.importe += fila.importe
+            grupo.pagado += fila.pagado
+            grupo.saldo += fila.saldo
+        return sorted(grupos.values(), key=lambda fila: fila.proveedor.lower())
+
     def get_queryset(self):
-        return self._armar_filas()
+        filas = self._armar_filas()
+        if self.agrupar() == AGRUPAR_PROVEEDOR:
+            return self._filas_agrupadas(filas)
+        return filas
+
+    @property
+    def table_class(self):
+        if self.agrupar() == AGRUPAR_PROVEEDOR:
+            return ReporteCuentasPagarAgrupadoTable
+        return ReporteCuentasPagarTable
 
     def creating(self):
         return False
@@ -191,15 +263,17 @@ class ReporteCuentasPagarListView(MantenimientoListView):
     def get_table(self, **kwargs):
         table = super().get_table(**kwargs)
         table.reporte_totales = self.totales_formateados()
+        table.modo_agrupado = self.agrupar() == AGRUPAR_PROVEEDOR
         return table
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        situacion = self.situacion()
-        if situacion:
-            context["reporte_agrupado_label"] = f"Estado: {ESTADO_LABELS.get(situacion, situacion)}"
+        agrupado = self.agrupar() == AGRUPAR_PROVEEDOR
+        context["reporte_agrupado"] = self.agrupar() if agrupado else ""
+        context["reporte_agrupado_label"] = AGRUPAR_LABELS.get(self.agrupar(), "")
         context["reporte_resumen_filtros"] = self.resumen_filtros()
         context["reporte_totales"] = self.totales_formateados()
+        context["record_noun"] = "fila" if agrupado else self.record_noun
         return context
 
     def resumen_filtros(self):
@@ -234,6 +308,7 @@ class ReporteCuentasPagarListView(MantenimientoListView):
     def salida_extra_context(self):
         return {
             "reporte_resumen_filtros": self.resumen_filtros(),
+            "reporte_agrupado_label": AGRUPAR_LABELS.get(self.agrupar(), ""),
             "reporte_totales": self.totales_formateados(),
         }
 

@@ -1,8 +1,9 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from io import BytesIO
 
 import pytest
+from django.utils import timezone
 from openpyxl import load_workbook
 
 from compras.models import Compra, CompraDetalle, EstadoCompra, TipoCompra
@@ -425,16 +426,21 @@ def test_filtro_cuenta_muestra_un_lado_de_la_transferencia(ingresada, usuario):
 
 
 @pytest.mark.django_db
-def test_sin_fechas_no_muestra_movimientos(ingresada, usuario):
+def test_sin_fechas_usa_el_mes_en_curso(ingresada, usuario):
     caja = _cuenta()
-    _venta(usuario, caja, fecha=date(2026, 11, 4), importe="15000", numero="001-001-0000001")
+    hoy = timezone.localdate()
+    mes_anterior = hoy.replace(day=1) - timedelta(days=1)
+    _venta(usuario, caja, fecha=hoy, importe="15000", numero="001-001-0000001")
+    _venta(usuario, caja, fecha=mes_anterior, importe="8000", numero="001-001-0000002")
 
     response = ingresada.get("/cuentas/disponibilidad/")
 
     content = response.content.decode()
-    assert "Elegí las fechas desde y hasta" in content
-    assert "001-001-0000001" not in content
-    assert 'name="fecha_desde"' in content
+    assert response.status_code == 200
+    assert "001-001-0000001" in content
+    assert "001-001-0000002" not in content
+    assert f'value="{hoy.replace(day=1).isoformat()}"' in content
+    assert f'value="{hoy.isoformat()}"' in content
     assert "required" in content
 
 
