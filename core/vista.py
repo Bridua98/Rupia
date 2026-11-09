@@ -9,8 +9,8 @@ from core.cantidad import html_cantidad
 from core.moneda import html_guaranies
 
 _MONEDA = ("precio", "costo", "subtotal", "importe")
-_VIGENTE = {"CONFIRMADA", "COBRADA"}
-_ANULADO = {"ANULADA"}
+_VIGENTE = {"CONFIRMADA", "COBRADA", "CONFIRMADO"}
+_ANULADO = {"ANULADA", "ANULADO"}
 
 
 def html_bool(value):

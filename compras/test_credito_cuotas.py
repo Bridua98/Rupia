@@ -12,6 +12,7 @@ from compras.models import (
     PagoProveedor,
     TipoCompra,
 )
+from compras.cuotas import total_saldo_pendiente
 from compras.test_compra import _cabecera, _cuota_total, _preparar
 from cuentas.disponibilidad import mayor_disponibilidad
 from inventario.models import ItemMovimiento, TipoMovimiento
@@ -105,6 +106,49 @@ def test_credito_confirma_sin_mover_caja(ingresada):
 
 
 @pytest.mark.django_db
+def test_listado_pago_abre_formulario_visible(ingresada):
+    listado = ingresada.get("/compras/pagos/")
+    assert listado.status_code == 200
+    cuerpo = listado.content.decode()
+    assert 'href="/compras/pagos/nueva/"' in cuerpo
+    assert "Nuevo pago" in cuerpo
+
+    formulario = ingresada.get("/compras/pagos/nueva/")
+    assert formulario.status_code == 200
+    cuerpo = formulario.content.decode()
+    assert "Nuevo pago a proveedor" in cuerpo
+    assert 'id="pago-proveedor"' in cuerpo
+    assert 'id="pago-cuenta"' in cuerpo
+    assert 'id="pago-fecha"' in cuerpo
+    assert "Cuotas a cancelar" in cuerpo
+    assert "Elegí un proveedor para ver las cuotas abiertas." in cuerpo
+
+
+@pytest.mark.django_db
+def test_formulario_pago_muestra_cuotas_y_acepta_miles(ingresada):
+    cuenta, proveedor, _item = _preparar()
+    compra = _confirmar_credito(ingresada, cuenta, proveedor)
+    cuota = CompraCuota.objects.get(compra=compra)
+    respuesta = ingresada.get(f"/compras/pagos/nueva/?proveedor={proveedor.pk}")
+    assert respuesta.status_code == 200
+    cuerpo = respuesta.content.decode()
+    assert f'name="aplicar_{cuota.pk}"' in cuerpo
+    assert 'data-moneda="guarani"' in cuerpo
+    hoy = timezone.localdate()
+    ingresada.post(
+        "/compras/pagos/nueva/",
+        {
+            "proveedor": str(proveedor.pk),
+            "fecha": hoy.isoformat(),
+            "cuenta": str(cuenta.pk),
+            f"aplicar_{cuota.pk}": "8.000",
+        },
+    )
+    assert PagoProveedor.objects.get().importe == Decimal("8000")
+    assert cuota.saldo_pendiente() == Decimal("0")
+
+
+@pytest.mark.django_db
 def test_pago_parcial_y_disponibilidad(ingresada):
     cuenta, proveedor, _item = _preparar()
     hoy = timezone.localdate()
@@ -182,14 +226,62 @@ def test_reporte_cuentas_pagar(ingresada):
     cuenta, proveedor, _item = _preparar()
     hoy = timezone.localdate()
     ayer = hoy - timedelta(days=5)
-    _confirmar_credito(
+    compra = _confirmar_credito(
         ingresada,
         cuenta,
         proveedor,
         cuotas=[(ayer.isoformat(), Decimal("8000"))],
     )
+    cuota = CompraCuota.objects.get(compra=compra)
     respuesta = ingresada.get("/compras/reportes/cuentas-a-pagar/?situacion=vencida")
     assert respuesta.status_code == 200
-    cuerpo = respuesta.content.decode()
+    cuerpo = respuesta.content.decode().replace("&amp;", "&")
     assert proveedor.razon_social in cuerpo
     assert "Vencida" in cuerpo or "vencida" in cuerpo.lower()
+    assert f"/compras/?compra={compra.pk}&ver=1" in cuerpo
+    assert "data-href" not in cuerpo
+
+    seleccion = ingresada.get(f"/compras/reportes/cuentas-a-pagar/?reporte_sel={cuota.pk}")
+    assert seleccion.status_code == 200
+
+
+@pytest.mark.django_db
+def test_pago_cae_en_disponibilidad_cuentas_pagar_y_tablero(ingresada):
+    cuenta, proveedor, _item = _preparar()
+    hoy = timezone.localdate()
+    compra = _confirmar_credito(
+        ingresada,
+        cuenta,
+        proveedor,
+        cuotas=[(hoy.isoformat(), Decimal("8000"))],
+    )
+    cuota = CompraCuota.objects.get(compra=compra)
+    assert total_saldo_pendiente() == Decimal("8000")
+    ingresada.post(
+        "/compras/pagos/nueva/",
+        {
+            "proveedor": str(proveedor.pk),
+            "fecha": hoy.isoformat(),
+            "cuenta": str(cuenta.pk),
+            f"aplicar_{cuota.pk}": "5.000",
+        },
+    )
+    pago = PagoProveedor.objects.get()
+    assert cuota.saldo_pendiente() == Decimal("3000")
+    assert total_saldo_pendiente() == Decimal("3000")
+
+    periodo = f"fecha_desde={hoy.isoformat()}&fecha_hasta={hoy.isoformat()}"
+    disponibilidad = ingresada.get(f"/cuentas/disponibilidad/?{periodo}").content.decode()
+    assert "Pago proveedor" in disponibilidad
+    assert f"/compras/pagos/?pago={pago.pk}" in disponibilidad.replace("&amp;", "&")
+    assert "5.000" in disponibilidad
+
+    cuentas_pagar = ingresada.get("/compras/reportes/cuentas-a-pagar/").content.decode()
+    assert proveedor.razon_social in cuentas_pagar
+    assert "Parcial" in cuentas_pagar
+    assert "3.000" in cuentas_pagar
+    assert "5.000" in cuentas_pagar
+
+    inicio = ingresada.get("/").content.decode()
+    assert "Cuentas a pagar" in inicio
+    assert "Gs. 3.000" in inicio
