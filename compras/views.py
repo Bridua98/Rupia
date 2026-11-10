@@ -54,6 +54,7 @@ from compras.models import (
 from compras.tables import CompraTable
 from configuracion.permisos import PermisoRequeridoMixin, tiene_permiso
 from core.cantidad import formatear_cantidad, interpretar_cantidad
+from core.combo import combo_context
 from core.listado import (
     apply_filters,
     apply_search,
@@ -293,6 +294,28 @@ class CompraFormView(CompraPermisoView):
                 sum((linea.cantidad for linea in lineas), Decimal("0"))
             ),
             "proveedor_label": (str(compra.proveedor) if compra.proveedor_id else ""),
+            "proveedor_combo": combo_context(
+                name="proveedor",
+                value=compra.proveedor_id or "",
+                label="Proveedor",
+                selected_label=str(compra.proveedor) if compra.proveedor_id else "",
+                search_url=reverse("compra_proveedores"),
+                required=True,
+                required_message="La compra pide un proveedor.",
+                submit=True,
+                variant="pos",
+                placeholder="Buscar proveedor por nombre o RUC...",
+                hide_label=True,
+                nueva_url=(
+                    f"{reverse('persona_list')}?nueva=1&proveedor=1"
+                    if tiene_permiso(self.request.user, "personas", "alta")
+                    else ""
+                ),
+                nueva_ayuda="Abrir la ficha para cargar un proveedor.",
+                alta_url=reverse("compra_proveedores"),
+                padron_label="Crear proveedor",
+                attrs={"id": "compra-proveedor-q", "form": "compra-cabecera"},
+            ),
             "cuenta_label": compra.cuenta.nombre_corto if compra.cuenta_id else "Sin cuenta",
             "numero_establecimiento": compra.establecimiento or "",
             "numero_punto": compra.punto_codigo or "",
@@ -383,7 +406,8 @@ class ValidarNumeroView(CompraPermisoView):
 class BuscarProveedoresView(CompraPermisoView):
     def get(self, request):
         query = request.GET.get("q", "")
-        return JsonResponse({"resultados": buscar_proveedores_pos(query)})
+        resultados = buscar_proveedores_pos(query)
+        return JsonResponse({"results": resultados, "resultados": resultados})
 
     def post(self, request):
         compra = borrador(request.user)

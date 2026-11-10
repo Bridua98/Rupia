@@ -6,130 +6,19 @@
   function init(root) {
     if (root.getAttribute("data-selector-ready")) return;
     root.setAttribute("data-selector-ready", "1");
-    var query = root.querySelector("[data-selector-query]");
-    var value = root.querySelector("[data-selector-value]");
-    var list = root.querySelector("[data-selector-results]");
+    var combo = root.querySelector("[data-rupia='combo']");
     var alta = root.querySelector("[data-selector-alta]");
     var formError = root.querySelector("[data-selector-form-error]");
-    var timer = null;
-    var active = -1;
+    var nueva = root.querySelector("[data-selector-nueva]");
+    var guardar = root.querySelector("[data-selector-guardar]");
+    var cancelar = root.querySelector("[data-selector-cancelar]");
+    if (!alta || !nueva || !guardar || !cancelar) return;
 
-    if (root.closest(".sheet-form")) {
-      if (!query.getAttribute("placeholder") || query.getAttribute("placeholder") === " ") {
-        query.setAttribute("placeholder", "Buscar…");
-      }
-    }
+    if (combo && window.rupiaInitCombo) window.rupiaInitCombo(combo);
 
     alta.querySelectorAll("input, select, textarea").forEach(function (input) {
       input.disabled = true;
     });
-
-    function closeList() {
-      list.hidden = true;
-      query.setAttribute("aria-expanded", "false");
-      active = -1;
-    }
-
-    function marcarSeleccion() {
-      var tiene = Boolean(value.value) || Boolean(query.value.trim());
-      root.classList.toggle("is-filled", tiene);
-    }
-
-    function choose(row) {
-      value.value = row.id;
-      query.value = row.label;
-      root.setAttribute("data-selected-label", row.label);
-      marcarSeleccion();
-      closeList();
-    }
-
-    function paint(results) {
-      list.innerHTML = "";
-      active = -1;
-      if (!results.length) {
-        closeList();
-        return;
-      }
-      results.forEach(function (row) {
-        var option = document.createElement("li");
-        option.setAttribute("role", "option");
-        option.dataset.id = row.id;
-        option.textContent = row.label;
-        option.addEventListener("mousedown", function (event) {
-          event.preventDefault();
-          choose(row);
-        });
-        list.appendChild(option);
-      });
-      list.hidden = false;
-      query.setAttribute("aria-expanded", "true");
-    }
-
-    function search() {
-      var url = root.getAttribute("data-search-url");
-      var q = query.value.trim();
-      fetch(url + "?q=" + encodeURIComponent(q), { headers: { Accept: "application/json" } })
-        .then(function (response) {
-          return response.ok ? response.json() : { results: [] };
-        })
-        .then(function (data) {
-          if (document.activeElement === query) paint(data.results || []);
-        })
-        .catch(function () {
-          closeList();
-        });
-    }
-
-    function mark(index) {
-      var options = list.querySelectorAll("[role='option']");
-      active = index;
-      options.forEach(function (option, i) {
-        option.setAttribute("aria-selected", i === index ? "true" : "false");
-      });
-      if (options[index]) options[index].scrollIntoView({ block: "nearest" });
-    }
-
-    query.addEventListener("focus", search);
-    query.addEventListener("input", function () {
-      if (query.value !== root.getAttribute("data-selected-label")) {
-        value.value = "";
-        root.setAttribute("data-selected-label", "");
-      }
-      marcarSeleccion();
-      clearTimeout(timer);
-      timer = setTimeout(search, 180);
-    });
-    query.addEventListener("keydown", function (event) {
-      var options = list.querySelectorAll("[role='option']");
-      if (event.key === "ArrowDown" && options.length) {
-        event.preventDefault();
-        mark(Math.min(options.length - 1, active + 1));
-      } else if (event.key === "ArrowUp" && options.length) {
-        event.preventDefault();
-        mark(Math.max(0, active - 1));
-      } else if (event.key === "Enter") {
-        event.preventDefault();
-        if (active >= 0 && options[active]) {
-          choose({
-            id: options[active].dataset.id || "",
-            label: options[active].textContent,
-          });
-        }
-      } else if (event.key === "Escape") {
-        closeList();
-      }
-    });
-    query.addEventListener("blur", function () {
-      setTimeout(function () {
-        closeList();
-        if (value.value && !query.value.trim()) {
-          query.value = root.getAttribute("data-selected-label") || "";
-        }
-        marcarSeleccion();
-      }, 120);
-    });
-
-    marcarSeleccion();
 
     function clearAltaErrors() {
       formError.hidden = true;
@@ -141,7 +30,6 @@
     }
 
     function openAlta() {
-      closeList();
       clearAltaErrors();
       alta.querySelectorAll("input, select, textarea").forEach(function (input) {
         input.disabled = false;
@@ -160,12 +48,13 @@
       clearAltaErrors();
       alta.hidden = true;
       root.classList.remove("is-alta");
-      query.focus();
+      var query = combo && combo.querySelector("[data-combo-query]");
+      if (query) query.focus();
     }
 
-    root.querySelector("[data-selector-nueva]").addEventListener("click", openAlta);
-    root.querySelector("[data-selector-cancelar]").addEventListener("click", closeAlta);
-    root.querySelector("[data-selector-guardar]").addEventListener("click", function () {
+    nueva.addEventListener("click", openAlta);
+    cancelar.addEventListener("click", closeAlta);
+    guardar.addEventListener("click", function () {
       clearAltaErrors();
       var token = document.querySelector("[name=csrfmiddlewaretoken]");
       var body = new FormData();
@@ -189,7 +78,7 @@
         .then(function (result) {
           if (result.ok) {
             closeAlta();
-            choose(result.data);
+            if (combo && window.rupiaComboAccept) window.rupiaComboAccept(combo, result.data);
             return;
           }
           var errors = (result.data && result.data.errors) || {};

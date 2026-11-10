@@ -34,7 +34,6 @@
 
     <form method="post" action="{% url 'compra_nueva' %}" class="compra-cuenta" id="compra-cabecera">
       {% csrf_token %}
-      {% if compra.proveedor_id %}<input type="hidden" name="proveedor" value="{{ compra.proveedor_id }}">{% endif %}
       <label class="field" data-compra-cuenta-wrap{% if cuenta_opcional %} hidden{% endif %}>
         <span>Cuenta</span>
         <select name="cuenta" aria-label="Cuenta" data-compra-cuenta{% if cuenta_opcional %} disabled{% endif %}>
@@ -245,11 +244,7 @@
         </div>
       </div>
       <div class="pos-cliente-lookup">
-        <label class="pos-cliente-search pos-cliente-search-lg{% if not compra.proveedor_id %} is-required{% endif %}">
-          {% include "core/icon.html" with name="search" %}
-          <input type="search" value="{{ proveedor_label }}" placeholder="Buscar proveedor por nombre o RUC..." autocomplete="off" aria-label="Buscar proveedor" data-compra-proveedor-q form="compra-cabecera">
-        </label>
-        <ul class="pos-suggest pos-suggest-lg" hidden data-compra-proveedor-suggest></ul>
+        {% include "core/combo.html" with widget=proveedor_combo %}
       </div>
 
       {% if compra.es_factura %}
@@ -441,6 +436,7 @@
 
 {% block scripts %}
 {{ block.super }}
+<script src="{% static 'js/rupia-combo.js' %}"></script>
 <script src="{% static 'js/rupia-moneda.js' %}"></script>
 <script src="{% static 'js/rupia-cantidad.js' %}"></script>
 <script src="{% static 'js/rupia-compra.js' %}"></script>

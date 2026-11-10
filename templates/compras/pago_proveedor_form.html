@@ -25,15 +25,7 @@
           <h2 id="pago-datos">Datos del pago</h2>
         </header>
         <form method="get" action="{% url 'pago_proveedor_nuevo' %}" class="item-form-grid">
-          <div class="field">
-            <select name="proveedor" id="pago-proveedor" onchange="this.form.submit()">
-              <option value="">Elegí el proveedor</option>
-              {% for p in proveedores %}
-                <option value="{{ p.pk }}"{% if proveedor_id == p.pk %} selected{% endif %}>{{ p }}</option>
-              {% endfor %}
-            </select>
-            <label for="pago-proveedor">Proveedor</label>
-          </div>
+          {% include "core/combo.html" with widget=proveedor_combo %}
         </form>
         <form method="post" class="item-form-grid" id="pago-confirmar">
           {% csrf_token %}
@@ -126,5 +118,6 @@
 
 {% block scripts %}
 {{ block.super }}
+<script src="{% static 'js/rupia-combo.js' %}"></script>
 <script src="{% static 'js/rupia-moneda.js' %}"></script>
 {% endblock %}

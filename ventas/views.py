@@ -13,6 +13,7 @@ from django.views import View
 
 from configuracion.permisos import PermisoRequeridoMixin, tiene_permiso
 from core.cantidad import formatear_cantidad, interpretar_cantidad
+from core.combo import combo_context
 from core.listado import (
     apply_filters,
     apply_search,
@@ -434,6 +435,28 @@ class PuntoVentaView(PosPermisoView):
                 else ""
             ),
             "cliente_label": (str(venta.cliente) if venta.cliente_id else ""),
+            "cliente_combo": combo_context(
+                name="cliente",
+                value=venta.cliente_id or "",
+                label="Cliente",
+                selected_label=str(venta.cliente) if venta.cliente_id else "",
+                search_url=reverse("punto_de_venta_clientes"),
+                required=pide_cliente,
+                required_message="La factura pide un cliente.",
+                submit=True,
+                variant="pos",
+                placeholder="Buscar cliente por nombre, RUC o cédula...",
+                hide_label=True,
+                nueva_url=(
+                    f"{reverse('persona_list')}?nueva=1&cliente=1"
+                    if tiene_permiso(self.request.user, "personas", "alta")
+                    else ""
+                ),
+                nueva_ayuda="Abrir la ficha para cargar un cliente.",
+                alta_url=reverse("punto_de_venta_clientes"),
+                padron_label="Crear cliente",
+                attrs={"id": "pos-cliente-q"},
+            ),
             "caja_label": venta.caja.nombre_corto if venta.caja_id else "Sin caja",
             "cliente_ocasional": cliente_ocasional(),
         }
@@ -530,7 +553,8 @@ class ValidarNumeroView(PosPermisoView):
 class BuscarClientesView(PosPermisoView):
     def get(self, request):
         query = request.GET.get("q", "")
-        return JsonResponse({"resultados": buscar_clientes_pos(query)})
+        resultados = buscar_clientes_pos(query)
+        return JsonResponse({"results": resultados, "resultados": resultados})
 
     def post(self, request):
         venta = borrador(request.user)

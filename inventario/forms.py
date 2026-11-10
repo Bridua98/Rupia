@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.cantidad import CantidadField
+from core.combo import ComboChoiceField
 from core.forms import RupiaModelForm
 from core.moneda import MonedaField
 from core.selectors import SelectorAlta, registrar
@@ -137,6 +138,14 @@ registrar(
     search_fields=("descripcion", "simbolo"),
     create_label="Nueva unidad",
     formulario="unidades",
+)
+registrar(
+    "item_producto",
+    queryset=lambda: Item.objects.filter(tipo=TipoItem.PRODUCTO, activo=True)
+    .select_related("unidad_medida")
+    .order_by("descripcion"),
+    search_fields=("descripcion", "codigo_barra", "marca__descripcion"),
+    formulario="ajustes_stock",
 )
 
 
@@ -535,21 +544,22 @@ class AjusteStockForm(RupiaModelForm):
         return fecha
 
 
-class ItemProductoField(forms.ModelChoiceField):
+class ItemProductoField(ComboChoiceField):
     def label_from_instance(self, obj):
         return f"{obj.descripcion} · {obj.unidad_medida.simbolo}"
 
 
 class AjusteStockDetalleForm(RupiaModelForm):
     item = ItemProductoField(
-        label="Ítem",
         queryset=Item.objects.none(),
-        empty_label="Elegí un producto",
+        clave="item_producto",
+        label="Ítem",
+        required_message="Elegí un producto.",
         error_messages={
-            "required": "Elegí un producto.",
             "invalid_choice": "Elegí un producto activo.",
         },
-        widget=forms.Select(attrs={"data-ajuste-item": True}),
+        widget_attrs={"data-ajuste-item": True},
+        placeholder="Buscar producto…",
     )
     unidad_medida = forms.ModelChoiceField(
         label="Unidad",

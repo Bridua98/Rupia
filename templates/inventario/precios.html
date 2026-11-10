@@ -72,21 +72,7 @@
           <p class="list-filters-title">Refiná el listado</p>
           <div class="list-filters-grid">
             {% for row in list_filters %}
-              <div class="list-filter">
-                <label for="filter-{{ row.name }}">{{ row.label }}</label>
-                <select id="filter-{{ row.name }}" name="{{ row.name }}">
-                  <option value="">Cualquiera</option>
-                  {% if row.kind == "fk" %}
-                    {% for option in row.options %}
-                      <option value="{{ option.pk }}"{% if row.value == option.pk|stringformat:"d" %} selected{% endif %}>{{ option }}</option>
-                    {% endfor %}
-                  {% else %}
-                    {% for value, label in row.options %}
-                      <option value="{{ value }}"{% if row.value == value %} selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  {% endif %}
-                </select>
-              </div>
+              {% include "core/list_filter.html" %}
             {% endfor %}
           </div>
           <div class="list-filters-actions">
@@ -182,5 +168,6 @@
 
 {% block scripts %}
 <script src="{% static 'js/rupia-tabla.js' %}"></script>
+<script src="{% static 'js/rupia-combo.js' %}"></script>
 <script src="{% static 'js/rupia-precios.js' %}"></script>
 {% endblock %}
