@@ -2,9 +2,9 @@
   function init(root) {
     var tipo = root.querySelector("select[name='tipo']");
     if (!tipo) return;
-    var valor = root.querySelector("[data-selector-value][name='unidad_negocio']");
-    var selector = valor ? valor.closest("[data-rupia='selector']") : null;
-    var query = selector ? selector.querySelector("[data-selector-query]") : null;
+    var valor = root.querySelector("[data-combo-value][name='unidad_negocio'], [data-selector-value][name='unidad_negocio']");
+    var selector = valor ? valor.closest("[data-rupia='selector'], [data-rupia='combo']") : null;
+    var query = selector ? selector.querySelector("[data-combo-query], [data-selector-query]") : null;
     var formulario = root.querySelector(".item-form");
     var tabUnidades = root.querySelector('[data-tab="unidades"]');
 

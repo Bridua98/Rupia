@@ -1,0 +1,91 @@
+{% with attrs=widget.attrs %}
+<div
+  class="{% if nested %}combo{% else %}field selector combo{% endif %}{% if widget.required %} is-required{% endif %}{% if widget.variant %} is-{{ widget.variant }}{% endif %}{% if widget.hide_label %} is-bare{% endif %}"
+  data-rupia="combo"
+  {% if widget.search_url %}data-search-url="{{ widget.search_url }}"{% endif %}
+  {% if widget.options_json %}data-combo-options="{{ widget.options_json }}"{% endif %}
+  data-selected-label="{{ widget.selected_label }}"
+  {% if widget.required %}data-required="1"{% endif %}
+  data-required-message="{{ widget.required_message }}"
+  {% if widget.submit %}data-submit="1"{% endif %}
+  {% if widget.nueva_url %}data-nueva-persona="{{ widget.nueva_url }}"{% endif %}
+  {% if widget.nueva_ayuda %}data-nueva-ayuda="{{ widget.nueva_ayuda }}"{% endif %}
+  {% if widget.alta_url %}data-alta-url="{{ widget.alta_url }}"{% endif %}
+  {% if widget.padron_label %}data-padron-label="{{ widget.padron_label }}"{% endif %}
+>
+  <div class="selector-buscar{% if widget.variant == 'pos' %} pos-cliente-search pos-cliente-search-lg{% if widget.required %} is-required{% endif %}{% endif %}">
+    <input
+      type="hidden"
+      name="{{ widget.name }}"
+      value="{{ widget.value|default_if_none:'' }}"
+      {% if attrs.form %}form="{{ attrs.form }}"{% endif %}
+      data-combo-value
+      data-selector-value
+      {% for key, val in attrs.items %}
+        {% if key != "id" and key != "form" and key != "placeholder" %}{{ key }}="{{ val }}"{% endif %}
+      {% endfor %}
+    >
+    {% if widget.variant == "pos" %}
+      <input
+        type="search"
+        id="{{ attrs.id }}"
+        class="selector-query"
+        placeholder="{{ widget.placeholder }}"
+        value="{{ widget.selected_label }}"
+        autocomplete="off"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded="false"
+        aria-controls="{{ attrs.id }}_results"
+        {% if attrs.form %}form="{{ attrs.form }}"{% endif %}
+        data-combo-query
+        data-selector-query
+      >
+      <label for="{{ attrs.id }}"{% if widget.hide_label %} class="sr-only"{% endif %}>{{ widget.field_label }}</label>
+    {% else %}
+      <label for="{{ attrs.id }}"{% if widget.hide_label %} class="sr-only"{% endif %}>{{ widget.field_label }}</label>
+      <div class="combo-control">
+        <span class="combo-lead" aria-hidden="true">{% include "core/icon.html" with name="search" %}</span>
+        <input
+          type="search"
+          id="{{ attrs.id }}"
+          class="selector-query"
+          placeholder="{% if widget.hide_label %}{{ widget.placeholder }}{% else %}{{ widget.placeholder|default:' ' }}{% endif %}"
+          value="{{ widget.selected_label }}"
+          autocomplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded="false"
+          aria-controls="{{ attrs.id }}_results"
+          {% if attrs.form %}form="{{ attrs.form }}"{% endif %}
+          data-combo-query
+          data-selector-query
+        >
+        <span class="combo-caret" aria-hidden="true">{% include "core/icon.html" with name="chevron-down" %}</span>
+        {% if widget.create_url %}
+          <button
+            type="button"
+            class="selector-nueva"
+            data-selector-nueva
+            aria-label="{{ widget.create_label }}"
+          >
+            {% include "core/icon.html" with name="plus" %}
+          </button>
+        {% endif %}
+      </div>
+    {% endif %}
+    <ul
+      id="{{ attrs.id }}_results"
+      class="selector-results{% if widget.variant == 'pos' %} pos-suggest pos-suggest-lg{% endif %}"
+      role="listbox"
+      hidden
+      data-combo-results
+      data-selector-results
+    ></ul>
+    {% if widget.variant != "pos" %}
+      <template data-combo-check-icon>{% include "core/icon.html" with name="check" %}</template>
+    {% endif %}
+  </div>
+  <p class="field-error" data-combo-error hidden></p>
+</div>
+{% endwith %}

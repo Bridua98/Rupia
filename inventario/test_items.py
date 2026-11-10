@@ -73,6 +73,13 @@ def test_selector_desconocido_no_existe(ingresada):
 
 
 @pytest.mark.django_db
+def test_selector_de_producto_no_crea(ingresada):
+    response = ingresada.post("/selector/item_producto/nueva/", {})
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
 def test_selector_filtra_por_descripcion(ingresada):
     Marca.objects.create(descripcion="Alfa")
     Marca.objects.create(descripcion="Beta")

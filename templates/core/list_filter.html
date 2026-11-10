@@ -1,0 +1,24 @@
+<div class="list-filter{% if row.kind == 'fk' %} is-combo{% endif %}">
+  {% if row.kind == "date" %}
+    <label for="filter-{{ row.name }}">
+      {{ row.label }}{% if row.required %}<abbr title="Obligatorio">*</abbr>{% endif %}
+    </label>
+    <input
+      type="date"
+      id="filter-{{ row.name }}"
+      name="{{ row.name }}"
+      value="{{ row.value }}"
+      {% if row.required %}required{% endif %}
+    >
+  {% elif row.kind == "fk" %}
+    {% include "core/combo.html" with widget=row.combo %}
+  {% else %}
+    <label for="filter-{{ row.name }}">{{ row.label }}</label>
+    <select id="filter-{{ row.name }}" name="{{ row.name }}">
+      <option value="">Cualquiera</option>
+      {% for value, label in row.options %}
+        <option value="{{ value }}"{% if row.value == value %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  {% endif %}
+</div>

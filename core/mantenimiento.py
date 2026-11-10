@@ -15,6 +15,7 @@ from django_tables2 import SingleTableView
 from xhtml2pdf import pisa
 
 from configuracion.permisos import PermisoRequeridoMixin, tiene_permiso
+from core.combo import combo_context, combo_options
 from core.listado import (
     apply_filters,
     apply_search,
@@ -215,15 +216,35 @@ class MantenimientoListView(
         rows = []
         for spec in specs:
             name = spec["name"]
-            rows.append(
-                {
-                    "name": name,
-                    "label": spec["label"],
-                    "kind": spec.get("kind", "choice"),
-                    "value": values.get(name, ""),
-                    "options": filter_options(spec),
-                }
-            )
+            kind = spec.get("kind", "choice")
+            options = filter_options(spec)
+            value = values.get(name, "")
+            row = {
+                "name": name,
+                "label": spec["label"],
+                "kind": kind,
+                "value": value,
+                "options": options,
+                "required": bool(spec.get("required")),
+            }
+            if kind == "fk":
+                selected_label = ""
+                for obj in options:
+                    if str(obj.pk) == str(value):
+                        selected_label = str(obj)
+                        break
+                row["combo"] = combo_context(
+                    name=name,
+                    value=value,
+                    label=spec["label"],
+                    selected_label=selected_label,
+                    options=combo_options(options),
+                    required=False,
+                    placeholder="Cualquiera",
+                    hide_label=False,
+                    attrs={"id": f"filter-{name}"},
+                )
+            rows.append(row)
         active = sum(1 for row in rows if row["value"])
         return {
             "list_filters": rows,

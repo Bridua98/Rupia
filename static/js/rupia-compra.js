@@ -5,13 +5,8 @@
   var searchForm = root.querySelector("[data-compra-search]");
   var searchInput = searchForm ? searchForm.querySelector("input[name='q']") : null;
   var cabecera = document.getElementById("compra-cabecera");
-  var proveedorBox = root.querySelector("[data-compra-proveedor]");
-  var proveedorQ = root.querySelector("[data-compra-proveedor-q]");
-  var proveedorSuggest = root.querySelector("[data-compra-proveedor-suggest]");
-  var proveedorId = cabecera ? cabecera.querySelector("input[name='proveedor']") : null;
   var buscarUrl = root.getAttribute("data-buscar") || "/compras/nueva/buscar/";
   var numeroUrl = root.getAttribute("data-numero-url") || "/compras/nueva/numero/";
-  var proveedoresUrl = root.getAttribute("data-proveedores") || "/compras/nueva/proveedores/";
   var modalItems = root.querySelector("[data-compra-modal-items]");
   var modalLista = root.querySelector("[data-compra-modal-list]");
   var modalQ = root.querySelector("[data-compra-modal-q]");
@@ -26,9 +21,6 @@
   var timbrado = root.querySelector("[data-compra-timbrado]");
   var timer = 0;
   var numeroTimer = 0;
-  var proveedorTimer = 0;
-  var proveedorItems = [];
-  var proveedorActivo = -1;
   var productos = [];
   var productoActivo = -1;
   var ignorarFocoBuscar = false;
@@ -360,121 +352,6 @@
     });
   });
   pintarProximo();
-
-  function personaNuevaUrl() {
-    return root.getAttribute("data-persona-nueva") || "";
-  }
-
-  function abrirNuevaPersona() {
-    var base = personaNuevaUrl();
-    if (!base) return;
-    var url = new URL(base, window.location.origin);
-    var q = proveedorQ ? proveedorQ.value.trim() : "";
-    if (q) {
-      if (/^\d[\d.-]*$/.test(q)) url.searchParams.set("documento", q);
-      else url.searchParams.set("razon_social", q);
-    }
-    window.open(url.toString(), "rupia_persona", "popup=yes,width=960,height=780");
-  }
-
-  function pintarProveedores(items) {
-    if (!proveedorSuggest) return;
-    var q = proveedorQ ? proveedorQ.value.trim() : "";
-    proveedorItems = (items || []).slice();
-    if (personaNuevaUrl() && q) {
-      proveedorItems.push({ nueva: true, label: "Nueva persona" });
-    }
-    proveedorActivo = proveedorItems.length ? 0 : -1;
-    proveedorSuggest.innerHTML = "";
-    if (!proveedorItems.length) {
-      proveedorSuggest.hidden = true;
-      return;
-    }
-    proveedorItems.forEach(function (item, index) {
-      var li = document.createElement("li");
-      if (item.nueva) {
-        li.className = "is-action";
-        var titulo = document.createElement("strong");
-        titulo.textContent = item.label;
-        li.appendChild(titulo);
-        var detalle = document.createElement("small");
-        detalle.textContent = "Abrir la ficha para cargar un proveedor.";
-        li.appendChild(detalle);
-      } else {
-        li.textContent = item.label || "";
-      }
-      if (index === proveedorActivo) li.classList.add("is-on");
-      li.addEventListener("click", function () { elegirProveedor(item); });
-      proveedorSuggest.appendChild(li);
-    });
-    proveedorSuggest.hidden = false;
-  }
-
-  function marcarProveedor() {
-    if (!proveedorSuggest) return;
-    Array.prototype.forEach.call(proveedorSuggest.children, function (li, index) {
-      li.classList.toggle("is-on", index === proveedorActivo);
-    });
-  }
-
-  function elegirProveedor(item) {
-    if (!item) return;
-    if (item.nueva) {
-      abrirNuevaPersona();
-      return;
-    }
-    if (item.id && cabecera) {
-      var hidden = cabecera.querySelector("input[name='proveedor']");
-      if (!hidden) {
-        hidden = document.createElement("input");
-        hidden.type = "hidden";
-        hidden.name = "proveedor";
-        cabecera.appendChild(hidden);
-      }
-      hidden.value = String(item.id);
-      cabecera.submit();
-      return;
-    }
-    var body = new URLSearchParams();
-    body.set("csrfmiddlewaretoken", csrf());
-    if (item.ruc) body.set("ruc", item.ruc);
-    body.set("q", item.documento || item.label || "");
-    fetch(proveedoresUrl, {
-      method: "POST",
-      headers: { "X-Requested-With": "XMLHttpRequest" },
-      body: body,
-    }).then(function () { window.location.reload(); });
-  }
-
-  if (proveedorQ) {
-    proveedorQ.addEventListener("input", function () {
-      clearTimeout(proveedorTimer);
-      var q = proveedorQ.value.trim();
-      proveedorTimer = setTimeout(function () {
-        fetch(proveedoresUrl + "?q=" + encodeURIComponent(q))
-          .then(function (res) { return res.json(); })
-          .then(function (data) { pintarProveedores(data.resultados || []); });
-      }, 160);
-    });
-    proveedorQ.addEventListener("keydown", function (event) {
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        if (!proveedorItems.length) return;
-        proveedorActivo = (proveedorActivo + 1) % proveedorItems.length;
-        marcarProveedor();
-      } else if (event.key === "ArrowUp") {
-        event.preventDefault();
-        if (!proveedorItems.length) return;
-        proveedorActivo = (proveedorActivo - 1 + proveedorItems.length) % proveedorItems.length;
-        marcarProveedor();
-      } else if (event.key === "Enter" && proveedorActivo >= 0) {
-        event.preventDefault();
-        elegirProveedor(proveedorItems[proveedorActivo]);
-      } else if (event.key === "Escape") {
-        proveedorSuggest.hidden = true;
-      }
-    });
-  }
 
   function asegurarAfectar(valor) {
     var campo = cabecera && cabecera.querySelector("input[name='afectar_precios']");

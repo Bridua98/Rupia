@@ -6,9 +6,10 @@
   var searchInput = searchForm ? searchForm.querySelector("input[name='q']") : null;
   var cabecera = document.getElementById("pos-cabecera");
   var clienteBox = root.querySelector("[data-pos-cliente]");
-  var clienteQ = root.querySelector("[data-pos-cliente-q]");
-  var clienteSuggest = root.querySelector("[data-pos-cliente-suggest]");
-  var clienteId = clienteBox ? clienteBox.querySelector("input[name='cliente']") : null;
+  var clienteCombo = clienteBox ? clienteBox.querySelector("[data-rupia='combo']") : null;
+  var clienteQ = clienteCombo ? clienteCombo.querySelector("[data-combo-query]") : null;
+  var clienteSuggest = clienteCombo ? clienteCombo.querySelector("[data-combo-results]") : null;
+  var clienteId = clienteCombo ? clienteCombo.querySelector("[data-combo-value]") : null;
   var atajos = root.querySelector("[data-pos-atajos]");
   var descuentoPct = root.querySelector("[data-pos-descuento-pct]");
   var descuentoGs = root.querySelector("[data-pos-descuento]");
@@ -31,9 +32,6 @@
   var numMsg = root.querySelector("[data-pos-num-msg]");
   var timer = 0;
   var numeroTimer = 0;
-  var clienteTimer = 0;
-  var clienteItems = [];
-  var clienteActivo = -1;
   var productos = [];
   var productoActivo = -1;
   var ignorarFocoBuscar = false;
@@ -552,151 +550,12 @@
     });
   }
 
-  function personaNuevaUrl() {
-    return root.getAttribute("data-persona-nueva") || "";
-  }
-
-  function abrirNuevaPersona() {
-    var base = personaNuevaUrl();
-    if (!base) return;
-    var url = new URL(base, window.location.origin);
-    var q = clienteQ ? clienteQ.value.trim() : "";
-    if (q) {
-      if (/^\d[\d.-]*$/.test(q)) url.searchParams.set("documento", q);
-      else url.searchParams.set("razon_social", q);
-    }
-    window.open(url.toString(), "rupia_persona", "popup=yes,width=960,height=780");
-  }
-
-  function pintarCliente(items) {
-    var q = clienteQ ? clienteQ.value.trim() : "";
-    clienteItems = (items || []).slice();
-    if (personaNuevaUrl() && q) {
-      clienteItems.push({ nueva: true, label: "Nueva persona" });
-    }
-    clienteActivo = clienteItems.length ? 0 : -1;
-    clienteSuggest.innerHTML = "";
-    if (!q) {
-      clienteSuggest.hidden = true;
-      return;
-    }
-    if (!clienteItems.length) {
-      var vacio = document.createElement("li");
-      vacio.className = "is-empty";
-      vacio.textContent = "No hay coincidencias en clientes ni en el padrón.";
-      clienteSuggest.appendChild(vacio);
-      clienteSuggest.hidden = false;
-      return;
-    }
-    clienteItems.forEach(function (item, index) {
-      var li = document.createElement("li");
-      if (item.nueva) {
-        li.className = "is-action";
-        var tituloNueva = document.createElement("strong");
-        tituloNueva.textContent = item.label;
-        li.appendChild(tituloNueva);
-        var ayuda = document.createElement("small");
-        ayuda.textContent = "Abrir la ficha para cargar un cliente.";
-        li.appendChild(ayuda);
-      } else {
-        var titulo = document.createElement("strong");
-        titulo.textContent = item.label || "";
-        li.appendChild(titulo);
-        var meta = item.documento || item.ruc || "";
-        if (item.origen === "padron") meta = (meta ? meta + " · " : "") + "Crear cliente";
-        if (meta) {
-          var detalle = document.createElement("small");
-          detalle.textContent = meta;
-          li.appendChild(detalle);
-        }
-      }
-      li.tabIndex = 0;
-      if (index === clienteActivo) li.classList.add("is-on");
-      li.addEventListener("click", function () { elegirCliente(item); });
-      clienteSuggest.appendChild(li);
-    });
-    clienteSuggest.hidden = false;
-  }
-
-  function marcarActivo() {
-    Array.prototype.forEach.call(clienteSuggest.children, function (li, index) {
-      li.classList.toggle("is-on", index === clienteActivo);
-    });
-  }
-
-  function elegirCliente(item) {
-    if (!item) return;
-    if (item.nueva) {
-      abrirNuevaPersona();
-      return;
-    }
-    var check = clienteBox.querySelector("[data-pos-consumidor], input[name='consumidor_final']");
-    if (check) {
-      check.checked = false;
-      if (check.type === "hidden") check.remove();
-    }
-    if (item.origen === "padron" || !item.id) {
-      var body = new URLSearchParams();
-      body.set("csrfmiddlewaretoken", csrf());
-      if (item.ruc) body.set("ruc", item.ruc);
-      body.set("q", clienteQ.value.trim());
-      fetch("/ventas/punto-de-venta/clientes/", {
-        method: "POST",
-        headers: { "X-Requested-With": "XMLHttpRequest" },
-        body: body,
-      }).then(function (res) {
-        if (!res.ok) return res.json().then(function () { window.location.reload(); });
-        window.location.reload();
-      }).catch(function () { window.location.reload(); });
-      return;
-    }
-    clienteId.value = String(item.id);
-    clienteQ.value = item.label;
-    clienteSuggest.hidden = true;
-    if (cabecera) cabecera.submit();
-  }
-
-  if (clienteQ && clienteSuggest && clienteId) {
+  if (clienteQ && clienteBox) {
     clienteQ.addEventListener("input", function () {
       var check = clienteBox.querySelector("[data-pos-consumidor], input[name='consumidor_final']");
       if (check) {
         check.checked = false;
         if (check.type === "hidden") check.remove();
-      }
-      clienteId.value = "";
-      var q = clienteQ.value.trim();
-      clearTimeout(clienteTimer);
-      if (!q) {
-        clienteSuggest.hidden = true;
-        return;
-      }
-      clienteTimer = setTimeout(function () {
-        fetch("/ventas/punto-de-venta/clientes/?q=" + encodeURIComponent(q))
-          .then(function (res) { return res.json(); })
-          .then(function (data) {
-            pintarCliente(data.resultados || []);
-          });
-      }, 180);
-    });
-    clienteQ.addEventListener("keydown", function (event) {
-      if (clienteSuggest.hidden) return;
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        if (!clienteItems.length) return;
-        clienteActivo = (clienteActivo + 1) % clienteItems.length;
-        marcarActivo();
-      } else if (event.key === "ArrowUp") {
-        event.preventDefault();
-        if (!clienteItems.length) return;
-        clienteActivo = (clienteActivo - 1 + clienteItems.length) % clienteItems.length;
-        marcarActivo();
-      } else if (event.key === "Enter") {
-        if (clienteActivo >= 0 && clienteItems[clienteActivo]) {
-          event.preventDefault();
-          elegirCliente(clienteItems[clienteActivo]);
-        }
-      } else if (event.key === "Escape") {
-        clienteSuggest.hidden = true;
       }
     });
   }

@@ -69,6 +69,13 @@ def apply_filters(queryset, values, specs):
             queryset = queryset.filter(**{f"{field}__{lookup}": value})
         elif kind == "skip":
             continue
+        elif kind == "fk":
+            options = spec.get("queryset")
+            if callable(options):
+                options = options()
+            if options is None or not options.filter(pk=value).exists():
+                continue
+            queryset = queryset.filter(**{name: value})
         else:
             queryset = queryset.filter(**{name: value})
     return queryset

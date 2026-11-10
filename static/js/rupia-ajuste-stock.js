@@ -144,6 +144,8 @@
   }
 
   function iniciarFila(fila) {
+    var combo = fila.querySelector("[data-rupia='combo']");
+    if (combo && window.rupiaInitCombo) window.rupiaInitCombo(combo);
     var selectItem = fila.querySelector("[data-ajuste-item]");
     var selectUnidad = fila.querySelector("[data-ajuste-unidad]");
     var input = fila.querySelector("[data-cantidad]");

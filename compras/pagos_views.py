@@ -11,6 +11,7 @@ from compras.pago_proveedor import anular, confirmar_pago_desde_post
 from compras.models import EstadoPagoProveedor, PagoProveedor
 from compras.tables import PagoProveedorTable
 from configuracion.permisos import PermisoRequeridoMixin
+from core.combo import combo_context, combo_options
 from core.mantenimiento import MantenimientoListView
 from core.moneda import formatear_guaranies
 from cuentas.models import Cuenta
@@ -156,13 +157,27 @@ class PagoProveedorNuevoView(LoginRequiredMixin, PermisoRequeridoMixin, View):
                     }
                 )
         fecha = (post or {}).get("fecha") or timezone.localdate().isoformat()
+        proveedores = list(Persona.objects.filter(es_proveedor=True).order_by("razon_social"))
+        proveedor = next((p for p in proveedores if p.pk == proveedor_id), None)
         return {
             "fecha": fecha,
             "proveedor_id": proveedor_id or "",
             "cuenta_id": (post or {}).get("cuenta", ""),
             "observacion": (post or {}).get("observacion", ""),
             "cuentas": Cuenta.objects.order_by("descripcion"),
-            "proveedores": Persona.objects.filter(es_proveedor=True).order_by("razon_social"),
+            "proveedores": proveedores,
+            "proveedor_combo": combo_context(
+                name="proveedor",
+                value=proveedor_id or "",
+                label="Proveedor",
+                selected_label=str(proveedor) if proveedor else "",
+                options=combo_options(proveedores),
+                required=True,
+                required_message="Elegí el proveedor.",
+                submit=True,
+                placeholder="Buscar proveedor…",
+                attrs={"id": "pago-proveedor"},
+            ),
             "cuotas": cuotas,
         }
 
