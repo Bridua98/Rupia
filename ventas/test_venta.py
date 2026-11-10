@@ -21,7 +21,7 @@ from inventario.models import (
 from negocio.models import UnidadNegocio
 from personas.models import Genero, Persona, TipoDocumento
 from ventas.cobro import agregar_producto, cambiar_cantidad, liquidar_iva, medios_disponibles
-from ventas.models import EstadoVenta, MedioPago, PuntoExpedicion, TipoComprobante, Venta
+from ventas.models import EstadoVenta, Maquina, MedioPago, PuntoExpedicion, TipoComprobante, Venta
 
 
 def _hoy():
@@ -1177,3 +1177,156 @@ def test_no_repite_timbrado_con_numero_completo(ingresada):
     ).json()
     assert consulta["ok"] is False
     assert "timbrado y número" in consulta["error"]
+
+
+def _vender(ingresada, *, tipo, cliente=None, secuencial=None, establecimiento=None, punto=None):
+    item = Item.objects.get(codigo_barra="PROD-001")
+    ingresada.post("/ventas/punto-de-venta/agregar/", {"item": item.pk})
+    datos = {"tipo_comprobante": tipo}
+    if tipo == TipoComprobante.FACTURA:
+        datos["cliente"] = cliente.pk
+        if establecimiento:
+            datos["numero_establecimiento"] = establecimiento
+        if punto:
+            datos["numero_punto"] = punto
+        if secuencial:
+            datos["numero_secuencial"] = secuencial
+    else:
+        datos["consumidor_final"] = "1"
+    ingresada.post("/ventas/punto-de-venta/", datos)
+    return ingresada.post("/ventas/punto-de-venta/confirmar/", datos)
+
+
+@pytest.mark.django_db
+def test_cada_maquina_avanza_su_factura(ingresada):
+    ticket = _punto(TipoComprobante.TICKET)
+    caja1 = _punto(
+        TipoComprobante.FACTURA,
+        codigo="001",
+        timbrado="11111111",
+        numero_proximo=10,
+    )
+    caja2 = _punto(
+        TipoComprobante.FACTURA,
+        codigo="002",
+        timbrado="22222222",
+        numero_proximo=50,
+    )
+    primera = Maquina.objects.create(nombre="Caja 1", punto_ticket=ticket, punto_factura=caja1)
+    segunda = Maquina.objects.create(nombre="Caja 2", punto_ticket=ticket, punto_factura=caja2)
+    _caja()
+    item = _item()
+    _stock(item, "20")
+    cliente = _cliente()
+    ingresada.post("/ventas/punto-de-venta/maquina/", {"maquina": primera.pk})
+    _vender(
+        ingresada,
+        tipo=TipoComprobante.FACTURA,
+        cliente=cliente,
+        establecimiento="001",
+        punto="001",
+    )
+    caja1.refresh_from_db()
+    caja2.refresh_from_db()
+    assert caja1.numero_proximo == 11
+    assert caja2.numero_proximo == 50
+    ingresada.post("/ventas/punto-de-venta/maquina/", {"maquina": segunda.pk})
+    _vender(
+        ingresada,
+        tipo=TipoComprobante.FACTURA,
+        cliente=cliente,
+        establecimiento="001",
+        punto="002",
+    )
+    caja1.refresh_from_db()
+    caja2.refresh_from_db()
+    assert caja1.numero_proximo == 11
+    assert caja2.numero_proximo == 51
+
+
+@pytest.mark.django_db
+def test_dos_maquinas_comparten_el_mismo_punto(ingresada):
+    ticket = _punto(TipoComprobante.TICKET)
+    factura = _punto(TipoComprobante.FACTURA, numero_proximo=124)
+    primera = Maquina.objects.create(nombre="Caja 1", punto_ticket=ticket, punto_factura=factura)
+    segunda = Maquina.objects.create(nombre="Caja 2", punto_ticket=ticket, punto_factura=factura)
+    _caja()
+    item = _item()
+    _stock(item, "20")
+    cliente = _cliente()
+    ingresada.post("/ventas/punto-de-venta/maquina/", {"maquina": primera.pk})
+    _vender(ingresada, tipo=TipoComprobante.FACTURA, cliente=cliente, punto="002")
+    ingresada.post("/ventas/punto-de-venta/maquina/", {"maquina": segunda.pk})
+    _vender(ingresada, tipo=TipoComprobante.FACTURA, cliente=cliente, punto="002")
+    factura.refresh_from_db()
+    assert factura.numero_proximo == 126
+    numeros = list(
+        Venta.objects.filter(tipo_comprobante=TipoComprobante.FACTURA)
+        .order_by("pk")
+        .values_list("numero_completo", flat=True)
+    )
+    assert numeros == ["001-002-0000124", "001-002-0000125"]
+
+
+@pytest.mark.django_db
+def test_punto_deshabilitado_frena_solo_esa_maquina(ingresada):
+    ticket = _punto(TipoComprobante.TICKET)
+    activa = _punto(TipoComprobante.FACTURA, codigo="001", timbrado="11111111")
+    apagada = _punto(
+        TipoComprobante.FACTURA,
+        codigo="002",
+        timbrado="22222222",
+        habilitado=False,
+    )
+    buena = Maquina.objects.create(nombre="Caja 1", punto_ticket=ticket, punto_factura=activa)
+    mala = Maquina.objects.create(nombre="Caja 2", punto_ticket=ticket, punto_factura=apagada)
+    _caja()
+    item = _item()
+    _stock(item, "20")
+    cliente = _cliente()
+    ingresada.post("/ventas/punto-de-venta/maquina/", {"maquina": mala.pk})
+    respuesta = _vender(
+        ingresada,
+        tipo=TipoComprobante.FACTURA,
+        cliente=cliente,
+        punto="002",
+    )
+    assert respuesta.url == "/ventas/punto-de-venta/"
+    assert Venta.objects.filter(estado=EstadoVenta.COBRADA).count() == 0
+    aviso = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "no está habilitado" in aviso
+    ingresada.post("/ventas/punto-de-venta/maquina/", {"maquina": buena.pk})
+    cobro = _vender(
+        ingresada,
+        tipo=TipoComprobante.FACTURA,
+        cliente=cliente,
+        punto="001",
+    )
+    venta = Venta.objects.get(estado=EstadoVenta.COBRADA)
+    assert cobro.url == f"/ventas/{venta.pk}/factura/"
+    assert venta.numero_completo == "001-001-0000124"
+
+
+@pytest.mark.django_db
+def test_sin_maquina_y_dos_puntos_pide_elegir(ingresada):
+    _punto(TipoComprobante.TICKET)
+    _punto(TipoComprobante.FACTURA, codigo="001", timbrado="11111111")
+    _punto(TipoComprobante.FACTURA, codigo="002", timbrado="22222222")
+    _caja()
+    item = _item()
+    _stock(item, "20")
+    cliente = _cliente()
+    ingresada.post(
+        "/ventas/punto-de-venta/",
+        {"tipo_comprobante": TipoComprobante.FACTURA, "cliente": cliente.pk},
+    )
+    aviso = ingresada.get("/ventas/punto-de-venta/").content.decode()
+    assert "Elegí la máquina de este punto de venta." in aviso
+    respuesta = _vender(
+        ingresada,
+        tipo=TipoComprobante.FACTURA,
+        cliente=cliente,
+        punto="001",
+    )
+    assert respuesta.url == "/ventas/punto-de-venta/"
+    assert Venta.objects.filter(estado=EstadoVenta.COBRADA).count() == 0

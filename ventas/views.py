@@ -58,7 +58,6 @@ from ventas.cobro import (
     lineas_vista,
     liquidar_iva,
     medios_disponibles,
-    motivo_emision,
     motivo_pos,
     numero_ya_usado,
     proximo_numero,
@@ -66,13 +65,15 @@ from ventas.cobro import (
     puede_guardar,
     punto_de,
     quitar_linea,
+    resolver_emision,
     subtotal_venta,
     total_venta,
     vuelto_venta,
 )
-from ventas.forms import TimbradoForm
+from ventas.forms import MaquinaForm, TimbradoForm
 from ventas.models import (
     EstadoVenta,
+    Maquina,
     MedioPago,
     PuntoExpedicion,
     TipoAnulacion,
@@ -81,16 +82,16 @@ from ventas.models import (
     VentaDetalle,
     formatear_numero_comprobante,
 )
-from ventas.tables import TimbradoTable, VentaTable
+from ventas.tables import MaquinaTable, TimbradoTable, VentaTable
 
 
 def _dinero(valor) -> str:
     return mostrar_guaranies(valor)
 
 
-def _numero_visor(venta, punto) -> str:
+def _numero_visor(venta, punto, maquina=None) -> str:
     if venta.tipo_comprobante != TipoComprobante.FACTURA:
-        return proximo_numero(TipoComprobante.TICKET)
+        return proximo_numero(TipoComprobante.TICKET, maquina)
     establecimiento = venta.establecimiento or (punto.establecimiento if punto else "")
     codigo = venta.punto_codigo or (punto.codigo if punto else "")
     secuencial = venta.secuencial if venta.secuencial is not None else (
@@ -98,7 +99,7 @@ def _numero_visor(venta, punto) -> str:
     )
     if establecimiento and codigo and secuencial is not None:
         return formatear_numero_comprobante(establecimiento, codigo, secuencial)
-    return proximo_numero(TipoComprobante.FACTURA)
+    return proximo_numero(TipoComprobante.FACTURA, maquina)
 
 
 def _error(exc: ValidationError) -> str:
@@ -146,7 +147,7 @@ class TimbradoMantenimiento:
     )
     selection_param = "timbrado"
     record_noun = "timbrado"
-    order_by = ("tipo", "pk")
+    order_by = ("tipo", "establecimiento", "codigo", "pk")
     list_url_name = "timbrado_list"
     create_url_name = "timbrado_create"
     update_url_name = "timbrado_update"
@@ -293,6 +294,79 @@ class TimbradoDeleteView(TimbradoMantenimiento, MantenimientoDeleteView):
     pass
 
 
+class MaquinaMantenimiento:
+    model = Maquina
+    form_class = MaquinaForm
+    table_class = MaquinaTable
+    permiso_formulario = "maquinas"
+    page_title = "Máquinas"
+    eyebrow = "Gestión"
+    title = "Máquinas"
+    create_label = "Nueva máquina"
+    list_hint = "Flechas para moverse. Enter abre la máquina."
+    search_label = "Buscar"
+    search_placeholder = "Buscar por nombre..."
+    search_field = "nombre"
+    search_fields = ("nombre",)
+    selection_param = "maquina"
+    record_noun = "máquina"
+    order_by = ("nombre", "pk")
+    list_url_name = "maquina_list"
+    create_url_name = "maquina_create"
+    update_url_name = "maquina_update"
+    delete_url_name = "maquina_delete"
+    print_url_name = "maquina_print"
+    export_xlsx_url_name = "maquina_export_xlsx"
+    export_pdf_url_name = "maquina_export_pdf"
+    export_basename = "maquinas"
+
+    def get_queryset(self):
+        return super().get_queryset().select_related("punto_ticket", "punto_factura")
+
+
+class MaquinaListView(MaquinaMantenimiento, MantenimientoListView):
+    pass
+
+
+class MaquinaCreateView(MaquinaMantenimiento, MantenimientoCreateView):
+    list_view_class = MaquinaListView
+
+
+class MaquinaUpdateView(MaquinaMantenimiento, MantenimientoUpdateView):
+    list_view_class = MaquinaListView
+
+
+class MaquinaDeleteView(MaquinaMantenimiento, MantenimientoDeleteView):
+    pass
+
+
+SESION_MAQUINA = "rupia_maquina_id"
+
+
+def maquina_desde(request):
+    raw = None
+    if request.method == "POST":
+        raw = request.POST.get("maquina")
+    elif "maquina" in request.GET:
+        raw = request.GET.get("maquina")
+    if raw in (None, ""):
+        raw = request.session.get(SESION_MAQUINA)
+    if raw in (None, ""):
+        return None
+    try:
+        pk = int(raw)
+    except (TypeError, ValueError):
+        return None
+    maquina = (
+        Maquina.objects.select_related("punto_ticket", "punto_factura").filter(pk=pk).first()
+    )
+    if maquina is None:
+        request.session.pop(SESION_MAQUINA, None)
+        return None
+    request.session[SESION_MAQUINA] = maquina.pk
+    return maquina
+
+
 class PosPermisoView(LoginRequiredMixin, PermisoRequeridoMixin, View):
     permiso_formulario = "punto_de_venta"
     permiso_accion = "ver"
@@ -301,17 +375,20 @@ class PosPermisoView(LoginRequiredMixin, PermisoRequeridoMixin, View):
 class PuntoVentaView(PosPermisoView):
     def get(self, request):
         venta = borrador(request.user)
-        return render(request, "ventas/punto_de_venta.html", self._contexto(venta))
+        maquina = maquina_desde(request)
+        return render(request, "ventas/punto_de_venta.html", self._contexto(venta, maquina))
 
     def post(self, request):
         venta = borrador(request.user)
+        maquina = maquina_desde(request)
         try:
             self._aplicar(request, venta)
             if request.POST.get("guardar"):
                 exigir_cliente_factura(venta)
                 exigir_emision(
-                    punto_de(venta.tipo_comprobante),
+                    punto_de(venta.tipo_comprobante, maquina),
                     tipo=venta.tipo_comprobante,
+                    maquina=maquina,
                 )
                 messages.success(request, "La venta quedó guardada.")
                 return redirect("home")
@@ -356,12 +433,12 @@ class PuntoVentaView(PosPermisoView):
             numero_comprobante_pago=datos.get("numero_comprobante_pago"),
         )
 
-    def _contexto(self, venta):
+    def _contexto(self, venta, maquina=None):
         lineas = lineas_vista(venta)
         iva = liquidar_iva(venta)
         total = total_venta(venta)
         subtotal = subtotal_venta(venta)
-        punto = punto_de(venta.tipo_comprobante)
+        punto = punto_de(venta.tipo_comprobante, maquina)
         iva_monto = iva.iva_10 + iva.iva_5
         if iva.iva_10 and not iva.iva_5:
             iva_label = "IVA (10%)"
@@ -382,12 +459,12 @@ class PuntoVentaView(PosPermisoView):
             "cuentas_cobro": cuentas_para_medio(venta.medio, venta.caja),
             "medios": medios_disponibles(venta.medio),
             "comprobantes": comprobantes_pos(),
-            "puede_cobrar": puede_cobrar(venta),
-            "puede_guardar": puede_guardar(venta),
+            "puede_cobrar": puede_cobrar(venta, maquina),
+            "puede_guardar": puede_guardar(venta, maquina),
             "factura_pide_cliente": pide_cliente,
-            "emision_motivo": motivo_pos(venta),
-            "proximo_numero": proximo_numero(venta.tipo_comprobante),
-            "numero_visor": _numero_visor(venta, punto),
+            "emision_motivo": motivo_pos(venta, maquina),
+            "proximo_numero": proximo_numero(venta.tipo_comprobante, maquina),
+            "numero_visor": _numero_visor(venta, punto, maquina),
             "punto": punto,
             "subtotal": subtotal,
             "total": total,
@@ -459,7 +536,21 @@ class PuntoVentaView(PosPermisoView):
             ),
             "caja_label": venta.caja.nombre_corto if venta.caja_id else "Sin caja",
             "cliente_ocasional": cliente_ocasional(),
+            "maquinas": Maquina.objects.order_by("nombre"),
+            "maquina_id": maquina.pk if maquina else "",
+            "maquina_nombre": maquina.nombre if maquina else "",
         }
+
+
+class ElegirMaquinaView(PosPermisoView):
+    def post(self, request):
+        raw = request.POST.get("maquina")
+        if raw in (None, ""):
+            request.session.pop(SESION_MAQUINA, None)
+        else:
+            maquina = get_object_or_404(Maquina, pk=raw)
+            request.session[SESION_MAQUINA] = maquina.pk
+        return redirect("punto_de_venta")
 
 
 class BuscarProductosView(PosPermisoView):
@@ -510,19 +601,13 @@ class ValidarNumeroView(PosPermisoView):
                 },
                 status=400,
             )
-        punto = punto_de(TipoComprobante.FACTURA)
-        if punto is None:
+        maquina = maquina_desde(request)
+        ok, mensaje, _, punto = resolver_emision(TipoComprobante.FACTURA, maquina)
+        if not ok or punto is None:
             return JsonResponse(
-                {
-                    "ok": False,
-                    "error": motivo_emision(None, tipo=TipoComprobante.FACTURA),
-                },
+                {"ok": False, "error": mensaje},
                 status=400,
             )
-        try:
-            exigir_emision(punto, tipo=TipoComprobante.FACTURA)
-        except ValidationError as exc:
-            return JsonResponse({"ok": False, "error": _error(exc)}, status=400)
         try:
             establecimiento = interpretar_serie(
                 request.GET.get("establecimiento"),
@@ -632,6 +717,7 @@ class ConfirmarVentaView(PosPermisoView):
                 establecimiento=request.POST.get("numero_establecimiento"),
                 punto_codigo=request.POST.get("numero_punto"),
                 secuencial=request.POST.get("numero_secuencial"),
+                maquina=maquina_desde(request),
             )
         except ValidationError as exc:
             messages.error(request, _error(exc))

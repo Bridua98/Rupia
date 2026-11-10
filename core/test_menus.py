@@ -12,10 +12,13 @@ def test_gestion_agrupa_timbrados_cuentas_y_unidades_de_negocio(ingresada):
     gestion = next(entrada for entrada in menu if entrada["label"] == "Gestión")
     assert [hijo["label"] for hijo in gestion["children"]] == [
         "Timbrados",
+        "Máquinas",
         "Cuentas",
         "Transferencias",
         "Disponibilidad",
         "Informe de gastos",
+        "Cuentas a pagar",
+        "Pagos a proveedor",
         "Unidades de negocio",
     ]
 

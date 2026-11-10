@@ -20,6 +20,7 @@
   data-total="{{ total_entero }}"
   data-buscar="{% url 'punto_de_venta_buscar' %}"
   data-numero-url="{% url 'punto_de_venta_numero' %}"
+  data-maquina="{{ maquina_id }}"
   {% if persona_nueva_url %}data-persona-nueva="{{ persona_nueva_url }}"{% endif %}
   {% if factura_pide_cliente %}data-pos-factura-sin-cliente="1"{% endif %}
 >
@@ -39,6 +40,20 @@
           <strong>{{ venta.fecha|date:"d/m/Y" }}</strong>
         </span>
       </div>
+      {% if maquinas %}
+        <form class="pos-maquina" method="post" action="{% url 'punto_de_venta_maquina' %}" data-pos-maquina>
+          {% csrf_token %}
+          <label>
+            <span>Máquina</span>
+            <select name="maquina" aria-label="Máquina de este punto de venta">
+              <option value="">Elegí la máquina</option>
+              {% for item in maquinas %}
+                <option value="{{ item.pk }}"{% if maquina_id == item.pk %} selected{% endif %}>{{ item.nombre }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </form>
+      {% endif %}
     </header>
 
     <div class="pos-search-row">
@@ -183,6 +198,7 @@
   <aside class="pos-side">
     <form method="post" action="{% url 'punto_de_venta' %}" id="pos-cabecera">
       {% csrf_token %}
+      <input type="hidden" name="maquina" value="{{ maquina_id }}">
       <input type="hidden" name="descuento" value="{{ descuento_txt }}">
       <section class="pos-card">
         <h2>Método de pago</h2>
