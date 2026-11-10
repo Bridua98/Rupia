@@ -54,7 +54,11 @@
     var tip = document.querySelector("[data-line-tip]");
     if (!plot || !svg || !tip) return;
 
-    var visibles = { ventas: !!data.ventas, compras: !!data.compras };
+    var visibles = {
+      ventas: !!data.ventas,
+      compras: !!data.compras,
+      gastos: !!data.gastos,
+    };
     document.querySelectorAll("[data-serie]").forEach(function (boton) {
       var serie = boton.getAttribute("data-serie");
       boton.addEventListener("click", function () {
@@ -67,7 +71,7 @@
 
     var rango = "7";
     function rangoActual() {
-      return rango;
+      return data.gastos ? "gastos" : rango;
     }
 
     var caja = { w: 640, h: 248, l: 54, r: 14, t: 18, b: 32 };
@@ -83,7 +87,7 @@
       var alto = caja.h - caja.t - caja.b;
       var maximo = 1;
       serie.forEach(function (punto) {
-        if (visibles.ventas) maximo = Math.max(maximo, numero(punto.v));
+        if (visibles.ventas || visibles.gastos) maximo = Math.max(maximo, numero(punto.v));
         if (visibles.compras) maximo = Math.max(maximo, numero(punto.c));
       });
       maximo = techo(maximo);
@@ -156,6 +160,7 @@
       }
 
       if (visibles.compras) trazo("c", "is-compras");
+      if (visibles.gastos) trazo("v", "is-compras");
       if (visibles.ventas) trazo("v", "is-ventas");
 
       var salto = serie.length > 12 ? Math.ceil(serie.length / 6) : 1;
@@ -218,13 +223,13 @@
       svg.querySelectorAll(".dash-dot").forEach(function (nodo) {
         nodo.remove();
       });
-      if (visibles.ventas) {
+      if (visibles.ventas || visibles.gastos) {
         svg.appendChild(
           svgEl("circle", {
             cx: x,
             cy: svg._yDe(punto.v),
             r: 4.5,
-            class: "dash-dot is-ventas",
+            class: visibles.gastos ? "dash-dot is-compras" : "dash-dot is-ventas",
           })
         );
       }
@@ -241,6 +246,7 @@
       var lineas = [punto.e];
       if (visibles.ventas) lineas.push("Ventas " + punto.vt);
       if (visibles.compras) lineas.push("Compras " + punto.ct);
+      if (visibles.gastos) lineas.push("Gastos " + punto.vt);
       var localX = ((x / caja.w) * rect.width) + 12;
       var localY = 12;
       if (localX > rect.width - 160) localX = ((x / caja.w) * rect.width) - 168;
@@ -254,7 +260,7 @@
       });
     });
 
-    pintar("7");
+    pintar(rangoActual());
   }
 
   function dibujarBarras() {

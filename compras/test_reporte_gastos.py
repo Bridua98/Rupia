@@ -404,3 +404,92 @@ def test_por_defecto_filtra_el_mes_en_curso(ingresada, usuario):
     ).content.decode()
     assert "Gasto del mes" in amplio
     assert "Gasto anterior" in amplio
+
+
+@pytest.mark.django_db
+def test_panel_muestra_totales_clases_y_comprobantes(ingresada, usuario):
+    cuenta = _cuenta()
+    proveedor = _proveedor()
+    deposito = _negocio()
+    mercaderia = _item("Arroz", TipoItem.PRODUCTO, deposito)
+    gasto = _item("Flete", TipoItem.GASTO)
+    hoy = _hoy()
+    compra = _compra(
+        usuario,
+        cuenta,
+        proveedor,
+        estado=EstadoCompra.CONFIRMADA,
+        tipo=TipoCompra.FACTURA_CONTADO,
+        numero="001-001-0000021",
+        fecha=hoy,
+    )
+    otra = _compra(
+        usuario,
+        cuenta,
+        proveedor,
+        estado=EstadoCompra.CONFIRMADA,
+        tipo=TipoCompra.FACTURA_CONTADO,
+        numero="001-001-0000022",
+        fecha=hoy,
+    )
+    _linea(compra, mercaderia, deposito, subtotal="11000", costo="11000")
+    _linea(otra, gasto, deposito, subtotal="5500", costo="5500")
+
+    content = ingresada.get(
+        f"/compras/reportes/gastos/?fecha_desde={hoy.isoformat()}&fecha_hasta={hoy.isoformat()}"
+    ).content.decode()
+
+    assert "Total gastos" in content
+    assert "Gs. 16.500" in content
+    assert "Gravado" in content
+    assert "IVA" in content
+    assert "Comprobantes" in content
+    assert 'dir="ltr">2</p>' in content
+    assert "Gastos por clase" in content
+    assert "Mercadería" in content
+    assert "Gasto" in content
+    assert "67%" in content
+    assert "33%" in content
+    assert "Evolución de gastos" in content
+    assert "Filtros de búsqueda" in content
+    assert "Resultados (2 líneas)" in content
+    assert "dash-chart-data" in content
+
+
+@pytest.mark.django_db
+def test_panel_compara_el_periodo_anterior(ingresada, usuario):
+    cuenta = _cuenta()
+    proveedor = _proveedor()
+    deposito = _negocio()
+    item = _item("Flete", TipoItem.GASTO)
+    hoy = _hoy()
+    ayer = hoy - timedelta(days=1)
+    compra_hoy = _compra(
+        usuario,
+        cuenta,
+        proveedor,
+        estado=EstadoCompra.CONFIRMADA,
+        tipo=TipoCompra.EGRESO,
+        numero=None,
+        fecha=hoy,
+        pk=31,
+    )
+    compra_ayer = _compra(
+        usuario,
+        cuenta,
+        proveedor,
+        estado=EstadoCompra.CONFIRMADA,
+        tipo=TipoCompra.EGRESO,
+        numero=None,
+        fecha=ayer,
+        pk=32,
+    )
+    _linea(compra_hoy, item, deposito, subtotal="22000", costo="22000")
+    _linea(compra_ayer, item, deposito, subtotal="11000", costo="11000")
+
+    content = ingresada.get(
+        f"/compras/reportes/gastos/?fecha_desde={hoy.isoformat()}&fecha_hasta={hoy.isoformat()}"
+    ).content.decode()
+
+    assert "+100%" in content
+    assert "Periodo anterior" in content
