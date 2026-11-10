@@ -11,6 +11,7 @@ from core.mantenimiento import MantenimientoListView
 from core.moneda import html_guaranies, mostrar_guaranies
 from cuentas.models import Cuenta, EstadoTransferencia, Transferencia
 from cuentas.tables import DisponibilidadDetalleTable, DisponibilidadResumenTable
+from personas.models import Persona
 from ventas.models import EstadoVenta, Venta
 
 CERO = Decimal("0")
@@ -42,6 +43,7 @@ class FilaDisponibilidad:
     fecha: date | None
     comprobante: str
     origen: str
+    persona: str
     entra: Decimal | None
     salida: Decimal | None
     saldo: Decimal
@@ -108,11 +110,15 @@ def _comprobante_transferencia(transferencia):
     return texto or f"Transferencia {transferencia.pk}"
 
 
-def movimientos_caja(cuenta_id=None):
+def _persona_texto(persona):
+    return str(persona) if persona else "—"
+
+
+def movimientos_caja(cuenta_id=None, persona_id=None):
     """Ventas cobradas, compras al contado o egresos y transferencias entre cuentas."""
     ventas = (
         Venta.objects.filter(estado=EstadoVenta.COBRADA, cuenta_cobro_id__isnull=False)
-        .select_related("cuenta_cobro")
+        .select_related("cuenta_cobro", "cliente")
         .annotate(importe=_importe_venta())
     )
     compras = (
@@ -121,7 +127,7 @@ def movimientos_caja(cuenta_id=None):
             cuenta_id__isnull=False,
             tipo__in=(TipoCompra.FACTURA_CONTADO, TipoCompra.EGRESO),
         )
-        .select_related("cuenta")
+        .select_related("cuenta", "proveedor")
         .annotate(importe=_importe_compra())
     )
     transferencias = Transferencia.objects.filter(
@@ -137,6 +143,11 @@ def movimientos_caja(cuenta_id=None):
             Q(cuenta_origen_id=cuenta_id) | Q(cuenta_destino_id=cuenta_id)
         )
         pagos_proveedor = pagos_proveedor.filter(cuenta_id=cuenta_id)
+    if persona_id:
+        ventas = ventas.filter(cliente_id=persona_id)
+        compras = compras.filter(proveedor_id=persona_id)
+        pagos_proveedor = pagos_proveedor.filter(proveedor_id=persona_id)
+        transferencias = transferencias.none()
 
     filas = []
     for venta in ventas:
@@ -147,6 +158,7 @@ def movimientos_caja(cuenta_id=None):
                 "fecha": venta.fecha,
                 "comprobante": venta.numero_completo or "—",
                 "origen": ORIGEN_VENTA,
+                "persona": _persona_texto(venta.cliente),
                 "entra": venta.importe or CERO,
                 "salida": CERO,
                 "orden": 0,
@@ -162,6 +174,7 @@ def movimientos_caja(cuenta_id=None):
                 "fecha": compra.fecha,
                 "comprobante": _comprobante_compra(compra),
                 "origen": _origen_compra(compra),
+                "persona": _persona_texto(compra.proveedor),
                 "entra": CERO,
                 "salida": compra.importe or CERO,
                 "orden": 1,
@@ -178,6 +191,7 @@ def movimientos_caja(cuenta_id=None):
                 "fecha": pago.fecha,
                 "comprobante": f"Pago {pago.pk} · {proveedor}",
                 "origen": ORIGEN_PAGO_PROVEEDOR,
+                "persona": _persona_texto(pago.proveedor),
                 "entra": CERO,
                 "salida": pago.importe or CERO,
                 "orden": 1,
@@ -195,6 +209,7 @@ def movimientos_caja(cuenta_id=None):
                     "fecha": transferencia.fecha,
                     "comprobante": comprobante,
                     "origen": ORIGEN_TRANSFERENCIA,
+                    "persona": "—",
                     "entra": CERO,
                     "salida": transferencia.importe or CERO,
                     "orden": 2,
@@ -210,6 +225,7 @@ def movimientos_caja(cuenta_id=None):
                     "fecha": transferencia.fecha,
                     "comprobante": comprobante,
                     "origen": ORIGEN_TRANSFERENCIA,
+                    "persona": "—",
                     "entra": transferencia.importe or CERO,
                     "salida": CERO,
                     "orden": 3,
@@ -221,14 +237,20 @@ def movimientos_caja(cuenta_id=None):
     return filas
 
 
-def mayor_disponibilidad(*, cuenta_id=None, fecha_desde=None, fecha_hasta=None, query=""):
+def mayor_disponibilidad(
+    *, cuenta_id=None, persona_id=None, fecha_desde=None, fecha_hasta=None, query=""
+):
     desde = _parse_fecha(fecha_desde)
     hasta = _parse_fecha(fecha_hasta)
-    movimientos = movimientos_caja(cuenta_id)
+    movimientos = movimientos_caja(cuenta_id, persona_id)
     por_cuenta = {}
     for movimiento in movimientos:
         if not _coincide(
-            query, movimiento["cuenta"], movimiento["comprobante"], movimiento["origen"]
+            query,
+            movimiento["cuenta"],
+            movimiento["comprobante"],
+            movimiento["origen"],
+            movimiento["persona"],
         ):
             continue
         por_cuenta.setdefault(movimiento["cuenta_id"], []).append(movimiento)
@@ -283,6 +305,7 @@ def mayor_disponibilidad(*, cuenta_id=None, fecha_desde=None, fecha_hasta=None, 
                     fecha=None,
                     comprobante="Saldo anterior",
                     origen="",
+                    persona="—",
                     entra=entra_anterior,
                     salida=salida_anterior,
                     saldo=entra_anterior - salida_anterior,
@@ -300,6 +323,7 @@ def mayor_disponibilidad(*, cuenta_id=None, fecha_desde=None, fecha_hasta=None, 
                     fecha=movimiento["fecha"],
                     comprobante=movimiento["comprobante"],
                     origen=movimiento["origen"],
+                    persona=movimiento["persona"],
                     entra=movimiento["entra"] if movimiento["entra"] else None,
                     salida=movimiento["salida"] if movimiento["salida"] else None,
                     saldo=saldo,
@@ -330,7 +354,7 @@ class ReporteDisponibilidadListView(MantenimientoListView):
         "Los movimientos de antes de esa fecha se agrupan en Saldo anterior."
     )
     search_label = "Buscar"
-    search_placeholder = "Buscar por cuenta, comprobante u origen..."
+    search_placeholder = "Buscar por cuenta, comprobante, origen o persona..."
     search_fields = ()
     filters = (
         {
@@ -338,6 +362,14 @@ class ReporteDisponibilidadListView(MantenimientoListView):
             "label": "Cuenta",
             "kind": "fk",
             "queryset": lambda: Cuenta.objects.order_by("descripcion"),
+        },
+        {
+            "name": "persona",
+            "label": "Persona",
+            "kind": "fk",
+            "queryset": lambda: Persona.objects.filter(
+                Q(es_cliente=True) | Q(es_proveedor=True)
+            ).order_by("razon_social"),
         },
         {
             "name": "fecha_desde",
@@ -396,9 +428,11 @@ class ReporteDisponibilidadListView(MantenimientoListView):
             return self._resultado_cache
         valores = filter_values(self.request, filter_specs_for(self))
         cuenta = valores.get("cuenta")
+        persona = valores.get("persona")
         desde, hasta = self._fechas()
         self._resultado_cache = mayor_disponibilidad(
             cuenta_id=int(cuenta) if cuenta and cuenta.isdigit() else None,
+            persona_id=int(persona) if persona and persona.isdigit() else None,
             fecha_desde=desde,
             fecha_hasta=hasta,
             query=self.query(),

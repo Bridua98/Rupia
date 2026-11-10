@@ -103,6 +103,7 @@ class DisponibilidadDetalleTable(tables.Table):
     fecha = tables.Column(verbose_name="Fecha", empty_values=())
     comprobante = tables.Column(verbose_name="Comprobante")
     origen = tables.Column(verbose_name="Origen", empty_values=())
+    persona = tables.Column(verbose_name="Persona", empty_values=())
     entra = tables.Column(verbose_name="Entra", empty_values=(), attrs=ATTRS_MONEDA)
     salida = tables.Column(verbose_name="Salida", empty_values=(), attrs=ATTRS_MONEDA)
     saldo = tables.Column(verbose_name="Saldo", attrs=ATTRS_MONEDA)
@@ -124,6 +125,9 @@ class DisponibilidadDetalleTable(tables.Table):
         return html_enlace_origen(texto, url_origen_caja(record.origen, record.origen_id))
 
     def render_origen(self, value):
+        return value or "—"
+
+    def render_persona(self, value):
         return value or "—"
 
     def render_entra(self, value):

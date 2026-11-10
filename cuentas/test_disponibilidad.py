@@ -11,6 +11,7 @@ from cuentas.disponibilidad import mayor_disponibilidad
 from cuentas.models import Cuenta, EstadoTransferencia, Transferencia
 from inventario.models import Item, ItemCategoria, Marca, TasaIva, TipoItem, UnidadMedida
 from negocio.models import UnidadNegocio
+from personas.models import Genero, Persona, TipoDocumento
 from ventas.models import EstadoVenta, MedioPago, Venta, VentaDetalle
 
 PERIODO = "fecha_desde=2026-11-01&fecha_hasta=2026-11-30"
@@ -54,7 +55,19 @@ def _item():
     )
 
 
-def _venta(usuario, cuenta, *, fecha, importe, numero, descuento=0):
+def _persona(razon_social, documento, *, cliente=False, proveedor=False):
+    return Persona.objects.create(
+        tipo_documento=TipoDocumento.RUC,
+        documento=documento,
+        razon_social=razon_social,
+        genero=Genero.SIN_DEFINIR,
+        direccion="Centro",
+        es_cliente=cliente,
+        es_proveedor=proveedor,
+    )
+
+
+def _venta(usuario, cuenta, *, fecha, importe, numero, descuento=0, cliente=None):
     item = _item()
     venta = Venta.objects.create(
         fecha=fecha,
@@ -65,6 +78,7 @@ def _venta(usuario, cuenta, *, fecha, importe, numero, descuento=0):
         medio=MedioPago.EFECTIVO,
         descuento=Decimal(descuento),
         numero_completo=numero,
+        cliente=cliente,
     )
     VentaDetalle.objects.create(
         venta=venta,
@@ -87,6 +101,7 @@ def _compra(
     numero=None,
     tipo=TipoCompra.FACTURA_CONTADO,
     estado=EstadoCompra.CONFIRMADA,
+    proveedor=None,
 ):
     item = _item()
     compra = Compra.objects.create(
@@ -97,6 +112,7 @@ def _compra(
         usuario=usuario,
         numero_completo=numero,
         timbrado="12345678" if tipo != TipoCompra.EGRESO else "",
+        proveedor=proveedor,
     )
     CompraDetalle.objects.create(
         compra=compra,
@@ -333,9 +349,10 @@ def test_excel_incluye_fila_total(ingresada, usuario):
     ultima = hoja.max_row
     assert hoja.cell(ultima, 1).value == "Total"
     assert hoja.cell(2, 3).value == "001-001-0000001"
-    assert "Gs. 12.000" in str(hoja.cell(2, 5).value)
-    assert "Gs. 12.000" in str(hoja.cell(ultima, 5).value)
-    assert "Gs. 12.000" in str(hoja.cell(ultima, 7).value)
+    assert hoja.cell(1, 5).value == "Persona"
+    assert "Gs. 12.000" in str(hoja.cell(2, 6).value)
+    assert "Gs. 12.000" in str(hoja.cell(ultima, 6).value)
+    assert "Gs. 12.000" in str(hoja.cell(ultima, 8).value)
 
 
 def _transferencia(usuario, origen, destino, *, fecha, importe, comprobante="", estado=None):
@@ -537,3 +554,73 @@ def test_saldo_corre_entra_menos_salida(usuario):
     assert detalle[0].saldo == Decimal("10000")
     assert detalle[1].salida == Decimal("3000")
     assert detalle[1].saldo == Decimal("7000")
+
+
+@pytest.mark.django_db
+def test_tabla_muestra_persona(ingresada, usuario):
+    caja = _cuenta()
+    cliente = _persona("Cliente Uno", "80001111-1", cliente=True)
+    proveedor = _persona("Proveedor Dos", "80002222-2", proveedor=True)
+    _venta(
+        usuario,
+        caja,
+        fecha=date(2026, 11, 4),
+        importe="15000",
+        numero="001-001-0000001",
+        cliente=cliente,
+    )
+    _compra(
+        usuario,
+        caja,
+        fecha=date(2026, 11, 4),
+        importe="4000",
+        numero="001-001-0000099",
+        proveedor=proveedor,
+    )
+
+    content = ingresada.get(_disponibilidad()).content.decode()
+
+    assert ">Persona<" in content
+    assert "Cliente Uno (80001111-1)" in content
+    assert "Proveedor Dos (80002222-2)" in content
+    assert 'name="persona"' in content
+
+
+@pytest.mark.django_db
+def test_filtro_persona(ingresada, usuario):
+    caja = _cuenta()
+    cliente = _persona("Cliente Uno", "80001111-1", cliente=True)
+    otro = _persona("Cliente Otro", "80003333-3", cliente=True)
+    proveedor = _persona("Proveedor Dos", "80002222-2", proveedor=True)
+    _venta(
+        usuario,
+        caja,
+        fecha=date(2026, 11, 4),
+        importe="15000",
+        numero="001-001-0000001",
+        cliente=cliente,
+    )
+    _venta(
+        usuario,
+        caja,
+        fecha=date(2026, 11, 4),
+        importe="9000",
+        numero="001-001-0000002",
+        cliente=otro,
+    )
+    _compra(
+        usuario,
+        caja,
+        fecha=date(2026, 11, 4),
+        importe="4000",
+        numero="001-001-0000099",
+        proveedor=proveedor,
+    )
+
+    content = ingresada.get(_disponibilidad(f"persona={cliente.pk}")).content.decode()
+
+    assert "001-001-0000001" in content
+    assert "001-001-0000002" not in content
+    assert "001-001-0000099" not in content
+    assert "Cliente Uno (80001111-1)" in content
+    assert "Persona: Cliente Uno (80001111-1)" in content
