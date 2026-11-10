@@ -146,6 +146,12 @@ def main_menu(request):
                 item("Perfiles", url_name="perfil_list", icon="shield", formulario="perfiles"),
                 item("Contraseña", url_name="cambiar_contrasena", icon="key"),
                 item(
+                    "Copia de seguridad",
+                    url_name="copia_list",
+                    icon="save",
+                    formulario="copias",
+                ),
+                item(
                     "Administración",
                     url_name="admin:index",
                     icon="settings",

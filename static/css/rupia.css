@@ -6704,6 +6704,18 @@ body.pos-screen .app-stage {
   margin-top: 1rem;
 }
 
+.copia-crear,
+.copia-eliminar {
+  margin: 0;
+}
+
+.copia-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
 .cuenta-foto-form {
   max-width: 24rem;
   padding-bottom: 1.4rem;

@@ -1,0 +1,76 @@
+{% extends "app.html" %}
+
+{% block title %}Copia de seguridad · Rupia{% endblock %}
+
+{% block work %}
+<div class="ledger">
+  <div class="ledger-main">
+    <a class="back" href="{% url 'home' %}">
+      {% include "core/icon.html" with name="back" %}
+      <span>Volver</span>
+    </a>
+    <div class="stage-head">
+      <div>
+        <p class="eyebrow">Configuración</p>
+        <h1>Copia de seguridad</h1>
+        <p class="record-count">{{ copias|length }} copia{{ copias|length|pluralize }}</p>
+      </div>
+      {% if puede_crear %}
+        <div class="stage-actions">
+          <form method="post" class="copia-crear">
+            {% csrf_token %}
+            <button type="submit" class="button button-create">
+              {% include "core/icon.html" with name="save" %}
+              <span>Crear copia</span>
+            </button>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+    <div class="sheet-wrap">
+      <table class="sheet">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Motor</th>
+            <th>Tamaño</th>
+            <th class="sheet-col-acciones">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for copia in copias %}
+            <tr>
+              <td>{{ copia.fecha }}</td>
+              <td>{{ copia.motor }}</td>
+              <td>{{ copia.tamano_texto }}</td>
+              <td class="sheet-col-acciones">
+                <div class="copia-acciones">
+                  <a class="button button-ghost button-compact" href="{% url 'copia_descargar' copia.nombre %}">
+                    {% include "core/icon.html" with name="save" %}
+                    <span>Descargar</span>
+                  </a>
+                  {% if puede_eliminar %}
+                    <form method="post" class="copia-eliminar">
+                      {% csrf_token %}
+                      <input type="hidden" name="accion" value="eliminar">
+                      <input type="hidden" name="nombre" value="{{ copia.nombre }}">
+                      <button type="submit" class="button button-danger button-compact">
+                        {% include "core/icon.html" with name="trash" %}
+                        <span>Eliminar</span>
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="4">Todavía no hay copias almacenadas.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

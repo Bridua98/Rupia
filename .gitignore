@@ -8,5 +8,6 @@ static/webpack_bundles/
 staticfiles/
 db.sqlite3
 imagenes/
+copias/
 .env
 .DS_Store
