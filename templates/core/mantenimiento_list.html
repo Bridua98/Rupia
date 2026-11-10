@@ -37,21 +37,7 @@
     </div>
     {% if search_label %}
       <div class="list-toolbar">
-        <form class="list-search" method="get" action="{{ list_url }}">
-          <span class="list-search-icon">{% include "core/icon.html" with name="search" %}</span>
-          <input
-            type="search"
-            name="q"
-            value="{{ query }}"
-            placeholder="{{ search_placeholder }}"
-            aria-label="{{ search_label }}"
-          >
-          {% for row in list_filters %}
-            {% if row.value %}
-              <input type="hidden" name="{{ row.name }}" value="{{ row.value }}">
-            {% endif %}
-          {% endfor %}
-        </form>
+        {% include "core/list_search.html" %}
         {% if list_filters %}
           <button
             type="button"
