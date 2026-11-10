@@ -1,5 +1,10 @@
+import math
+from collections import defaultdict
 from dataclasses import dataclass
+from datetime import date, timedelta
 from decimal import Decimal
+
+from django.utils import timezone
 
 from compras.models import CompraDetalle, EstadoCompra, TipoCompra
 from compras.tables import ReporteGastosAgrupadoTable, ReporteGastosDetalleTable
@@ -46,6 +51,12 @@ CLASE_LABELS = dict(CLASE_CHOICES)
 ONCE = Decimal("11")
 VEINTIUNO = Decimal("21")
 CERO = Decimal("0")
+CIEN = Decimal("100")
+RADIO_ANILLO = 62
+LARGO_ANILLO = 2 * math.pi * RADIO_ANILLO
+COLOR_MERCADERIA = "#1e8a4c"
+COLOR_GASTO = "#7b5ea7"
+DIAS_SERIE_DIARIA = 45
 
 
 @dataclass
@@ -81,6 +92,223 @@ class FilaGastoAgrupada:
     gravado: Decimal
     iva: Decimal
     subtotal: Decimal
+
+
+@dataclass
+class VariacionPanel:
+    texto: str
+    sentido: str
+
+
+@dataclass
+class SeriePanel:
+    puntos: str
+    area: str
+    vacia: bool
+
+
+@dataclass
+class IndicadorPanel:
+    etiqueta: str
+    valor_txt: str
+    meta: str = ""
+    serie: SeriePanel | None = None
+    periodo: VariacionPanel | None = None
+    tono: str = ""
+
+
+@dataclass
+class PorcionPanel:
+    nombre: str
+    importe: Decimal
+    importe_txt: str
+    porcentaje: int
+    color: str
+    trazo: str = ""
+    offset: str = "0"
+
+
+@dataclass
+class PanelGastos:
+    desde: str
+    hasta: str
+    total: IndicadorPanel
+    gravado: IndicadorPanel
+    iva: IndicadorPanel
+    comprobantes: IndicadorPanel
+    clases: list
+    hay_clases: bool
+    evolucion: dict
+
+
+def _parse_fecha(value):
+    if not value:
+        return None
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value))
+    except ValueError:
+        return None
+
+
+def _texto_fecha(value) -> str:
+    dia = _parse_fecha(value)
+    return dia.strftime("%d/%m/%Y") if dia else ""
+
+
+def _variacion(actual: Decimal, anterior: Decimal) -> VariacionPanel:
+    if anterior == 0 and actual == 0:
+        return VariacionPanel(texto="—", sentido="neutral")
+    if anterior == 0:
+        return VariacionPanel(texto="Nuevo", sentido="up" if actual > 0 else "down")
+    porcentaje = redondear_guarani(((actual - anterior) / anterior) * CIEN)
+    sentido = "up" if porcentaje > 0 else "down" if porcentaje < 0 else "neutral"
+    signo = "+" if porcentaje > 0 else ""
+    return VariacionPanel(texto=f"{signo}{int(porcentaje)}%", sentido=sentido)
+
+
+def _serie_spark(valores: list[Decimal]) -> SeriePanel:
+    if not any(valores):
+        return SeriePanel(puntos="", area="", vacia=True)
+    alto = 42
+    ancho = 140
+    n = len(valores)
+    mx = max(valores)
+    mn = min(valores)
+    span = mx - mn if mx != mn else (mx or Decimal("1"))
+    coords = []
+    for i, valor in enumerate(valores):
+        x = 0 if n == 1 else round(i * (ancho / (n - 1)), 2)
+        y = round(alto - 3 - float((valor - mn) / span) * (alto - 6), 2)
+        coords.append((x, y))
+    puntos = " ".join(f"{x},{y}" for x, y in coords)
+    area = f"0,{alto} {puntos} {coords[-1][0]},{alto}"
+    return SeriePanel(puntos=puntos, area=area, vacia=False)
+
+
+def _parte(valor: Decimal, total: Decimal) -> int:
+    if total <= 0 or valor <= 0:
+        return 0
+    return int(redondear_guarani((valor / total) * CIEN))
+
+
+def _trazar_anillo(porciones: list[PorcionPanel]) -> None:
+    visibles = [porcion for porcion in porciones if porcion.porcentaje]
+    separacion = 4 if len(visibles) > 1 else 0
+    acumulado = 0.0
+    for porcion in porciones:
+        if not porcion.porcentaje:
+            porcion.trazo = f"0 {LARGO_ANILLO:.3f}"
+            porcion.offset = "0"
+            continue
+        largo = LARGO_ANILLO * porcion.porcentaje / 100
+        dibujo = max(largo - separacion, 1)
+        porcion.trazo = f"{dibujo:.3f} {LARGO_ANILLO:.3f}"
+        porcion.offset = f"{-(acumulado + separacion / 2):.3f}"
+        acumulado += largo
+
+
+def _clases_dona(filas) -> list[PorcionPanel]:
+    mercaderia = sum((fila.subtotal for fila in filas if fila.tipo_item == "Mercadería"), CERO)
+    gasto = sum((fila.subtotal for fila in filas if fila.tipo_item == "Gasto"), CERO)
+    total = redondear_guarani(mercaderia + gasto)
+    porciones = [
+        PorcionPanel(
+            "Mercadería",
+            redondear_guarani(mercaderia),
+            mostrar_guaranies(mercaderia),
+            _parte(mercaderia, total),
+            COLOR_MERCADERIA,
+        ),
+        PorcionPanel(
+            "Gasto",
+            redondear_guarani(gasto),
+            mostrar_guaranies(gasto),
+            _parte(gasto, total),
+            COLOR_GASTO,
+        ),
+    ]
+    ajuste = 100 - sum(porcion.porcentaje for porcion in porciones)
+    if total > 0 and ajuste:
+        mayor = max(porciones, key=lambda porcion: porcion.importe)
+        mayor.porcentaje += ajuste
+    _trazar_anillo(porciones)
+    return porciones
+
+
+def _mapa_importe(filas, getter) -> dict:
+    acumulado = defaultdict(lambda: CERO)
+    for fila in filas:
+        acumulado[fila.fecha] += getter(fila)
+    return dict(acumulado)
+
+
+def _mapa_comprobantes(filas) -> dict:
+    ids = defaultdict(set)
+    for fila in filas:
+        ids[fila.fecha].add(fila.compra_id)
+    return {fecha: Decimal(len(compras)) for fecha, compras in ids.items()}
+
+
+def _usar_semanas(desde: date, hasta: date) -> bool:
+    return (hasta - desde).days + 1 > DIAS_SERIE_DIARIA
+
+
+def _buckets(desde: date, hasta: date):
+    if not _usar_semanas(desde, hasta):
+        dia = desde
+        while dia <= hasta:
+            yield dia, dia, dia.strftime("%d/%m")
+            dia += timedelta(days=1)
+        return
+    inicio = desde
+    while inicio <= hasta:
+        fin = min(inicio + timedelta(days=6), hasta)
+        yield inicio, fin, inicio.strftime("%d/%m")
+        inicio = fin + timedelta(days=1)
+
+
+def _valores_rango(desde: date, hasta: date, por_fecha: dict) -> list[Decimal]:
+    valores = []
+    for inicio, fin, _etiqueta in _buckets(desde, hasta):
+        total = CERO
+        dia = inicio
+        while dia <= fin:
+            total += por_fecha.get(dia, CERO)
+            dia += timedelta(days=1)
+        valores.append(total)
+    return valores
+
+
+def _puntos_evolucion(desde: date, hasta: date, por_fecha: dict) -> list[dict]:
+    puntos = []
+    for inicio, fin, etiqueta in _buckets(desde, hasta):
+        total = CERO
+        dia = inicio
+        while dia <= fin:
+            total += por_fecha.get(dia, CERO)
+            dia += timedelta(days=1)
+        puntos.append({"e": etiqueta, "v": int(total), "vt": mostrar_guaranies(total)})
+    return puntos
+
+
+def _totales_filas(filas) -> dict:
+    return {
+        "gravado": sum((fila.gravado for fila in filas), CERO),
+        "iva": sum((fila.iva for fila in filas), CERO),
+        "subtotal": sum((fila.subtotal for fila in filas), CERO),
+        "comprobantes": Decimal(len({fila.compra_id for fila in filas})),
+    }
+
+
+def _indicador(etiqueta, valor, anterior, serie, formatear) -> IndicadorPanel:
+    return IndicadorPanel(
+        etiqueta=etiqueta,
+        valor_txt=formatear(valor),
+        serie=serie,
+        periodo=_variacion(valor, anterior),
+    )
 
 
 def liquidar_linea(subtotal, tasa) -> tuple[Decimal, Decimal]:
@@ -199,7 +427,7 @@ class ReporteGastosListView(MantenimientoListView):
     def agrupar(self):
         return filter_values(self.request, filter_specs_for(self)).get("agrupar", AGRUPAR_DETALLE)
 
-    def detalles_queryset(self):
+    def detalles_queryset(self, valores=None):
         queryset = (
             CompraDetalle.objects.filter(
                 compra__estado=EstadoCompra.CONFIRMADA,
@@ -216,16 +444,18 @@ class ReporteGastosListView(MantenimientoListView):
         )
         queryset = apply_search(queryset, self.query(), search_fields_for(self))
         specs = _specs_detalle(self)
-        return apply_filters(queryset, filter_values(self.request, specs), specs)
+        if valores is None:
+            valores = filter_values(self.request, specs)
+        return apply_filters(queryset, valores, specs)
 
     def _detalle(self):
         if not hasattr(self, "_detalle_cache"):
             self._detalle_cache = self._armar_detalle()
         return self._detalle_cache
 
-    def _armar_detalle(self):
+    def _armar_detalle(self, valores=None):
         filas = []
-        for detalle in self.detalles_queryset():
+        for detalle in self.detalles_queryset(valores):
             compra = detalle.compra
             gravado, iva = liquidar_linea(detalle.subtotal, detalle.tasa_iva)
             negocio = detalle.unidad_negocio
@@ -313,12 +543,84 @@ class ReporteGastosListView(MantenimientoListView):
         return {}
 
     def totales_raw(self):
-        filas = self._detalle()
+        datos = _totales_filas(self._detalle())
         return {
-            "gravado": sum((fila.gravado for fila in filas), CERO),
-            "iva": sum((fila.iva for fila in filas), CERO),
-            "subtotal": sum((fila.subtotal for fila in filas), CERO),
+            "gravado": datos["gravado"],
+            "iva": datos["iva"],
+            "subtotal": datos["subtotal"],
         }
+
+    def _rango_actual(self):
+        valores = filter_values(self.request, _specs_detalle(self))
+        desde = _parse_fecha(valores.get("fecha_desde"))
+        hasta = _parse_fecha(valores.get("fecha_hasta"))
+        hoy = timezone.localdate()
+        if desde is None:
+            desde = hoy.replace(day=1)
+        if hasta is None:
+            hasta = hoy
+        if hasta < desde:
+            desde, hasta = hasta, desde
+        return desde, hasta, valores
+
+    def _detalle_anterior(self, desde, hasta, valores):
+        dias = (hasta - desde).days + 1
+        prev_hasta = desde - timedelta(days=1)
+        prev_desde = prev_hasta - timedelta(days=dias - 1)
+        anteriores = dict(valores)
+        anteriores["fecha_desde"] = prev_desde.isoformat()
+        anteriores["fecha_hasta"] = prev_hasta.isoformat()
+        return self._armar_detalle(anteriores)
+
+    def _panel(self):
+        filas = self._detalle()
+        desde, hasta, valores = self._rango_actual()
+        actual = _totales_filas(filas)
+        anterior = _totales_filas(self._detalle_anterior(desde, hasta, valores))
+        por_total = _mapa_importe(filas, lambda fila: fila.subtotal)
+        por_gravado = _mapa_importe(filas, lambda fila: fila.gravado)
+        por_iva = _mapa_importe(filas, lambda fila: fila.iva)
+        por_comp = _mapa_comprobantes(filas)
+        serie_total = _serie_spark(_valores_rango(desde, hasta, por_total))
+        clases = _clases_dona(filas)
+        return PanelGastos(
+            desde=_texto_fecha(desde),
+            hasta=_texto_fecha(hasta),
+            total=_indicador(
+                "Total gastos",
+                actual["subtotal"],
+                anterior["subtotal"],
+                serie_total,
+                mostrar_guaranies,
+            ),
+            gravado=_indicador(
+                "Gravado",
+                actual["gravado"],
+                anterior["gravado"],
+                _serie_spark(_valores_rango(desde, hasta, por_gravado)),
+                mostrar_guaranies,
+            ),
+            iva=_indicador(
+                "IVA",
+                actual["iva"],
+                anterior["iva"],
+                _serie_spark(_valores_rango(desde, hasta, por_iva)),
+                mostrar_guaranies,
+            ),
+            comprobantes=_indicador(
+                "Comprobantes",
+                actual["comprobantes"],
+                anterior["comprobantes"],
+                _serie_spark(_valores_rango(desde, hasta, por_comp)),
+                lambda valor: str(int(valor)),
+            ),
+            clases=clases,
+            hay_clases=any(porcion.porcentaje for porcion in clases),
+            evolucion={
+                "gastos": True,
+                "lineas": {"gastos": _puntos_evolucion(desde, hasta, por_total)},
+            },
+        )
 
     def totales_formateados(self):
         datos = self.totales_raw()
@@ -345,6 +647,7 @@ class ReporteGastosListView(MantenimientoListView):
         context["reporte_agrupado_label"] = AGRUPAR_LABELS.get(modo, "")
         context["reporte_resumen_filtros"] = self.resumen_filtros()
         context["reporte_totales"] = self.totales_formateados()
+        context["reporte_panel"] = self._panel()
         context["record_noun"] = "fila" if agrupado else self.record_noun
         return context
 

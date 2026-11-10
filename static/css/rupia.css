@@ -2556,6 +2556,119 @@ body.is-visor {
   font-size: 0.86rem;
 }
 
+.reporte-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.reporte-title-ico {
+  display: grid;
+  width: 2.15rem;
+  height: 2.15rem;
+  flex: none;
+  place-items: center;
+  border-radius: 12px;
+  background: #e7f6ee;
+  color: #1e8a4c;
+}
+
+.reporte-title-ico .icon {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.reporte-periodo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #e3ebe6;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--forest);
+  font-size: 0.86rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.reporte-periodo svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ledger.is-informe .reporte-kpis {
+  margin: 0 0 1rem;
+}
+
+.reporte-charts {
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.9fr) minmax(0, 1.4fr);
+  gap: 1rem;
+  margin: 0 0 1rem;
+  align-items: stretch;
+}
+
+.reporte-charts .dash-chart-line {
+  grid-column: auto;
+}
+
+.reporte-evo-total {
+  color: #d7efe3;
+  font-size: 0.88rem;
+}
+
+.reporte-filtros {
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem 1.15rem;
+  border: 1px solid #e3ebe6;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.reporte-filtros-title {
+  margin: 0 0 0.85rem;
+  color: var(--forest);
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.reporte-filtros .list-toolbar {
+  margin-bottom: 0.9rem;
+}
+
+.reporte-filtros .list-filters {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.reporte-filtros .list-filters-actions {
+  justify-content: flex-end;
+}
+
+.reporte-resultados-head {
+  display: flex;
+  align-items: center;
+  margin: 0 0 0.65rem;
+}
+
+.reporte-resultados-head h2 {
+  margin: 0;
+  color: var(--forest);
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
 .reporte-filtros-resumen {
   display: flex;
   flex-wrap: wrap;
@@ -6058,6 +6171,11 @@ body.pos-screen .app-stage {
   color: #1e8a4c;
 }
 
+.dash-ico.is-percent {
+  background: #eef6fb;
+  color: #2f7f9a;
+}
+
 .dash-value.is-alerta {
   color: var(--danger);
 }
@@ -6596,7 +6714,8 @@ body.pos-screen .app-stage {
   .dash-kpis-4,
   .dash-grid-main,
   .dash-charts,
-  .dash-bottom {
+  .dash-bottom,
+  .reporte-charts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -6612,7 +6731,8 @@ body.pos-screen .app-stage {
   .dash-cortes,
   .dash-grid-main,
   .dash-charts,
-  .dash-bottom {
+  .dash-bottom,
+  .reporte-charts {
     grid-template-columns: 1fr;
   }
 
