@@ -2,6 +2,8 @@ from django.urls import path
 
 from configuracion.views import (
     CambiarContrasenaView,
+    CopiaDescargaView,
+    CopiaListView,
     PerfilCreateView,
     PerfilDeleteView,
     PerfilListView,
@@ -60,5 +62,7 @@ urlpatterns = [
     path("perfiles/<int:pk>/", PerfilUpdateView.as_view(), name="perfil_update"),
     path("perfiles/<int:pk>/eliminar/", PerfilDeleteView.as_view(), name="perfil_delete"),
     path("contrasena/", CambiarContrasenaView.as_view(), name="cambiar_contrasena"),
+    path("copias/", CopiaListView.as_view(), name="copia_list"),
+    path("copias/<str:nombre>/", CopiaDescargaView.as_view(), name="copia_descargar"),
     path("usuarios/imagen/<str:nombre>/", UsuarioImagenView.as_view(), name="usuario_imagen"),
 ]

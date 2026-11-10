@@ -134,6 +134,8 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 _imagenes = os.environ.get("RUPIA_IMAGENES_DIR", "").strip()
 RUPIA_IMAGENES_DIR = Path(_imagenes) if _imagenes else BASE_DIR / "imagenes"
+_copias = os.environ.get("RUPIA_COPIAS_DIR", "").strip()
+RUPIA_COPIAS_DIR = Path(_copias) if _copias else BASE_DIR / "copias"
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",

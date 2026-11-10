@@ -5,12 +5,20 @@ from django.contrib.auth.views import PasswordChangeView
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Prefetch
 from django.http import FileResponse, Http404
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.html import format_html
 from django.views import View
 
 from configuracion.catalogo import FORMULARIOS, matriz_permisos
+from configuracion.copia import (
+    CopiaError,
+    CopiaNoEncontrada,
+    crear_copia,
+    eliminar_copia,
+    listar_copias,
+    resolver_copia,
+)
 from configuracion.forms import (
     CuentaFotoForm,
     PerfilForm,
@@ -20,7 +28,7 @@ from configuracion.forms import (
 )
 from configuracion.fotos import resolver_foto
 from configuracion.models import Perfil, UsuarioFoto
-from configuracion.permisos import PermisoRequeridoMixin, tiene_permiso
+from configuracion.permisos import PermisoRequeridoMixin, exigir_permiso, tiene_permiso
 from configuracion.tables import PerfilTable, UsuarioTable
 from core.mantenimiento import (
     MantenimientoCreateView,
@@ -337,6 +345,52 @@ class CambiarContrasenaView(LoginRequiredMixin, PasswordChangeView):
     def form_valid(self, form):
         messages.success(self.request, "Tu contraseña se actualizó.")
         return super().form_valid(form)
+
+
+class CopiaListView(PermisoRequeridoMixin, View):
+    permiso_formulario = "copias"
+    permiso_accion = "ver"
+
+    def get(self, request):
+        return render(request, "configuracion/copias.html", self._contexto(request))
+
+    def post(self, request):
+        if request.POST.get("accion") == "eliminar":
+            exigir_permiso(request.user, "copias", "eliminar")
+            try:
+                eliminar_copia(request.POST.get("nombre", ""))
+            except CopiaNoEncontrada:
+                messages.error(request, "Esa copia ya no está almacenada.")
+            else:
+                messages.success(request, "Se eliminó la copia de seguridad.")
+            return redirect("copia_list")
+        exigir_permiso(request.user, "copias", "alta")
+        try:
+            copia = crear_copia()
+        except CopiaError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f"Se almacenó la copia {copia.nombre}.")
+        return redirect("copia_list")
+
+    def _contexto(self, request):
+        return {
+            "copias": listar_copias(),
+            "puede_crear": tiene_permiso(request.user, "copias", "alta"),
+            "puede_eliminar": tiene_permiso(request.user, "copias", "eliminar"),
+        }
+
+
+class CopiaDescargaView(PermisoRequeridoMixin, View):
+    permiso_formulario = "copias"
+    permiso_accion = "ver"
+
+    def get(self, request, nombre):
+        try:
+            destino = resolver_copia(nombre)
+        except CopiaNoEncontrada as exc:
+            raise Http404 from exc
+        return FileResponse(destino.open("rb"), as_attachment=True, filename=destino.name)
 
 
 class UsuarioImagenView(LoginRequiredMixin, View):

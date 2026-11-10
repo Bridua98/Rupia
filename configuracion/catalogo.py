@@ -100,6 +100,11 @@ FORMULARIOS = (
         ACCIONES_MANTENIMIENTO + (ACCION_CLAVE,),
     ),
     Formulario("perfiles", "Perfiles", ACCIONES_MANTENIMIENTO),
+    Formulario(
+        "copias",
+        "Copia de seguridad",
+        (ACCION_VER, ACCION_ALTA, ACCION_ELIMINAR),
+    ),
 )
 
 FORMULARIOS_POR_CLAVE = {formulario.clave: formulario for formulario in FORMULARIOS}
