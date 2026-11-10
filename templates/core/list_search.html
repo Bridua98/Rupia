@@ -1,0 +1,17 @@
+<form class="list-search" method="get" action="{{ list_url }}" data-list-search>
+  <span class="list-search-icon">{% include "core/icon.html" with name="search" %}</span>
+  <input
+    type="search"
+    name="q"
+    value="{{ query }}"
+    placeholder="{{ search_placeholder }}"
+    aria-label="{{ search_label }}. Se busca al escribir; si lo vaciás, el listado se actualiza solo."
+    title="Se busca al escribir. Si lo vaciás, el listado se actualiza solo."
+    autocomplete="off"
+  >
+  {% for row in list_filters %}
+    {% if row.value %}
+      <input type="hidden" name="{{ row.name }}" value="{{ row.value }}">
+    {% endif %}
+  {% endfor %}
+</form>

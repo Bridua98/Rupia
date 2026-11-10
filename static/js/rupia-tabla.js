@@ -170,8 +170,84 @@
     return Array.prototype.slice.call(root.querySelectorAll("tbody tr[data-href]"));
   }
 
+  function currentSearchQuery() {
+    try {
+      return (new URLSearchParams(window.location.search).get("q") || "").trim();
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function initListSearch(root) {
+    var form = root.querySelector("form.list-search");
+    if (!form) return;
+    var input = form.querySelector("input[name='q']");
+    if (!input) return;
+
+    var FOCUS_KEY = "rupia-list-search";
+    var DELAY = 320;
+    var timer = null;
+    var applied = currentSearchQuery();
+    var sending = false;
+
+    try {
+      var saved = sessionStorage.getItem(FOCUS_KEY);
+      if (saved) {
+        sessionStorage.removeItem(FOCUS_KEY);
+        var state = JSON.parse(saved);
+        input.focus();
+        var start = typeof state.start === "number" ? state.start : input.value.length;
+        var end = typeof state.end === "number" ? state.end : start;
+        if (input.setSelectionRange) input.setSelectionRange(start, end);
+      }
+    } catch (error) {
+      input.focus();
+    }
+
+    function rememberFocus() {
+      try {
+        sessionStorage.setItem(FOCUS_KEY, JSON.stringify({
+          start: input.selectionStart,
+          end: input.selectionEnd,
+        }));
+      } catch (error) {}
+    }
+
+    function consult() {
+      var next = input.value.trim();
+      if (sending || next === applied) return;
+      sending = true;
+      form.classList.add("is-searching");
+      rememberFocus();
+      var params = new URLSearchParams(new FormData(form));
+      if (!next) params.delete("q");
+      else params.set("q", next);
+      var query = params.toString();
+      var base = form.getAttribute("action") || window.location.pathname;
+      window.location.assign(query ? base + "?" + query : base);
+    }
+
+    function schedule() {
+      window.clearTimeout(timer);
+      if (!input.value.trim()) {
+        consult();
+        return;
+      }
+      timer = window.setTimeout(consult, DELAY);
+    }
+
+    input.addEventListener("input", schedule);
+    input.addEventListener("search", schedule);
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      window.clearTimeout(timer);
+      consult();
+    });
+  }
+
   function initList(root) {
     initActionMenus(root);
+    initListSearch(root);
 
     root.querySelectorAll("[data-filters-toggle]").forEach(function (button) {
       button.addEventListener("click", function () {

@@ -850,6 +850,8 @@ def test_busca_item_por_marca_vinculada(ingresada):
     content = response.content.decode()
     assert response.status_code == 200
     assert "Arroz 1kg" in content
+    assert 'data-list-search' in content
+    assert "Si lo vaciás, el listado se actualiza solo." in content
 
 
 @pytest.mark.django_db

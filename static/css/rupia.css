@@ -1825,6 +1825,14 @@ button.topbar-icon:hover {
   box-shadow: 0 0 0 3px rgba(31, 122, 74, 0.12);
 }
 
+.list-search.is-searching input {
+  border-color: #8ab5a4;
+}
+
+.list-search.is-searching .list-search-icon {
+  color: var(--accent);
+}
+
 .list-filters-toggle {
   display: inline-flex;
   align-items: center;
