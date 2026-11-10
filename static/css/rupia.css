@@ -4491,6 +4491,27 @@ body.pos-screen .app-stage {
   font-size: 0.95rem;
 }
 
+.pos-maquina {
+  display: flex;
+  align-items: center;
+}
+
+.pos-maquina label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.pos-maquina span {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.pos-maquina select {
+  min-width: 9rem;
+}
+
 .pos-atajos {
   position: relative;
 }

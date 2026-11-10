@@ -4,7 +4,7 @@ from django.urls import reverse
 from core.moneda import html_guaranies
 from core.tables import ATTRS_MONEDA, ActionMenuColumn
 from core.vista import html_bool, html_situacion
-from ventas.models import EstadoVenta, PuntoExpedicion, TipoAnulacion, TipoComprobante, Venta
+from ventas.models import EstadoVenta, Maquina, PuntoExpedicion, TipoAnulacion, TipoComprobante, Venta
 
 
 def venta_row_actions(record, table=None):
@@ -96,6 +96,33 @@ class TimbradoTable(tables.Table):
 
     def render_habilitado(self, value):
         return html_bool(value)
+
+
+class MaquinaTable(tables.Table):
+    nombre = tables.Column(verbose_name="Máquina")
+    punto_ticket = tables.Column(verbose_name="Ticket", empty_values=())
+    punto_factura = tables.Column(verbose_name="Factura", empty_values=())
+    acciones = ActionMenuColumn()
+
+    class Meta:
+        model = Maquina
+        fields = ("nombre", "punto_ticket", "punto_factura", "acciones")
+        orderable = False
+        template_name = "django_tables2/rupia.html"
+        empty_text = "Todavía no hay máquinas."
+        attrs = {"class": "sheet"}
+
+    def render_punto_ticket(self, value, record):
+        return _serie_punto(record.punto_ticket)
+
+    def render_punto_factura(self, value, record):
+        return _serie_punto(record.punto_factura)
+
+
+def _serie_punto(punto):
+    if punto is None:
+        return "—"
+    return f"{punto.serie} · {punto.timbrado}"
 
 
 class VentaTable(tables.Table):

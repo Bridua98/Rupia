@@ -77,6 +77,7 @@ FORMULARIOS = (
         (ACCION_VER, ACCION_EXPORTAR),
     ),
     Formulario("timbrados", "Timbrados", ACCIONES_MANTENIMIENTO),
+    Formulario("maquinas", "Máquinas", ACCIONES_MANTENIMIENTO),
     Formulario("marcas", "Marcas", ACCIONES_MANTENIMIENTO),
     Formulario("categorias", "Categorías", ACCIONES_MANTENIMIENTO),
     Formulario("unidades", "Unidades de medida", ACCIONES_MANTENIMIENTO),

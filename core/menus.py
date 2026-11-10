@@ -65,6 +65,7 @@ def main_menu(request):
             "Gestión",
             [
                 item("Timbrados", url_name="timbrado_list", icon="receipt", formulario="timbrados"),
+                item("Máquinas", url_name="maquina_list", icon="building", formulario="maquinas"),
                 item("Cuentas", url_name="cuenta_list", icon="bank", formulario="cuentas"),
                 item(
                     "Transferencias",

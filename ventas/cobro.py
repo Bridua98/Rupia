@@ -282,8 +282,44 @@ def _liberar_numero_proximo(venta):
         punto.save(update_fields=["numero_proximo"])
 
 
-def punto_de(tipo) -> PuntoExpedicion | None:
-    return PuntoExpedicion.objects.filter(tipo=tipo).first()
+def _punto_asignado(maquina, tipo):
+    if tipo == TipoComprobante.FACTURA:
+        return maquina.punto_factura
+    if tipo == TipoComprobante.TICKET:
+        return maquina.punto_ticket
+    return None
+
+
+def resolver_emision(tipo, maquina=None, fecha=None):
+    fecha = fecha or timezone.localdate()
+    if maquina is not None:
+        punto = _punto_asignado(maquina, tipo)
+        if punto is None:
+            etiqueta = _etiqueta_comprobante(tipo)
+            return (
+                False,
+                f"Esta máquina no tiene un punto de expedición para {etiqueta}.",
+                "punto",
+                None,
+            )
+        ok, mensaje, code = _estado_emision(punto, fecha, tipo)
+        return ok, mensaje, code, punto
+    puntos = list(PuntoExpedicion.objects.filter(tipo=tipo).order_by("pk"))
+    habilitados = [punto for punto in puntos if punto.habilitado]
+    if len(habilitados) > 1 or (len(puntos) > 1 and not habilitados):
+        return False, "Elegí la máquina de este punto de venta.", "maquina", None
+    if len(habilitados) == 1:
+        punto = habilitados[0]
+    elif len(puntos) == 1:
+        punto = puntos[0]
+    else:
+        punto = None
+    ok, mensaje, code = _estado_emision(punto, fecha, tipo)
+    return ok, mensaje, code, punto
+
+
+def punto_de(tipo, maquina=None) -> PuntoExpedicion | None:
+    return resolver_emision(tipo, maquina)[3]
 
 
 def _etiqueta_comprobante(tipo) -> str:
@@ -325,19 +361,25 @@ def motivo_emision(punto, fecha=None, tipo=None) -> str:
     return _estado_emision(punto, fecha, tipo)[1]
 
 
-def exigir_emision(punto, fecha=None, tipo=None) -> PuntoExpedicion:
-    if tipo is not None:
-        if punto is None or punto.tipo != tipo:
-            punto = punto_de(tipo)
+def exigir_emision(punto, fecha=None, tipo=None, *, maquina=None) -> PuntoExpedicion:
+    if maquina is not None or punto is None:
+        ok, mensaje, code, resuelto = resolver_emision(
+            tipo or (punto.tipo if punto is not None else None),
+            maquina,
+            fecha,
+        )
+        if not ok or resuelto is None:
+            raise ValidationError(mensaje, code=code or "punto")
+        return resuelto
     ok, mensaje, code = _estado_emision(punto, fecha, tipo)
     if not ok:
         raise ValidationError(mensaje, code=code)
     return punto
 
 
-def punto_para(tipo) -> PuntoExpedicion | None:
-    punto = punto_de(tipo)
-    if not puede_emitir(punto, tipo=tipo):
+def punto_para(tipo, maquina=None) -> PuntoExpedicion | None:
+    ok, _, _, punto = resolver_emision(tipo, maquina)
+    if not ok:
         return None
     return punto
 
@@ -355,38 +397,32 @@ def exigir_cliente_factura(venta):
         raise ValidationError("La factura pide un cliente.", code="cliente")
 
 
-def motivo_pos(venta) -> str:
+def motivo_pos(venta, maquina=None) -> str:
     if factura_pide_cliente(venta):
         return "La factura pide un cliente."
-    return motivo_emision(
-        punto_de(venta.tipo_comprobante),
-        tipo=venta.tipo_comprobante,
-    )
+    return resolver_emision(venta.tipo_comprobante, maquina)[1]
 
 
-def puede_cobrar(venta) -> bool:
+def puede_cobrar(venta, maquina=None) -> bool:
     if factura_pide_cliente(venta):
         return False
-    return puede_emitir(
-        punto_de(venta.tipo_comprobante),
-        tipo=venta.tipo_comprobante,
-    )
+    return resolver_emision(venta.tipo_comprobante, maquina)[0]
 
 
-def puede_guardar(venta) -> bool:
-    return puede_cobrar(venta)
+def puede_guardar(venta, maquina=None) -> bool:
+    return puede_cobrar(venta, maquina)
 
 
-def comprobantes_emitibles():
+def comprobantes_emitibles(maquina=None):
     return [
         (tipo, etiqueta)
         for tipo, etiqueta in TipoComprobante.choices
-        if puede_emitir(punto_de(tipo), tipo=tipo)
+        if resolver_emision(tipo, maquina)[0]
     ]
 
 
-def proximo_numero(tipo) -> str:
-    punto = punto_para(tipo)
+def proximo_numero(tipo, maquina=None) -> str:
+    punto = punto_para(tipo, maquina)
     if punto is None:
         return ""
     return punto.numero_completo()
@@ -848,7 +884,7 @@ def _es_numero_duplicado(exc: IntegrityError) -> bool:
     )
 
 
-def confirmar(venta, *, establecimiento=None, punto_codigo=None, secuencial=None) -> Venta:
+def confirmar(venta, *, establecimiento=None, punto_codigo=None, secuencial=None, maquina=None) -> Venta:
     _exige_borrador(venta)
     if not venta.detalles.exists():
         raise ValidationError("Agregá un producto.", code="vacia")
@@ -880,8 +916,11 @@ def confirmar(venta, *, establecimiento=None, punto_codigo=None, secuencial=None
         venta = Venta.objects.select_for_update().get(pk=venta.pk)
         _exige_borrador(venta)
         fecha = timezone.localdate()
+        _, mensaje, code, candidato = resolver_emision(venta.tipo_comprobante, maquina, fecha)
+        if candidato is None:
+            raise ValidationError(mensaje, code=code or "punto")
         punto = exigir_emision(
-            PuntoExpedicion.objects.select_for_update().filter(tipo=venta.tipo_comprobante).first(),
+            PuntoExpedicion.objects.select_for_update().get(pk=candidato.pk),
             fecha,
             tipo=venta.tipo_comprobante,
         )
