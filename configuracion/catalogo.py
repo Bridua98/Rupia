@@ -76,6 +76,8 @@ FORMULARIOS = (
         "Cuentas a pagar",
         (ACCION_VER, ACCION_EXPORTAR),
     ),
+    Formulario("mesas", "Mesas", ACCIONES_MANTENIMIENTO),
+    Formulario("sectores", "Sectores de preparación", ACCIONES_MANTENIMIENTO),
     Formulario("timbrados", "Timbrados", ACCIONES_MANTENIMIENTO),
     Formulario("maquinas", "Máquinas", ACCIONES_MANTENIMIENTO),
     Formulario("marcas", "Marcas", ACCIONES_MANTENIMIENTO),
@@ -101,6 +103,7 @@ FORMULARIOS = (
         ACCIONES_MANTENIMIENTO + (ACCION_CLAVE,),
     ),
     Formulario("perfiles", "Perfiles", ACCIONES_MANTENIMIENTO),
+    Formulario("ajustes", "Ajustes generales", (ACCION_VER, ACCION_MODIFICAR)),
     Formulario(
         "copias",
         "Copia de seguridad",

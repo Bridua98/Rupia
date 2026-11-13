@@ -1,6 +1,7 @@
 from django.urls import path
 
 from configuracion.views import (
+    AjustesView,
     CambiarContrasenaView,
     CopiaDescargaView,
     CopiaListView,
@@ -61,6 +62,7 @@ urlpatterns = [
     path("perfiles/nueva/", PerfilCreateView.as_view(), name="perfil_create"),
     path("perfiles/<int:pk>/", PerfilUpdateView.as_view(), name="perfil_update"),
     path("perfiles/<int:pk>/eliminar/", PerfilDeleteView.as_view(), name="perfil_delete"),
+    path("ajustes/", AjustesView.as_view(), name="ajustes"),
     path("contrasena/", CambiarContrasenaView.as_view(), name="cambiar_contrasena"),
     path("copias/", CopiaListView.as_view(), name="copia_list"),
     path("copias/<str:nombre>/", CopiaDescargaView.as_view(), name="copia_descargar"),

@@ -1,5 +1,6 @@
 from django.urls import reverse
 
+from configuracion.ajustes import mesas_habilitadas
 from configuracion.permisos import tiene_permiso
 
 
@@ -61,6 +62,29 @@ def main_menu(request):
         item("Ventas", url_name="venta_list", icon="receipt", formulario="ventas"),
         item("Compras", url_name="compra_list", icon="wallet", formulario="compras"),
         item("Personas", url_name="persona_list", icon="users", formulario="personas"),
+        (
+            group(
+                "Mesas",
+                [
+                    item("Mesas", url_name="mesa_list", icon="layers", formulario="mesas"),
+                    item(
+                        "Sectores de preparación",
+                        url_name="sector_list",
+                        icon="folder",
+                        formulario="sectores",
+                    ),
+                    item(
+                        "Productos con otro sector",
+                        url_name="sector_item_list",
+                        icon="box",
+                        formulario="sectores",
+                    ),
+                ],
+                icon="layers",
+            )
+            if mesas_habilitadas()
+            else None
+        ),
         group(
             "Gestión",
             [
@@ -146,6 +170,12 @@ def main_menu(request):
                 item("Usuarios", url_name="usuario_list", icon="user", formulario="usuarios"),
                 item("Perfiles", url_name="perfil_list", icon="shield", formulario="perfiles"),
                 item("Contraseña", url_name="cambiar_contrasena", icon="key"),
+                item(
+                    "Ajustes generales",
+                    url_name="ajustes",
+                    icon="settings",
+                    formulario="ajustes",
+                ),
                 item(
                     "Copia de seguridad",
                     url_name="copia_list",
