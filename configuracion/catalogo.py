@@ -81,6 +81,7 @@ FORMULARIOS = (
         "Comandas",
         (ACCION_VER, ACCION_ALTA, ACCION_ANULAR),
     ),
+    Formulario("puesto_sector", "Cocina y barra (puesto)", (ACCION_VER,)),
     Formulario("mesas", "Mesas", ACCIONES_MANTENIMIENTO),
     Formulario("sectores", "Sectores de preparación", ACCIONES_MANTENIMIENTO),
     Formulario("timbrados", "Timbrados", ACCIONES_MANTENIMIENTO),

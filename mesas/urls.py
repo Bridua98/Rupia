@@ -1,7 +1,7 @@
 from django.urls import path
 
 from core.mantenimiento import mantenimiento_salida
-from mesas import comandas_views
+from mesas import comandas_views, puesto_views
 from mesas.views import (
     MesaCreateView,
     MesaDeleteView,
@@ -43,6 +43,24 @@ def _mantenimiento(prefijo, nombre, listado, alta, edicion, baja):
 
 
 urlpatterns = [
+    path("puesto/", puesto_views.PuestoElegirView.as_view(), name="puesto_elegir"),
+    path("puesto/<int:pk>/", puesto_views.PuestoView.as_view(), name="puesto_sector"),
+    path("puesto/<int:pk>/tomar/", puesto_views.TomarView.as_view(), name="puesto_tomar"),
+    path(
+        "puesto/envios/<int:pk>/imprimir/",
+        puesto_views.ImprimirView.as_view(),
+        name="puesto_imprimir",
+    ),
+    path(
+        "puesto/envios/<int:pk>/listo/",
+        puesto_views.ListoView.as_view(),
+        name="puesto_listo",
+    ),
+    path(
+        "puesto/envios/<int:pk>/deshacer/",
+        puesto_views.DeshacerListoView.as_view(),
+        name="puesto_deshacer",
+    ),
     path("tablero/", comandas_views.TableroView.as_view(), name="mesas_tablero"),
     path("clientes/", comandas_views.BuscarClientesView.as_view(), name="mesas_clientes"),
     path(

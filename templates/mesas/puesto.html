@@ -1,0 +1,54 @@
+{% extends "app.html" %}
+{% load static %}
+
+{% block title %}{{ sector.nombre }} · Rupia{% endblock %}
+{% block body_class %}app puesto-screen{% endblock %}
+
+{% block work %}
+<div
+  class="ledger mesas-ledger puesto"
+  data-puesto
+  data-sector="{{ sector.pk }}"
+  data-tomar-url="{% url 'puesto_tomar' sector.pk %}"
+  data-cola-url="{% url 'puesto_sector' sector.pk %}?parcial=1"
+>
+  <div class="ledger-main">
+    <div class="stage-head puesto-head">
+      <div>
+        <p class="eyebrow">Cocina y barra</p>
+        <h1>{{ sector.nombre }}</h1>
+      </div>
+      <div class="puesto-controles">
+        <label class="puesto-auto">
+          <input type="checkbox" data-puesto-auto checked>
+          <span>Imprimir solo</span>
+        </label>
+        <span class="puesto-estado" data-puesto-estado aria-live="polite">Conectado</span>
+      </div>
+    </div>
+
+    <div data-puesto-cola>
+      {% include "mesas/puesto_cola.html" %}
+    </div>
+
+    <details class="comanda-bloque comanda-plegable puesto-ayuda">
+      <summary>Cómo dejar esta PC imprimiendo sola</summary>
+      <ol>
+        <li>Conectá la impresora térmica a esta PC y ponela como <strong>impresora predeterminada</strong> de Windows, con papel de 80 mm.</li>
+        <li>Creá un acceso directo a Chrome en el escritorio y, en <em>Propiedades → Destino</em>, agregá al final:
+          <code>--kiosk-printing "{{ request.scheme }}://{{ request.get_host }}{% url 'puesto_sector' sector.pk %}"</code></li>
+        <li>Cerrá todas las ventanas de Chrome y abrí ese acceso directo. Iniciá sesión con el usuario de cocina.</li>
+        <li>Dejá marcado <strong>Imprimir solo</strong>. Cada pedido nuevo sale por la impresora sin preguntar.</li>
+      </ol>
+      <p>Sin <code>--kiosk-printing</code> funciona igual, pero Chrome muestra el cuadro de imprimir en cada pedido.</p>
+    </details>
+  </div>
+  {% csrf_token %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{# Fuera del shell: al imprimir se oculta todo lo demás. #}
+<div class="puesto-impresion" data-puesto-impresion aria-hidden="true"></div>
+<script src="{% static 'js/rupia-puesto.js' %}"></script>
+{% endblock %}
