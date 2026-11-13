@@ -7,7 +7,7 @@ from django.utils.safestring import mark_safe
 from core.cantidad import html_cantidad
 from core.enlaces import html_enlace_origen, url_origen_movimiento
 from core.moneda import html_guaranies
-from core.tables import ATTRS_MONEDA, ATTRS_NUM, ActionMenuColumn
+from core.tables import ATTRS_CODIGO, ATTRS_MONEDA, ATTRS_NUM, ActionMenuColumn
 from core.vista import html_bool
 from inventario.models import (
     AjusteStock,
@@ -181,7 +181,7 @@ class PrecioTable(tables.Table):
 
 
 class PrecioHistorialTable(tables.Table):
-    fecha = tables.Column(verbose_name="Fecha")
+    fecha = tables.Column(verbose_name="Fecha", attrs=ATTRS_CODIGO)
     usuario = tables.Column(verbose_name="Usuario", accessor="usuario__username")
     item = tables.Column(verbose_name="Ítem")
     precio_anterior = tables.Column(verbose_name="Anterior", attrs=ATTRS_MONEDA)
@@ -250,7 +250,7 @@ def _clase_stock(record):
 
 
 class ReporteProductosDetalleTable(tables.Table):
-    fecha_movimiento = tables.Column(verbose_name="Fecha")
+    fecha_movimiento = tables.Column(verbose_name="Fecha", attrs=ATTRS_CODIGO)
     tipo = tables.Column(verbose_name="Tipo")
     secuencia_origen = tables.Column(verbose_name="Origen", empty_values=())
     item = tables.Column(verbose_name="Ítem", accessor="item__descripcion")
@@ -389,7 +389,7 @@ def ajuste_stock_row_actions(record, table=None):
 
 class AjusteStockTable(tables.Table):
     numero = tables.Column(verbose_name="N.º", accessor="pk")
-    fecha = tables.Column(verbose_name="Fecha")
+    fecha = tables.Column(verbose_name="Fecha", attrs=ATTRS_CODIGO)
     observacion = tables.Column(verbose_name="Observación")
     lineas = tables.Column(verbose_name="Líneas", accessor="lineas")
     acciones = ActionMenuColumn(ajuste_stock_row_actions)

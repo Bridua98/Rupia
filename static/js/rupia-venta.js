@@ -2,6 +2,33 @@
   var root = document.querySelector("[data-pos]");
   if (!root) return;
 
+  var claveMaquina = "rupia-maquina";
+  var maquinaForm = document.querySelector("[data-pos-maquina]");
+  var maquinaSelect = maquinaForm ? maquinaForm.querySelector("select[name='maquina']") : null;
+  if (maquinaSelect) {
+    var guardada = localStorage.getItem(claveMaquina) || "";
+    var conocida = Array.prototype.some.call(maquinaSelect.options, function (opcion) {
+      return opcion.value && opcion.value === guardada;
+    });
+    if (guardada && !conocida) {
+      localStorage.removeItem(claveMaquina);
+      guardada = "";
+    }
+    if (guardada && guardada !== maquinaSelect.value) {
+      maquinaSelect.value = guardada;
+      maquinaForm.submit();
+      return;
+    }
+    if (maquinaSelect.value) localStorage.setItem(claveMaquina, maquinaSelect.value);
+    maquinaSelect.addEventListener("change", function () {
+      if (maquinaSelect.value) localStorage.setItem(claveMaquina, maquinaSelect.value);
+      else localStorage.removeItem(claveMaquina);
+      // La máquina define el punto y el timbrado: hay que fijarla en la sesión
+      // antes de cobrar, si no la venta sale con la máquina anterior.
+      maquinaForm.submit();
+    });
+  }
+
   var searchForm = root.querySelector("[data-pos-search]");
   var searchInput = searchForm ? searchForm.querySelector("input[name='q']") : null;
   var cabecera = document.getElementById("pos-cabecera");
@@ -397,7 +424,8 @@
       numeroUrl +
       "?establecimiento=" + encodeURIComponent(numEst ? numEst.value : "") +
       "&punto=" + encodeURIComponent(numPto ? numPto.value : "") +
-      "&secuencial=" + encodeURIComponent(numSec.value);
+      "&secuencial=" + encodeURIComponent(numSec.value) +
+      "&maquina=" + encodeURIComponent(root.getAttribute("data-maquina") || "");
     fetch(url)
       .then(function (res) { return res.json().then(function (data) { return { ok: res.ok && data.ok, data: data }; }); })
       .then(function (res) {

@@ -20,6 +20,7 @@
   data-total="{{ total_entero }}"
   data-buscar="{% url 'punto_de_venta_buscar' %}"
   data-numero-url="{% url 'punto_de_venta_numero' %}"
+  data-maquina="{{ maquina_id }}"
   {% if persona_nueva_url %}data-persona-nueva="{{ persona_nueva_url }}"{% endif %}
   {% if factura_pide_cliente %}data-pos-factura-sin-cliente="1"{% endif %}
 >
@@ -39,6 +40,20 @@
           <strong>{{ venta.fecha|date:"d/m/Y" }}</strong>
         </span>
       </div>
+      {% if maquinas %}
+        <form class="pos-maquina" method="post" action="{% url 'punto_de_venta_maquina' %}" data-pos-maquina>
+          {% csrf_token %}
+          <label>
+            <span>Máquina</span>
+            <select name="maquina" aria-label="Máquina de este punto de venta">
+              <option value="">Elegí la máquina</option>
+              {% for item in maquinas %}
+                <option value="{{ item.pk }}"{% if maquina_id == item.pk %} selected{% endif %}>{{ item.nombre }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </form>
+      {% endif %}
     </header>
 
     <div class="pos-search-row">
@@ -96,7 +111,9 @@
                   <div>
                     <strong>{{ linea.descripcion }}</strong>
                     <span>{% if linea.marca %}{{ linea.marca }}{% endif %}{% if linea.marca and linea.codigo %} · {% endif %}{% if linea.codigo %}{{ linea.codigo }}{% endif %}</span>
-                    {% if linea.unidades|length > 1 %}
+                    {% if linea.origen %}
+                      <span class="pos-origen-mesa">{{ linea.origen }}</span>
+                    {% elif linea.unidades|length > 1 %}
                       <form class="pos-inline" method="post" action="{% url 'punto_de_venta_linea' linea.pk %}">
                         {% csrf_token %}
                         <input type="hidden" name="accion" value="unidad">
@@ -112,6 +129,9 @@
               </td>
               <td class="pos-col-moneda"><span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.precio_txt }}</span></td>
               <td>
+                {% if linea.origen %}
+                <span class="pos-cantidad-fija" title="La cantidad se cambia en la comanda">{{ linea.cantidad_txt }}</span>
+                {% else %}
                 <form method="post" action="{% url 'punto_de_venta_linea' linea.pk %}" class="pos-stepper">
                   {% csrf_token %}
                   <button type="submit" name="accion" value="menos" aria-label="Menos">−</button>
@@ -131,12 +151,13 @@
                   >
                   <button type="submit" name="accion" value="mas" aria-label="Más">+</button>
                 </form>
+                {% endif %}
               </td>
               <td class="pos-col-moneda"><span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.subtotal_txt }}</span></td>
               <td class="pos-col-quitar">
                 <form method="post" action="{% url 'punto_de_venta_linea' linea.pk %}">
                   {% csrf_token %}
-                  <button class="pos-remove" type="submit" name="accion" value="quitar" aria-label="Quitar">{% include "core/icon.html" with name="trash" %}</button>
+                  <button class="pos-remove" type="submit" name="accion" value="quitar" aria-label="{% if linea.origen %}Devolver a {{ linea.origen }}{% else %}Quitar{% endif %}"{% if linea.origen %} title="Devolver a {{ linea.origen }}"{% endif %}>{% include "core/icon.html" with name="trash" %}</button>
                 </form>
               </td>
             </tr>
@@ -183,6 +204,7 @@
   <aside class="pos-side">
     <form method="post" action="{% url 'punto_de_venta' %}" id="pos-cabecera">
       {% csrf_token %}
+      <input type="hidden" name="maquina" value="{{ maquina_id }}">
       <input type="hidden" name="descuento" value="{{ descuento_txt }}">
       <section class="pos-card">
         <h2>Método de pago</h2>

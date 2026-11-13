@@ -81,11 +81,22 @@ def test_timbrado_exige_ocho_digitos(ingresada):
 
 
 @pytest.mark.django_db
-def test_no_repite_tipo(ingresada):
+def test_dos_facturas_con_distinto_punto(ingresada):
+    ingresada.post("/ventas/timbrados/nueva/", _payload(TipoComprobante.FACTURA))
+    otra = ingresada.post(
+        "/ventas/timbrados/nueva/",
+        _payload(TipoComprobante.FACTURA, codigo="003", timbrado="99999999"),
+    )
+    assert otra.status_code == 302
+    assert PuntoExpedicion.objects.filter(tipo=TipoComprobante.FACTURA).count() == 2
+
+
+@pytest.mark.django_db
+def test_no_repite_la_misma_serie_y_timbrado(ingresada):
     ingresada.post("/ventas/timbrados/nueva/", _payload())
-    repetido = ingresada.post("/ventas/timbrados/nueva/", _payload(timbrado="99999999"))
+    repetido = ingresada.post("/ventas/timbrados/nueva/", _payload(timbrado="12345678"))
     assert repetido.status_code == 200
-    assert "Ya hay un timbrado para ese tipo de comprobante." in repetido.content.decode()
+    assert "Ya hay un timbrado para esa serie." in repetido.content.decode()
     assert PuntoExpedicion.objects.count() == 1
 
 
@@ -99,6 +110,38 @@ def test_editar_deshabilita_timbrado(ingresada):
     assert response.status_code == 302
     punto.refresh_from_db()
     assert punto.habilitado is False
+
+
+@pytest.mark.django_db
+def test_alta_de_maquina_lista_sus_puntos(ingresada):
+    from ventas.models import Maquina
+
+    ingresada.post("/ventas/timbrados/nueva/", _payload())
+    ingresada.post(
+        "/ventas/timbrados/nueva/",
+        _payload(TipoComprobante.FACTURA, timbrado="87654321"),
+    )
+    ticket = PuntoExpedicion.objects.get(tipo=TipoComprobante.TICKET)
+    factura = PuntoExpedicion.objects.get(tipo=TipoComprobante.FACTURA)
+    alta = ingresada.post(
+        "/ventas/maquinas/nueva/",
+        {
+            "nombre": "Caja 1",
+            "punto_ticket": ticket.pk,
+            "punto_factura": factura.pk,
+            "accion": "guardar",
+        },
+    )
+    assert alta.status_code == 302
+    maquina = Maquina.objects.get(nombre="Caja 1")
+    assert maquina.punto_ticket_id == ticket.pk
+    assert maquina.punto_factura_id == factura.pk
+    content = ingresada.get("/ventas/maquinas/").content.decode()
+    assert "Caja 1" in content
+    assert "001-001" in content
+    assert "001-002" in content
+    menu = ingresada.get("/").content.decode()
+    assert 'href="/ventas/maquinas/"' in menu
 
 
 @pytest.mark.django_db

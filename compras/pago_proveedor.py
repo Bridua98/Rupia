@@ -58,15 +58,20 @@ def confirmar_pago(
         raise ValidationError("El importe del pago tiene que ser mayor a cero.", code="importe")
 
     cuota_ids = [par[0] for par in aplicaciones]
-    cuotas = {
-        c.pk: c
-        for c in CompraCuota.objects.filter(pk__in=cuota_ids).select_related("compra")
-    }
-    if len(cuotas) != len(set(cuota_ids)):
-        raise ValidationError("Hay cuotas que no existen.", code="cuota")
-
-    abiertas = {c.pk: saldo for c, saldo in cuotas_abiertas_proveedor(proveedor.pk)}
     with transaction.atomic():
+        # Bloquear las cuotas antes de leer su saldo: dos pagos simultáneos sobre
+        # la misma cuota no pueden pasar los dos el control de saldo.
+        cuotas = {
+            c.pk: c
+            for c in CompraCuota.objects.select_for_update()
+            .filter(pk__in=sorted(set(cuota_ids)))
+            .select_related("compra")
+            .order_by("pk")
+        }
+        if len(cuotas) != len(set(cuota_ids)):
+            raise ValidationError("Hay cuotas que no existen.", code="cuota")
+
+        abiertas = {c.pk: saldo for c, saldo in cuotas_abiertas_proveedor(proveedor.pk)}
         pago = PagoProveedor.objects.create(
             fecha=fecha,
             proveedor=proveedor,
@@ -85,7 +90,11 @@ def confirmar_pago(
                 )
             saldo = abiertas.get(cuota_id)
             if saldo is None:
-                saldo = cuota.saldo_pendiente()
+                raise ValidationError(
+                    f"La cuota {cuota.numero} ya no está abierta (compra anulada, "
+                    "sin confirmar o ya pagada).",
+                    code="cuota",
+                )
             if importe > saldo:
                 raise ValidationError(
                     f"El importe en la cuota {cuota.numero} supera el saldo ({saldo}).",

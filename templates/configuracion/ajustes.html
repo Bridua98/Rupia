@@ -1,0 +1,35 @@
+{% extends "app.html" %}
+
+{% block title %}Ajustes generales · Rupia{% endblock %}
+
+{% block work %}
+<div class="ledger">
+  <div class="ledger-main">
+    <a class="back" href="{% url 'home' %}">
+      {% include "core/icon.html" with name="back" %}
+      <span>Volver</span>
+    </a>
+    <div class="stage-head">
+      <div>
+        <p class="eyebrow">Configuración</p>
+        <h1>Ajustes generales</h1>
+      </div>
+    </div>
+
+    <form method="post" class="contrasena-form ajustes-form" novalidate>
+      {% csrf_token %}
+      <p class="eyebrow">Módulos</p>
+      {% for field in form %}
+        {% include "core/form_field.html" with field=field %}
+        {% if field.help_text %}<p class="ajustes-ayuda">{{ field.help_text }}</p>{% endif %}
+      {% endfor %}
+      {% if puede_modificar %}
+        <button type="submit" class="button">
+          {% include "core/icon.html" with name="check" %}
+          <span>Guardar</span>
+        </button>
+      {% endif %}
+    </form>
+  </div>
+</div>
+{% endblock %}

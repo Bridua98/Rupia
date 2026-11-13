@@ -40,7 +40,6 @@ class PuntoExpedicion(models.Model):
         "tipo",
         max_length=8,
         choices=TipoComprobante.choices,
-        unique=True,
         db_column="puntexpe_tipo",
     )
     establecimiento = models.CharField(
@@ -115,7 +114,14 @@ class PuntoExpedicion(models.Model):
         db_table = "puntos_expedicion"
         verbose_name = "punto de expedición"
         verbose_name_plural = "puntos de expedición"
-        ordering = ["tipo"]
+        ordering = ["tipo", "establecimiento", "codigo"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tipo", "establecimiento", "codigo", "timbrado"],
+                name="puntos_expedicion_serie_timbrado",
+                violation_error_message="Ya hay un timbrado para esa serie.",
+            )
+        ]
 
     def __str__(self):
         return f"{self.get_tipo_display()} {self.establecimiento}-{self.codigo}"
@@ -155,6 +161,55 @@ class PuntoExpedicion(models.Model):
             self.codigo,
             self.numero_proximo if secuencial is None else secuencial,
         )
+
+
+class Maquina(models.Model):
+    id = models.AutoField(primary_key=True, db_column="maq_id")
+    nombre = models.CharField(
+        "nombre",
+        max_length=80,
+        unique=True,
+        db_column="maq_nombre",
+    )
+    punto_ticket = models.ForeignKey(
+        PuntoExpedicion,
+        on_delete=models.RESTRICT,
+        null=True,
+        blank=True,
+        db_column="maq_punto_ticket_id",
+        related_name="maquinas_ticket",
+        verbose_name="punto de ticket",
+        limit_choices_to={"tipo": TipoComprobante.TICKET},
+    )
+    punto_factura = models.ForeignKey(
+        PuntoExpedicion,
+        on_delete=models.RESTRICT,
+        null=True,
+        blank=True,
+        db_column="maq_punto_factura_id",
+        related_name="maquinas_factura",
+        verbose_name="punto de factura",
+        limit_choices_to={"tipo": TipoComprobante.FACTURA},
+    )
+
+    class Meta:
+        db_table = "maquinas"
+        verbose_name = "máquina"
+        verbose_name_plural = "máquinas"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return self.nombre
+
+    def clean(self):
+        super().clean()
+        errores = {}
+        if self.punto_ticket_id and self.punto_ticket.tipo != TipoComprobante.TICKET:
+            errores["punto_ticket"] = "Elegí un punto de ticket."
+        if self.punto_factura_id and self.punto_factura.tipo != TipoComprobante.FACTURA:
+            errores["punto_factura"] = "Elegí un punto de factura."
+        if errores:
+            raise ValidationError(errores)
 
 
 class Venta(models.Model):

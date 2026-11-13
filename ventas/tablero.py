@@ -199,6 +199,8 @@ class TableroVentas:
     mostrar_disponibilidad: bool = True
     mostrar_cuentas_pagar: bool = True
     mostrar_liquidez: bool = True
+    enlace_ventas: bool = True
+    enlace_pos: bool = True
     periodo_txt: str = ""
     periodo_clave: str = "mes"
     periodo_mes: str = ""
@@ -842,7 +844,9 @@ def _puede(user, formulario: str) -> bool:
     return tiene_permiso(user, formulario, "ver")
 
 
-def _actividades(*, ventas: bool, compras: bool, pagos: bool, stock: bool):
+def _actividades(
+    *, ventas: bool, compras: bool, pagos: bool, stock: bool, enlace_ventas: bool = True
+):
     eventos = []
     if ventas:
         for venta in (
@@ -857,7 +861,7 @@ def _actividades(*, ventas: bool, compras: bool, pagos: bool, stock: bool):
                         titulo="Nueva venta registrada",
                         cuando=venta.fecha.strftime("%d/%m/%Y"),
                         detalle=_dinero(venta.importe or CERO),
-                        href=reverse("venta_list"),
+                        href=reverse("venta_list") if enlace_ventas else "",
                     ),
                 )
             )
@@ -944,6 +948,8 @@ def tablero_inicio(hoy=None, user=None, params=None) -> TableroVentas:
     )
     mostrar_resultado = mostrar_ventas and mostrar_compras
     mostrar_liquidez = mostrar_disponibilidad and mostrar_cuentas_pagar
+    enlace_ventas = _puede(user, "ventas")
+    enlace_pos = _puede(user, "punto_de_venta")
 
     ultima = None
     producto = None
@@ -1350,6 +1356,8 @@ def tablero_inicio(hoy=None, user=None, params=None) -> TableroVentas:
         mostrar_disponibilidad=mostrar_disponibilidad,
         mostrar_cuentas_pagar=mostrar_cuentas_pagar,
         mostrar_liquidez=mostrar_liquidez,
+        enlace_ventas=enlace_ventas,
+        enlace_pos=enlace_pos,
         periodo_txt=periodo.txt,
         periodo_clave=periodo.clave,
         periodo_mes=periodo.mes,
@@ -1372,6 +1380,7 @@ def tablero_inicio(hoy=None, user=None, params=None) -> TableroVentas:
             compras=mostrar_compras,
             pagos=_puede(user, "pagos_proveedor"),
             stock=_puede(user, "ajustes_stock"),
+            enlace_ventas=enlace_ventas,
         ),
     )
 

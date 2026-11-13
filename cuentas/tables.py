@@ -3,7 +3,7 @@ from django.urls import reverse
 
 from core.enlaces import html_enlace_origen, url_origen_caja
 from core.moneda import html_guaranies
-from core.tables import ATTRS_MONEDA, ActionMenuColumn
+from core.tables import ATTRS_CODIGO, ATTRS_MONEDA, ActionMenuColumn
 from core.vista import html_situacion
 from cuentas.models import Cuenta, EstadoTransferencia, Transferencia
 
@@ -55,7 +55,7 @@ def transferencia_row_actions(record, table=None):
 
 
 class TransferenciaTable(tables.Table):
-    fecha = tables.Column(verbose_name="Fecha")
+    fecha = tables.Column(verbose_name="Fecha", attrs=ATTRS_CODIGO)
     cuenta_origen = tables.Column(verbose_name="Salida")
     cuenta_destino = tables.Column(verbose_name="Entrada")
     importe = tables.Column(verbose_name="Importe", empty_values=(), attrs=ATTRS_MONEDA)
@@ -100,7 +100,7 @@ def _clase_detalle(record):
 
 class DisponibilidadDetalleTable(tables.Table):
     cuenta = tables.Column(verbose_name="Cuenta")
-    fecha = tables.Column(verbose_name="Fecha", empty_values=())
+    fecha = tables.Column(verbose_name="Fecha", empty_values=(), attrs=ATTRS_CODIGO)
     comprobante = tables.Column(verbose_name="Comprobante")
     origen = tables.Column(verbose_name="Origen", empty_values=())
     persona = tables.Column(verbose_name="Persona", empty_values=())

@@ -28,6 +28,7 @@ from ventas.models import (
     VentaDetalle,
     formatear_numero_comprobante,
 )
+from ventas.signals import venta_confirmada
 
 UNO = Decimal("1")
 CERO = Decimal("0")
@@ -68,6 +69,7 @@ class LineaVista:
     imagen: str
     descuento_porcentaje: Decimal
     descuento_txt: str
+    origen: str = ""
 
 
 def formatear_porcentaje(valor) -> str:
@@ -249,9 +251,13 @@ def anular(venta, tipo_anulacion, usuario=None):
             raise ValidationError("Esa venta ya está anulada.", code="anulada")
         if venta.estado != EstadoVenta.COBRADA:
             raise ValidationError("Solo se puede anular una venta cobrada.", code="estado")
+        # numero_completo solo es único por timbrado: acotar por fecha e ítems
+        # para no anular movimientos de otra venta con el mismo número.
         ItemMovimiento.objects.filter(
             tipo=TipoMovimiento.VENTA,
             secuencia_origen=venta.numero_completo,
+            fecha_movimiento=venta.fecha,
+            item_id__in=venta.detalles.values("item_id"),
             es_vigente=True,
         ).update(es_vigente=False)
         if tipo_anulacion == TipoAnulacion.REUTILIZABLE:
@@ -282,8 +288,50 @@ def _liberar_numero_proximo(venta):
         punto.save(update_fields=["numero_proximo"])
 
 
-def punto_de(tipo) -> PuntoExpedicion | None:
-    return PuntoExpedicion.objects.filter(tipo=tipo).first()
+def _punto_asignado(maquina, tipo):
+    if tipo == TipoComprobante.FACTURA:
+        punto = maquina.punto_factura
+    elif tipo == TipoComprobante.TICKET:
+        punto = maquina.punto_ticket
+    else:
+        return None
+    # Si el punto asignado cambió de tipo después de asignarlo, no sirve para
+    # emitir este comprobante: se emitiría con el timbrado equivocado.
+    if punto is not None and punto.tipo != tipo:
+        return None
+    return punto
+
+
+def resolver_emision(tipo, maquina=None, fecha=None):
+    fecha = fecha or timezone.localdate()
+    if maquina is not None:
+        punto = _punto_asignado(maquina, tipo)
+        if punto is None:
+            etiqueta = _etiqueta_comprobante(tipo)
+            return (
+                False,
+                f"Esta máquina no tiene un punto de expedición para {etiqueta}.",
+                "punto",
+                None,
+            )
+        ok, mensaje, code = _estado_emision(punto, fecha, tipo)
+        return ok, mensaje, code, punto
+    puntos = list(PuntoExpedicion.objects.filter(tipo=tipo).order_by("pk"))
+    habilitados = [punto for punto in puntos if punto.habilitado]
+    if len(habilitados) > 1 or (len(puntos) > 1 and not habilitados):
+        return False, "Elegí la máquina de este punto de venta.", "maquina", None
+    if len(habilitados) == 1:
+        punto = habilitados[0]
+    elif len(puntos) == 1:
+        punto = puntos[0]
+    else:
+        punto = None
+    ok, mensaje, code = _estado_emision(punto, fecha, tipo)
+    return ok, mensaje, code, punto
+
+
+def punto_de(tipo, maquina=None) -> PuntoExpedicion | None:
+    return resolver_emision(tipo, maquina)[3]
 
 
 def _etiqueta_comprobante(tipo) -> str:
@@ -325,19 +373,25 @@ def motivo_emision(punto, fecha=None, tipo=None) -> str:
     return _estado_emision(punto, fecha, tipo)[1]
 
 
-def exigir_emision(punto, fecha=None, tipo=None) -> PuntoExpedicion:
-    if tipo is not None:
-        if punto is None or punto.tipo != tipo:
-            punto = punto_de(tipo)
+def exigir_emision(punto, fecha=None, tipo=None, *, maquina=None) -> PuntoExpedicion:
+    if maquina is not None or punto is None:
+        ok, mensaje, code, resuelto = resolver_emision(
+            tipo or (punto.tipo if punto is not None else None),
+            maquina,
+            fecha,
+        )
+        if not ok or resuelto is None:
+            raise ValidationError(mensaje, code=code or "punto")
+        return resuelto
     ok, mensaje, code = _estado_emision(punto, fecha, tipo)
     if not ok:
         raise ValidationError(mensaje, code=code)
     return punto
 
 
-def punto_para(tipo) -> PuntoExpedicion | None:
-    punto = punto_de(tipo)
-    if not puede_emitir(punto, tipo=tipo):
+def punto_para(tipo, maquina=None) -> PuntoExpedicion | None:
+    ok, _, _, punto = resolver_emision(tipo, maquina)
+    if not ok:
         return None
     return punto
 
@@ -355,38 +409,32 @@ def exigir_cliente_factura(venta):
         raise ValidationError("La factura pide un cliente.", code="cliente")
 
 
-def motivo_pos(venta) -> str:
+def motivo_pos(venta, maquina=None) -> str:
     if factura_pide_cliente(venta):
         return "La factura pide un cliente."
-    return motivo_emision(
-        punto_de(venta.tipo_comprobante),
-        tipo=venta.tipo_comprobante,
-    )
+    return resolver_emision(venta.tipo_comprobante, maquina)[1]
 
 
-def puede_cobrar(venta) -> bool:
+def puede_cobrar(venta, maquina=None) -> bool:
     if factura_pide_cliente(venta):
         return False
-    return puede_emitir(
-        punto_de(venta.tipo_comprobante),
-        tipo=venta.tipo_comprobante,
-    )
+    return resolver_emision(venta.tipo_comprobante, maquina)[0]
 
 
-def puede_guardar(venta) -> bool:
-    return puede_cobrar(venta)
+def puede_guardar(venta, maquina=None) -> bool:
+    return puede_cobrar(venta, maquina)
 
 
-def comprobantes_emitibles():
+def comprobantes_emitibles(maquina=None):
     return [
         (tipo, etiqueta)
         for tipo, etiqueta in TipoComprobante.choices
-        if puede_emitir(punto_de(tipo), tipo=tipo)
+        if resolver_emision(tipo, maquina)[0]
     ]
 
 
-def proximo_numero(tipo) -> str:
-    punto = punto_para(tipo)
+def proximo_numero(tipo, maquina=None) -> str:
+    punto = punto_para(tipo, maquina)
     if punto is None:
         return ""
     return punto.numero_completo()
@@ -610,7 +658,12 @@ def agregar_producto(venta, *, item=None, query=""):
     _validar_item_venta(item)
     unidad = item.unidad_medida
     precio = precio_en_unidad(item, unidad)
-    linea = venta.detalles.filter(item=item, unidad_medida=unidad).first()
+    # Las líneas que vienen de una mesa tienen su precio fijo: no se mezclan.
+    linea = (
+        venta.detalles.filter(item=item, unidad_medida=unidad)
+        .filter(comanda_detalles__isnull=True)
+        .first()
+    )
     if linea:
         linea.cantidad = redondear_cantidad(linea.cantidad + UNO)
         linea.precio = precio
@@ -629,8 +682,22 @@ def agregar_producto(venta, *, item=None, query=""):
     )
 
 
+def es_de_mesa(detalle) -> bool:
+    """La línea vino de una cuenta de mesa: precio y cantidad se respetan."""
+    return detalle.comanda_detalles.exists()
+
+
+def _exigir_editable(detalle):
+    if es_de_mesa(detalle):
+        raise ValidationError(
+            "Esa línea viene de una mesa: la cantidad se cambia en la comanda.",
+            code="de_mesa",
+        )
+
+
 def cambiar_cantidad(detalle, cantidad):
     _exige_borrador(detalle.venta)
+    _exigir_editable(detalle)
     cantidad = redondear_cantidad(Decimal(cantidad))
     if cantidad <= 0:
         detalle.delete()
@@ -644,12 +711,14 @@ def cambiar_cantidad(detalle, cantidad):
 
 def cambiar_unidad(detalle, unidad):
     _exige_borrador(detalle.venta)
+    _exigir_editable(detalle)
     item = detalle.item
     permitidas = {item.unidad_medida_id, *[rel.unidad_medida_id for rel in item.unidades.all()]}
     if unidad.pk not in permitidas:
         raise ValidationError("Esa unidad no está relacionada con el ítem.", code="unidad")
     otra = (
         detalle.venta.detalles.filter(item=item, unidad_medida=unidad)
+        .filter(comanda_detalles__isnull=True)
         .exclude(pk=detalle.pk)
         .first()
     )
@@ -674,7 +743,8 @@ def cambiar_descuento(detalle, porcentaje):
     except InvalidOperation as exc:
         raise ValidationError("Escribí un descuento en porcentaje.", code="descuento") from exc
     detalle.descuento_porcentaje = porcentaje.quantize(Decimal("0.01"))
-    detalle.precio = precio_en_unidad(detalle.item, detalle.unidad_medida)
+    if not es_de_mesa(detalle):
+        detalle.precio = precio_en_unidad(detalle.item, detalle.unidad_medida)
     detalle.subtotal = importe_linea(detalle.precio, detalle.cantidad, detalle.descuento_porcentaje)
     detalle.save(update_fields=["descuento_porcentaje", "precio", "subtotal"])
     return detalle
@@ -848,7 +918,7 @@ def _es_numero_duplicado(exc: IntegrityError) -> bool:
     )
 
 
-def confirmar(venta, *, establecimiento=None, punto_codigo=None, secuencial=None) -> Venta:
+def confirmar(venta, *, establecimiento=None, punto_codigo=None, secuencial=None, maquina=None) -> Venta:
     _exige_borrador(venta)
     if not venta.detalles.exists():
         raise ValidationError("Agregá un producto.", code="vacia")
@@ -880,8 +950,11 @@ def confirmar(venta, *, establecimiento=None, punto_codigo=None, secuencial=None
         venta = Venta.objects.select_for_update().get(pk=venta.pk)
         _exige_borrador(venta)
         fecha = timezone.localdate()
+        _, mensaje, code, candidato = resolver_emision(venta.tipo_comprobante, maquina, fecha)
+        if candidato is None:
+            raise ValidationError(mensaje, code=code or "punto")
         punto = exigir_emision(
-            PuntoExpedicion.objects.select_for_update().filter(tipo=venta.tipo_comprobante).first(),
+            PuntoExpedicion.objects.select_for_update().get(pk=candidato.pk),
             fecha,
             tipo=venta.tipo_comprobante,
         )
@@ -934,6 +1007,7 @@ def confirmar(venta, *, establecimiento=None, punto_codigo=None, secuencial=None
                 code="numero",
             ) from exc
         _registrar_movimientos(venta)
+        venta_confirmada.send(sender=Venta, venta=venta)
     return venta
 
 
@@ -944,8 +1018,13 @@ def lineas_vista(venta) -> list[LineaVista]:
         "item__marca",
         "item__unidad_medida",
         "unidad_medida",
-    ).prefetch_related("item__unidades__unidad_medida")
+    ).prefetch_related(
+        "item__unidades__unidad_medida",
+        "comanda_detalles__comanda__mesa",
+        "comanda_detalles__comanda__cliente",
+    )
     for detalle in detalles:
+        comandas = {cd.comanda.titulo for cd in detalle.comanda_detalles.all()}
         lineas.append(
             LineaVista(
                 pk=detalle.pk,
@@ -965,6 +1044,7 @@ def lineas_vista(venta) -> list[LineaVista]:
                 imagen=detalle.item.imagen or "",
                 descuento_porcentaje=detalle.descuento_porcentaje or CERO,
                 descuento_txt=formatear_porcentaje(detalle.descuento_porcentaje or CERO),
+                origen=", ".join(sorted(comandas)),
             )
         )
     return lineas
@@ -994,9 +1074,14 @@ def _validar_stock(venta):
         pedidos[item.pk] = pedidos.get(item.pk, CERO) + cantidad_base
     if not pedidos:
         return
-    items = Item.objects.filter(pk__in=pedidos).prefetch_related(
-        "unidades",
-        "movimientos",
+    # Bloquear los ítems (en orden de pk, para no cruzar bloqueos) antes de leer
+    # el stock: con varias máquinas, cada venta bloquea su propio punto de
+    # expedición y dos cajas podrían vender la última unidad a la vez.
+    items = (
+        Item.objects.select_for_update()
+        .filter(pk__in=sorted(pedidos))
+        .order_by("pk")
+        .prefetch_related("unidades")
     )
     for item in items:
         vigentes = item.movimientos.filter(es_vigente=True).select_related("unidad_medida")

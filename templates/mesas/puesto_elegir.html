@@ -1,0 +1,32 @@
+{% extends "app.html" %}
+
+{% block title %}Cocina y barra · Rupia{% endblock %}
+
+{% block work %}
+<div class="ledger mesas-ledger">
+  <div class="ledger-main">
+    <div class="stage-head">
+      <div>
+        <p class="eyebrow">Mesas</p>
+        <h1>Cocina y barra</h1>
+      </div>
+    </div>
+    <p class="mesas-vacio">Elegí el sector de esta pantalla. Cada sector ve e imprime solo lo suyo.</p>
+    {% if sectores %}
+      <div class="mesas-grid puesto-sectores">
+        {% for sector in sectores %}
+          <a class="mesa-card" href="{% url 'puesto_sector' sector.pk %}">
+            <span class="mesa-nombre">{{ sector.nombre }}</span>
+            <span class="mesa-accion">Abrir pantalla</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="mesas-vacio">
+        Todavía no hay sectores activos.
+        <a href="{% url 'sector_list' %}">Cargá los sectores de preparación</a>.
+      </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

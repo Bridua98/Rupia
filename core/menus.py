@@ -1,5 +1,6 @@
 from django.urls import reverse
 
+from configuracion.ajustes import mesas_habilitadas
 from configuracion.permisos import tiene_permiso
 
 
@@ -61,10 +62,46 @@ def main_menu(request):
         item("Ventas", url_name="venta_list", icon="receipt", formulario="ventas"),
         item("Compras", url_name="compra_list", icon="wallet", formulario="compras"),
         item("Personas", url_name="persona_list", icon="users", formulario="personas"),
+        (
+            group(
+                "Mesas",
+                [
+                    item(
+                        "Tablero",
+                        url_name="mesas_tablero",
+                        icon="home",
+                        formulario="comandas",
+                    ),
+                    item(
+                        "Cocina y barra",
+                        url_name="puesto_elegir",
+                        icon="print",
+                        formulario="puesto_sector",
+                    ),
+                    item("Mesas", url_name="mesa_list", icon="layers", formulario="mesas"),
+                    item(
+                        "Sectores de preparación",
+                        url_name="sector_list",
+                        icon="folder",
+                        formulario="sectores",
+                    ),
+                    item(
+                        "Productos con otro sector",
+                        url_name="sector_item_list",
+                        icon="box",
+                        formulario="sectores",
+                    ),
+                ],
+                icon="layers",
+            )
+            if mesas_habilitadas()
+            else None
+        ),
         group(
             "Gestión",
             [
                 item("Timbrados", url_name="timbrado_list", icon="receipt", formulario="timbrados"),
+                item("Máquinas", url_name="maquina_list", icon="building", formulario="maquinas"),
                 item("Cuentas", url_name="cuenta_list", icon="bank", formulario="cuentas"),
                 item(
                     "Transferencias",
@@ -152,6 +189,12 @@ def main_menu(request):
                 item("Perfiles", url_name="perfil_list", icon="shield", formulario="perfiles"),
                 item("Contraseña", url_name="cambiar_contrasena", icon="key"),
                 item(
+                    "Ajustes generales",
+                    url_name="ajustes",
+                    icon="settings",
+                    formulario="ajustes",
+                ),
+                item(
                     "Copia de seguridad",
                     url_name="copia_list",
                     icon="save",
@@ -167,4 +210,27 @@ def main_menu(request):
             icon="settings",
         ),
     ]
-    return [e for e in entries if e is not None]
+    entries = [e for e in entries if e is not None]
+    _marcar_un_solo_activo(entries)
+    return entries
+
+
+def _marcar_un_solo_activo(entries):
+    """Deja activa solo la entrada más específica.
+
+    /ventas/punto-de-venta/ también empieza con /ventas/: sin esto quedaban
+    resaltadas "Punto de venta" y "Ventas" a la vez.
+    """
+    hojas = []
+    for entry in entries:
+        hojas.extend(entry.get("children") or [entry])
+    activas = [hoja for hoja in hojas if hoja.get("active")]
+    if len(activas) > 1:
+        elegida = max(activas, key=lambda hoja: len(hoja["href"].split("?", 1)[0]))
+        for hoja in activas:
+            hoja["active"] = hoja is elegida
+    for entry in entries:
+        if entry.get("children"):
+            actual = any(child.get("active") for child in entry["children"])
+            entry["active"] = actual
+            entry["expanded"] = actual

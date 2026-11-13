@@ -1,0 +1,18 @@
+<div class="puesto-ticket{% if t.anulacion %} is-anulacion{% endif %}">
+  <p class="puesto-ticket-sector">{{ t.envio.sector.nombre }}</p>
+  {% if t.anulacion %}<p class="puesto-ticket-anula">*** ANULACIÓN ***</p>{% endif %}
+  <p class="puesto-ticket-titulo">{{ t.titulo }}</p>
+  <p class="puesto-ticket-meta">
+    {% if t.ronda %}Ronda {{ t.ronda }} · {% endif %}{{ t.hora }} · {{ t.mozo }}{% if t.personas %} · {{ t.personas }} pers.{% endif %}
+  </p>
+  <p class="ticket-sep"></p>
+  {% for linea in t.lineas %}
+    <div class="puesto-ticket-linea">
+      <span class="puesto-ticket-cant">{{ linea.cantidad }}{% if linea.unidad %} {{ linea.unidad }}{% endif %}</span>
+      <span class="puesto-ticket-desc">{{ linea.descripcion }}</span>
+    </div>
+    {% if linea.nota %}<p class="puesto-ticket-nota">{% if t.anulacion %}Motivo: {% endif %}{{ linea.nota }}</p>{% endif %}
+  {% endfor %}
+  <p class="ticket-sep"></p>
+  <p class="puesto-ticket-pie">{{ t.fecha }} {{ t.hora }} · N° {{ t.envio.pk }}</p>
+</div>
