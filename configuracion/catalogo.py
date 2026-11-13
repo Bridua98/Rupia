@@ -76,6 +76,11 @@ FORMULARIOS = (
         "Cuentas a pagar",
         (ACCION_VER, ACCION_EXPORTAR),
     ),
+    Formulario(
+        "comandas",
+        "Comandas",
+        (ACCION_VER, ACCION_ALTA, ACCION_ANULAR),
+    ),
     Formulario("mesas", "Mesas", ACCIONES_MANTENIMIENTO),
     Formulario("sectores", "Sectores de preparación", ACCIONES_MANTENIMIENTO),
     Formulario("timbrados", "Timbrados", ACCIONES_MANTENIMIENTO),

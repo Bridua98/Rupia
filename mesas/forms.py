@@ -205,6 +205,64 @@ class MesaForm(RupiaModelForm):
         return 0 if orden is None else orden
 
 
+class ClienteComandaField(ComboChoiceField):
+    def label_from_instance(self, obj):
+        return str(obj)
+
+
+def _campo_cliente():
+    from django.urls import reverse_lazy
+
+    from personas.models import Persona
+
+    return ClienteComandaField(
+        queryset=Persona.objects.filter(activo=True, es_cliente=True),
+        search_url=reverse_lazy("mesas_clientes"),
+        label="Cliente (opcional)",
+        required=False,
+        required_message="Elegí un cliente de la lista.",
+        placeholder="Buscar por nombre o RUC…",
+    )
+
+
+class CuentaForm(forms.Form):
+    """Datos de una cuenta: a nombre de quién, cliente y personas."""
+
+    use_required_attribute = False
+
+    nombre = forms.CharField(
+        label="A nombre de",
+        max_length=80,
+        required=False,
+        widget=forms.TextInput(attrs={"placeholder": " ", "autocomplete": "off"}),
+    )
+    personas = forms.IntegerField(
+        label="Personas",
+        required=False,
+        min_value=1,
+        error_messages={
+            "invalid": "Escribí la cantidad de personas en números.",
+            "min_value": "La cantidad de personas tiene que ser al menos 1.",
+        },
+        widget=forms.NumberInput(attrs={"placeholder": " ", "min": "1", "inputmode": "numeric"}),
+    )
+
+    def __init__(self, *args, exigir_destino=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["cliente"] = _campo_cliente()
+        self.order_fields(["nombre", "cliente", "personas"])
+        self.exigir_destino = exigir_destino
+
+    def clean_nombre(self):
+        return (self.cleaned_data.get("nombre") or "").strip()
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.exigir_destino and not cleaned.get("nombre") and not cleaned.get("cliente"):
+            raise forms.ValidationError("Escribí un nombre o elegí un cliente.")
+        return cleaned
+
+
 registrar(
     "item_sector",
     queryset=lambda: Item.objects.filter(activo=True).order_by("descripcion"),

@@ -64,6 +64,7 @@ def test_con_el_modulo_prendido_aparece_el_grupo_mesas(ingresada):
     mesas = next(entrada for entrada in menu if entrada["label"] == "Mesas")
 
     assert [hijo["label"] for hijo in mesas["children"]] == [
+        "Tablero",
         "Mesas",
         "Sectores de preparación",
         "Productos con otro sector",

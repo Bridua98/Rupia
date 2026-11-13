@@ -1,0 +1,41 @@
+{% extends "app.html" %}
+{% load static %}
+
+{% block title %}Mesas · Rupia{% endblock %}
+
+{% block work %}
+<div class="ledger mesas-ledger">
+  <div class="ledger-main">
+    <div class="stage-head mesas-head">
+      <div>
+        <p class="eyebrow">Mesas</p>
+        <h1>Tablero</h1>
+      </div>
+      {% if puede_abrir %}
+        <details class="mesas-a-nombre">
+          <summary class="button button-compact">
+            {% include "core/icon.html" with name="user" %}
+            <span>Cuenta a nombre</span>
+          </summary>
+          <form method="post" action="{% url 'comanda_abrir' %}" class="mesas-a-nombre-form" novalidate>
+            {% csrf_token %}
+            {% for field in cuenta_form %}
+              {% include "core/form_field.html" with field=field %}
+            {% endfor %}
+            <button type="submit" class="button">
+              {% include "core/icon.html" with name="check" %}
+              <span>Abrir cuenta</span>
+            </button>
+          </form>
+        </details>
+      {% endif %}
+    </div>
+
+    <div data-mesas-tablero data-url="{% url 'mesas_tablero' %}?parcial=1">
+      {% include "mesas/tablero_contenido.html" %}
+    </div>
+  </div>
+</div>
+<script src="{% static 'js/rupia-combo.js' %}"></script>
+<script src="{% static 'js/rupia-mesas.js' %}"></script>
+{% endblock %}

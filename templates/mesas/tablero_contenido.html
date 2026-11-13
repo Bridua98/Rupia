@@ -1,0 +1,72 @@
+<p class="mesas-resumen">
+  <span class="mesas-dato is-libre">{{ libres }} libre{{ libres|pluralize }}</span>
+  <span class="mesas-dato is-ocupada">{{ ocupadas }} ocupada{{ ocupadas|pluralize }}</span>
+  {% if pidieron_cuenta %}
+    <span class="mesas-dato is-cuenta">{{ pidieron_cuenta }} pidi{{ pidieron_cuenta|pluralize:"ó,eron" }} la cuenta</span>
+  {% endif %}
+</p>
+
+{% for zona, mesas in zonas.items %}
+  <section class="mesas-zona">
+    {% if zona %}<h2 class="mesas-zona-titulo">{{ zona }}</h2>{% endif %}
+    <div class="mesas-grid">
+      {% for tarjeta in mesas %}
+        {% if tarjeta.comanda %}
+          <a
+            class="mesa-card is-ocupada{% if tarjeta.pidio_cuenta %} is-cuenta{% endif %}"
+            href="{% url 'comanda_detalle' tarjeta.comanda.pk %}"
+          >
+            <span class="mesa-nombre">{{ tarjeta.mesa.nombre }}</span>
+            <span class="mesa-estado">{% if tarjeta.pidio_cuenta %}Pidió la cuenta{% else %}Ocupada{% endif %}</span>
+            <strong class="mesa-total">{{ tarjeta.total_txt }}</strong>
+            <span class="mesa-meta">{{ tarjeta.hace }} · {{ tarjeta.comanda.mozo.first_name|default:tarjeta.comanda.mozo.username }}</span>
+            {% if tarjeta.sin_enviar %}<span class="mesa-alerta">{{ tarjeta.sin_enviar }} sin enviar</span>{% endif %}
+          </a>
+        {% elif puede_abrir %}
+          <form method="post" action="{% url 'comanda_abrir' %}" class="mesa-card-form">
+            {% csrf_token %}
+            <input type="hidden" name="mesa" value="{{ tarjeta.mesa.pk }}">
+            <button type="submit" class="mesa-card is-libre" aria-label="Abrir la mesa {{ tarjeta.mesa.nombre }}">
+              <span class="mesa-nombre">{{ tarjeta.mesa.nombre }}</span>
+              <span class="mesa-estado">Libre</span>
+              {% if tarjeta.mesa.capacidad %}<span class="mesa-meta">{{ tarjeta.mesa.capacidad }} lugares</span>{% endif %}
+              <span class="mesa-accion">Tocá para abrir</span>
+            </button>
+          </form>
+        {% else %}
+          <div class="mesa-card is-libre">
+            <span class="mesa-nombre">{{ tarjeta.mesa.nombre }}</span>
+            <span class="mesa-estado">Libre</span>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+{% empty %}
+  <p class="mesas-vacio">
+    Todavía no hay mesas activas.
+    <a href="{% url 'mesa_list' %}">Cargá las mesas</a> para empezar.
+  </p>
+{% endfor %}
+
+<section class="mesas-zona">
+  <h2 class="mesas-zona-titulo">Cuentas a nombre</h2>
+  {% if a_nombre %}
+    <div class="mesas-grid">
+      {% for tarjeta in a_nombre %}
+        <a
+          class="mesa-card is-ocupada is-nombre{% if tarjeta.pidio_cuenta %} is-cuenta{% endif %}"
+          href="{% url 'comanda_detalle' tarjeta.comanda.pk %}"
+        >
+          <span class="mesa-nombre">{{ tarjeta.comanda.titulo }}</span>
+          <span class="mesa-estado">{% if tarjeta.pidio_cuenta %}Pidió la cuenta{% else %}Abierta{% endif %}</span>
+          <strong class="mesa-total">{{ tarjeta.total_txt }}</strong>
+          <span class="mesa-meta">{{ tarjeta.hace }} · {{ tarjeta.comanda.mozo.first_name|default:tarjeta.comanda.mozo.username }}</span>
+          {% if tarjeta.sin_enviar %}<span class="mesa-alerta">{{ tarjeta.sin_enviar }} sin enviar</span>{% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="mesas-vacio">No hay cuentas a nombre abiertas.</p>
+  {% endif %}
+</section>

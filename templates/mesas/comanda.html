@@ -1,0 +1,225 @@
+{% extends "app.html" %}
+{% load static %}
+
+{% block title %}{{ comanda.titulo }} · Rupia{% endblock %}
+
+{% block work %}
+<div class="ledger mesas-ledger">
+  <div class="ledger-main comanda">
+    <a class="back" href="{% url 'mesas_tablero' %}">
+      {% include "core/icon.html" with name="back" %}
+      <span>Tablero</span>
+    </a>
+
+    <header class="comanda-head">
+      <div>
+        <p class="eyebrow">{{ comanda.get_estado_display }}</p>
+        <h1>{{ comanda.titulo }}</h1>
+        <p class="comanda-meta">
+          {{ comanda.mozo.first_name|default:comanda.mozo.username }}
+          · abierta {{ abierta_hora }} ({{ hace }})
+          {% if comanda.personas %}· {{ comanda.personas }} persona{{ comanda.personas|pluralize }}{% endif %}
+          {% if comanda.cliente_id and comanda.mesa_id %}· {{ comanda.cliente }}{% endif %}
+        </p>
+      </div>
+      <p class="comanda-total"><span>Total</span><strong>{{ total_txt }}</strong></p>
+    </header>
+
+    {% if not comanda.activa %}
+      <p class="comanda-aviso">
+        Esta cuenta está {{ comanda.get_estado_display|lower }}.
+        {% if comanda.motivo_anulacion %}Motivo: {{ comanda.motivo_anulacion }}{% endif %}
+      </p>
+    {% endif %}
+
+    {% if puede_cargar %}
+      <section class="comanda-bloque comanda-buscar" id="buscar">
+        <form method="get" action="{% url 'comanda_detalle' comanda.pk %}#buscar" class="comanda-buscar-form" role="search">
+          <label class="sr-only" for="comanda-q">Buscar producto</label>
+          <input
+            type="search"
+            id="comanda-q"
+            name="q"
+            value="{{ query }}"
+            placeholder="Buscar producto o código…"
+            autocomplete="off"
+            data-mesas-buscar
+            {% if query %}autofocus{% endif %}
+          >
+          <button type="submit" class="button button-compact">
+            {% include "core/icon.html" with name="search" %}
+            <span>Buscar</span>
+          </button>
+        </form>
+        {% if query %}
+          {% if resultados %}
+            <ul class="comanda-resultados">
+              {% for resultado in resultados %}
+                <li>
+                  <form method="post" action="{% url 'comanda_agregar' comanda.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="item" value="{{ resultado.item.pk }}">
+                    <input type="hidden" name="q" value="{{ query }}">
+                    <button type="submit" class="comanda-producto">
+                      <span class="comanda-producto-nombre">{{ resultado.item.descripcion }}</span>
+                      <span class="comanda-producto-precio">{{ resultado.precio_txt }}</span>
+                      <span class="comanda-producto-mas" aria-hidden="true">+</span>
+                    </button>
+                  </form>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="mesas-vacio">No encontré productos con «{{ query }}».</p>
+          {% endif %}
+        {% endif %}
+      </section>
+    {% endif %}
+
+    {% if pendientes %}
+      <section class="comanda-bloque comanda-pendientes">
+        <h2>Sin enviar</h2>
+        <ul class="comanda-lineas">
+          {% for linea in pendientes %}
+            <li class="comanda-linea is-pendiente">
+              <div class="comanda-linea-principal">
+                <span class="comanda-linea-desc">{{ linea.detalle.item.descripcion }}</span>
+                <span class="comanda-linea-monto">{{ linea.subtotal_txt }}</span>
+              </div>
+              {% if puede_cargar %}
+                <div class="comanda-linea-controles">
+                  <form method="post" action="{% url 'comanda_linea' linea.detalle.pk %}" class="comanda-cantidad">
+                    {% csrf_token %}
+                    <button type="submit" name="accion" value="menos" class="comanda-boton" aria-label="Uno menos">−</button>
+                    <span class="comanda-cantidad-valor">{{ linea.cantidad_txt }}</span>
+                    <button type="submit" name="accion" value="mas" class="comanda-boton" aria-label="Uno más">+</button>
+                  </form>
+                  <form method="post" action="{% url 'comanda_linea' linea.detalle.pk %}" class="comanda-nota">
+                    {% csrf_token %}
+                    <input type="hidden" name="accion" value="nota">
+                    <input type="text" name="nota" value="{{ linea.detalle.nota }}" maxlength="120" placeholder="Nota: sin hielo, bien cocido…" aria-label="Nota para {{ linea.detalle.item.descripcion }}">
+                    <button type="submit" class="comanda-boton" aria-label="Guardar nota">{% include "core/icon.html" with name="check" %}</button>
+                  </form>
+                  <form method="post" action="{% url 'comanda_linea' linea.detalle.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" name="accion" value="quitar" class="comanda-boton is-quitar" aria-label="Sacar {{ linea.detalle.item.descripcion }}">{% include "core/icon.html" with name="trash" %}</button>
+                  </form>
+                </div>
+              {% else %}
+                <p class="comanda-linea-detalle">{{ linea.cantidad_txt }} × {{ linea.precio_txt }}{% if linea.detalle.nota %} · {{ linea.detalle.nota }}{% endif %}</p>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+        {% if puede_cargar %}
+          <form method="post" action="{% url 'comanda_enviar' comanda.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="button comanda-enviar">
+              {% include "core/icon.html" with name="check" %}
+              <span>Enviar pedido</span>
+            </button>
+          </form>
+        {% endif %}
+      </section>
+    {% endif %}
+
+    {% for bloque in rondas %}
+      <section class="comanda-bloque comanda-ronda">
+        <h2>Ronda {{ bloque.ronda.numero }} <small>{{ bloque.hora }} · {{ bloque.ronda.enviada_por.first_name|default:bloque.ronda.enviada_por.username }}</small></h2>
+        <ul class="comanda-lineas">
+          {% for linea in bloque.lineas %}
+            <li class="comanda-linea{% if linea.detalle.anulado %} is-anulada{% endif %}">
+              <div class="comanda-linea-principal">
+                <span class="comanda-linea-desc">
+                  <span class="comanda-linea-cant">{{ linea.cantidad_txt }}×</span>
+                  {{ linea.detalle.item.descripcion }}
+                </span>
+                <span class="comanda-linea-monto">{% if linea.detalle.anulado %}Anulado{% else %}{{ linea.subtotal_txt }}{% endif %}</span>
+              </div>
+              <p class="comanda-linea-detalle">
+                {% if linea.detalle.sector_id %}<span class="comanda-sector">{{ linea.detalle.sector.nombre }}</span>{% endif %}
+                {% if linea.detalle.nota %}{{ linea.detalle.nota }}{% endif %}
+                {% for anulacion in linea.detalle.anulaciones.all %}
+                  <span class="comanda-anulacion">Anuladas {{ anulacion.cantidad|floatformat:"-3" }}: {{ anulacion.motivo }}</span>
+                {% endfor %}
+              </p>
+              {% if puede_anular and not linea.detalle.anulado %}
+                <details class="comanda-anular">
+                  <summary>Anular</summary>
+                  <form method="post" action="{% url 'comanda_linea_anular' linea.detalle.pk %}" class="comanda-anular-form" novalidate>
+                    {% csrf_token %}
+                    <input type="text" name="motivo" maxlength="200" placeholder="Motivo (obligatorio)" required aria-label="Motivo">
+                    {% if linea.detalle.cantidad > 1 %}
+                      <input type="number" name="cantidad" min="1" step="1" placeholder="Cant. ({{ linea.cantidad_txt }})" aria-label="Cantidad a anular" inputmode="numeric">
+                    {% endif %}
+                    <button type="submit" class="button button-compact button-danger">Anular</button>
+                  </form>
+                </details>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+
+    {% if not pendientes and not rondas %}
+      <p class="mesas-vacio">Todavía no se cargó nada. Buscá un producto para empezar.</p>
+    {% endif %}
+
+    <section class="comanda-acciones">
+      {% if hay_enviados %}
+        <a class="button button-ghost button-compact" href="{% url 'comanda_precuenta' comanda.pk %}">
+          {% include "core/icon.html" with name="print" %}
+          <span>Ver pre-cuenta</span>
+        </a>
+      {% endif %}
+      {% if puede_cargar and hay_enviados %}
+        <form method="post" action="{% url 'comanda_pedir_cuenta' comanda.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="button button-compact">
+            {% include "core/icon.html" with name="receipt" %}
+            <span>Pedir la cuenta</span>
+          </button>
+        </form>
+      {% endif %}
+    </section>
+
+    {% if puede_cargar %}
+      <details class="comanda-bloque comanda-plegable">
+        <summary>Datos de la cuenta</summary>
+        <form method="post" action="{% url 'comanda_datos' comanda.pk %}" class="comanda-datos-form" novalidate>
+          {% csrf_token %}
+          {% for field in datos_form %}
+            {% include "core/form_field.html" with field=field %}
+          {% endfor %}
+          <button type="submit" class="button button-compact">
+            {% include "core/icon.html" with name="check" %}
+            <span>Guardar</span>
+          </button>
+        </form>
+      </details>
+    {% endif %}
+
+    {% if puede_cargar and not hay_enviados %}
+      <form method="post" action="{% url 'comanda_descartar' comanda.pk %}" class="comanda-peligro" data-mesas-confirmar="¿Liberar {{ comanda.titulo }}? Se borra lo cargado sin enviar.">
+        {% csrf_token %}
+        <button type="submit" class="button button-ghost button-compact">
+          {% include "core/icon.html" with name="trash" %}
+          <span>Liberar sin consumo</span>
+        </button>
+      </form>
+    {% elif puede_anular %}
+      <details class="comanda-bloque comanda-plegable comanda-peligro">
+        <summary>Anular la cuenta</summary>
+        <form method="post" action="{% url 'comanda_anular' comanda.pk %}" class="comanda-anular-form" novalidate data-mesas-confirmar="¿Anular toda la cuenta de {{ comanda.titulo }}? A cocina y barra les llega la anulación.">
+          {% csrf_token %}
+          <input type="text" name="motivo" maxlength="200" placeholder="Motivo (obligatorio)" required aria-label="Motivo">
+          <button type="submit" class="button button-compact button-danger">Anular la cuenta</button>
+        </form>
+      </details>
+    {% endif %}
+  </div>
+</div>
+<script src="{% static 'js/rupia-combo.js' %}"></script>
+<script src="{% static 'js/rupia-mesas.js' %}"></script>
+{% endblock %}
