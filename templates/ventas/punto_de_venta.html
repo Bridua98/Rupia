@@ -111,7 +111,9 @@
                   <div>
                     <strong>{{ linea.descripcion }}</strong>
                     <span>{% if linea.marca %}{{ linea.marca }}{% endif %}{% if linea.marca and linea.codigo %} · {% endif %}{% if linea.codigo %}{{ linea.codigo }}{% endif %}</span>
-                    {% if linea.unidades|length > 1 %}
+                    {% if linea.origen %}
+                      <span class="pos-origen-mesa">{{ linea.origen }}</span>
+                    {% elif linea.unidades|length > 1 %}
                       <form class="pos-inline" method="post" action="{% url 'punto_de_venta_linea' linea.pk %}">
                         {% csrf_token %}
                         <input type="hidden" name="accion" value="unidad">
@@ -127,6 +129,9 @@
               </td>
               <td class="pos-col-moneda"><span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.precio_txt }}</span></td>
               <td>
+                {% if linea.origen %}
+                <span class="pos-cantidad-fija" title="La cantidad se cambia en la comanda">{{ linea.cantidad_txt }}</span>
+                {% else %}
                 <form method="post" action="{% url 'punto_de_venta_linea' linea.pk %}" class="pos-stepper">
                   {% csrf_token %}
                   <button type="submit" name="accion" value="menos" aria-label="Menos">−</button>
@@ -146,12 +151,13 @@
                   >
                   <button type="submit" name="accion" value="mas" aria-label="Más">+</button>
                 </form>
+                {% endif %}
               </td>
               <td class="pos-col-moneda"><span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.subtotal_txt }}</span></td>
               <td class="pos-col-quitar">
                 <form method="post" action="{% url 'punto_de_venta_linea' linea.pk %}">
                   {% csrf_token %}
-                  <button class="pos-remove" type="submit" name="accion" value="quitar" aria-label="Quitar">{% include "core/icon.html" with name="trash" %}</button>
+                  <button class="pos-remove" type="submit" name="accion" value="quitar" aria-label="{% if linea.origen %}Devolver a {{ linea.origen }}{% else %}Quitar{% endif %}"{% if linea.origen %} title="Devolver a {{ linea.origen }}"{% endif %}>{% include "core/icon.html" with name="trash" %}</button>
                 </form>
               </td>
             </tr>

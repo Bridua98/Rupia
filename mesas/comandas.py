@@ -311,6 +311,7 @@ def anular_linea(detalle, *, usuario, motivo, cantidad=None) -> ComandaDetalle:
             raise ValidationError("Eso todavía no se envió: sacalo directamente.", code="pendiente")
         if detalle.anulado:
             raise ValidationError("Esa línea ya está anulada.", code="anulado")
+        _exigir_fuera_de_caja(detalle)
         cantidad = detalle.cantidad if cantidad in (None, "") else _interpretar_cantidad(cantidad)
         if cantidad <= 0 or cantidad > detalle.cantidad:
             raise ValidationError(
@@ -332,6 +333,15 @@ def anular_linea(detalle, *, usuario, motivo, cantidad=None) -> ComandaDetalle:
         if detalle.sector_id:
             _avisar_anulacion(comanda, detalle, cantidad, motivo, usuario, ahora)
         return detalle
+
+
+def _exigir_fuera_de_caja(detalle):
+    if detalle.venta_detalle_id is not None:
+        raise ValidationError(
+            "Eso ya está en la caja para cobrarse: devolvelo desde el punto de venta "
+            "antes de anularlo.",
+            code="en_caja",
+        )
 
 
 def _avisar_anulacion(comanda, detalle, cantidad, motivo, usuario, ahora):
@@ -363,6 +373,8 @@ def anular_comanda(comanda, *, usuario, motivo) -> Comanda:
             .filter(anulado=False, ronda__isnull=False)
             .select_related("item", "unidad_medida", "sector", "ronda")
         )
+        for detalle in enviados:
+            _exigir_fuera_de_caja(detalle)
         for detalle in enviados:
             anular_linea(detalle, usuario=usuario, motivo=motivo)
         comanda.detalles.filter(ronda__isnull=True).delete()

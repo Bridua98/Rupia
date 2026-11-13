@@ -16,12 +16,13 @@ from configuracion.permisos import PermisoRequeridoMixin, tiene_permiso
 from core.cantidad import formatear_cantidad
 from core.moneda import formatear_guaranies
 from inventario.models import Item
+from mesas import cobro
 from mesas import comandas as servicio
 from mesas.forms import CuentaForm
 from mesas.models import Comanda, ComandaDetalle, EstadoComanda, Mesa, Ronda
 from mesas.views import ModuloMesasMixin
 from ventas.cobro import buscar_clientes, buscar_productos
-from ventas.models import PuntoExpedicion
+from ventas.models import EstadoVenta, PuntoExpedicion
 
 CERO = Decimal("0")
 
@@ -73,6 +74,10 @@ def _comandas_activas_resumen():
                 "detalles",
                 filter=Q(detalles__anulado=False, detalles__ronda__isnull=True),
             ),
+            en_caja=Count(
+                "detalles",
+                filter=Q(detalles__venta_detalle__venta__estado=EstadoVenta.EN_CURSO),
+            ),
         )
     )
 
@@ -84,6 +89,7 @@ def _tarjeta(comanda):
         "hace": _hace(comanda.abierta_en),
         "pidio_cuenta": comanda.estado == EstadoComanda.CUENTA_PEDIDA,
         "sin_enviar": comanda.sin_enviar,
+        "en_caja": comanda.en_caja > 0,
     }
 
 
@@ -219,6 +225,7 @@ class ComandaDetalleView(ComandasView):
             )
         rondas.reverse()
         total = servicio.total(comanda)
+        en_caja = cobro.venta_en_caja(comanda) if comanda.activa else None
         return render(
             request,
             "mesas/comanda.html",
@@ -237,6 +244,12 @@ class ComandaDetalleView(ComandasView):
                 "puede_anular": comanda.activa
                 and tiene_permiso(request.user, "comandas", "anular"),
                 "hay_enviados": any(r["lineas"] for r in rondas),
+                "puede_cobrar": comanda.activa
+                and tiene_permiso(request.user, "comandas", "cobrar"),
+                "en_caja": en_caja,
+                "cajero": (en_caja.usuario.first_name or en_caja.usuario.username)
+                if en_caja
+                else "",
                 "datos_form": CuentaForm(
                     initial={
                         "nombre": comanda.nombre,
@@ -351,6 +364,24 @@ class DatosView(ComandasView):
         except ValidationError as exc:
             messages.error(request, _error(exc))
         return self.volver(comanda)
+
+
+class CobrarView(ComandasView):
+    """Pasa la cuenta al punto de venta del que cobra."""
+
+    permiso_accion = "cobrar"
+
+    def post(self, request, pk):
+        comanda = self.comanda(pk)
+        if not tiene_permiso(request.user, "punto_de_venta", "ver"):
+            messages.error(request, "Para cobrar necesitás acceso al punto de venta.")
+            return self.volver(comanda)
+        try:
+            cobro.pasar_a_venta(comanda, usuario=request.user)
+        except ValidationError as exc:
+            messages.error(request, _error(exc))
+            return self.volver(comanda)
+        return redirect("punto_de_venta")
 
 
 class PedirCuentaView(ComandasView):

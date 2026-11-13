@@ -28,6 +28,7 @@ from ventas.models import (
     VentaDetalle,
     formatear_numero_comprobante,
 )
+from ventas.signals import venta_confirmada
 
 UNO = Decimal("1")
 CERO = Decimal("0")
@@ -68,6 +69,7 @@ class LineaVista:
     imagen: str
     descuento_porcentaje: Decimal
     descuento_txt: str
+    origen: str = ""
 
 
 def formatear_porcentaje(valor) -> str:
@@ -656,7 +658,12 @@ def agregar_producto(venta, *, item=None, query=""):
     _validar_item_venta(item)
     unidad = item.unidad_medida
     precio = precio_en_unidad(item, unidad)
-    linea = venta.detalles.filter(item=item, unidad_medida=unidad).first()
+    # Las líneas que vienen de una mesa tienen su precio fijo: no se mezclan.
+    linea = (
+        venta.detalles.filter(item=item, unidad_medida=unidad)
+        .filter(comanda_detalles__isnull=True)
+        .first()
+    )
     if linea:
         linea.cantidad = redondear_cantidad(linea.cantidad + UNO)
         linea.precio = precio
@@ -675,8 +682,22 @@ def agregar_producto(venta, *, item=None, query=""):
     )
 
 
+def es_de_mesa(detalle) -> bool:
+    """La línea vino de una cuenta de mesa: precio y cantidad se respetan."""
+    return detalle.comanda_detalles.exists()
+
+
+def _exigir_editable(detalle):
+    if es_de_mesa(detalle):
+        raise ValidationError(
+            "Esa línea viene de una mesa: la cantidad se cambia en la comanda.",
+            code="de_mesa",
+        )
+
+
 def cambiar_cantidad(detalle, cantidad):
     _exige_borrador(detalle.venta)
+    _exigir_editable(detalle)
     cantidad = redondear_cantidad(Decimal(cantidad))
     if cantidad <= 0:
         detalle.delete()
@@ -690,12 +711,14 @@ def cambiar_cantidad(detalle, cantidad):
 
 def cambiar_unidad(detalle, unidad):
     _exige_borrador(detalle.venta)
+    _exigir_editable(detalle)
     item = detalle.item
     permitidas = {item.unidad_medida_id, *[rel.unidad_medida_id for rel in item.unidades.all()]}
     if unidad.pk not in permitidas:
         raise ValidationError("Esa unidad no está relacionada con el ítem.", code="unidad")
     otra = (
         detalle.venta.detalles.filter(item=item, unidad_medida=unidad)
+        .filter(comanda_detalles__isnull=True)
         .exclude(pk=detalle.pk)
         .first()
     )
@@ -720,7 +743,8 @@ def cambiar_descuento(detalle, porcentaje):
     except InvalidOperation as exc:
         raise ValidationError("Escribí un descuento en porcentaje.", code="descuento") from exc
     detalle.descuento_porcentaje = porcentaje.quantize(Decimal("0.01"))
-    detalle.precio = precio_en_unidad(detalle.item, detalle.unidad_medida)
+    if not es_de_mesa(detalle):
+        detalle.precio = precio_en_unidad(detalle.item, detalle.unidad_medida)
     detalle.subtotal = importe_linea(detalle.precio, detalle.cantidad, detalle.descuento_porcentaje)
     detalle.save(update_fields=["descuento_porcentaje", "precio", "subtotal"])
     return detalle
@@ -983,6 +1007,7 @@ def confirmar(venta, *, establecimiento=None, punto_codigo=None, secuencial=None
                 code="numero",
             ) from exc
         _registrar_movimientos(venta)
+        venta_confirmada.send(sender=Venta, venta=venta)
     return venta
 
 
@@ -993,8 +1018,13 @@ def lineas_vista(venta) -> list[LineaVista]:
         "item__marca",
         "item__unidad_medida",
         "unidad_medida",
-    ).prefetch_related("item__unidades__unidad_medida")
+    ).prefetch_related(
+        "item__unidades__unidad_medida",
+        "comanda_detalles__comanda__mesa",
+        "comanda_detalles__comanda__cliente",
+    )
     for detalle in detalles:
+        comandas = {cd.comanda.titulo for cd in detalle.comanda_detalles.all()}
         lineas.append(
             LineaVista(
                 pk=detalle.pk,
@@ -1014,6 +1044,7 @@ def lineas_vista(venta) -> list[LineaVista]:
                 imagen=detalle.item.imagen or "",
                 descuento_porcentaje=detalle.descuento_porcentaje or CERO,
                 descuento_txt=formatear_porcentaje(detalle.descuento_porcentaje or CERO),
+                origen=", ".join(sorted(comandas)),
             )
         )
     return lineas

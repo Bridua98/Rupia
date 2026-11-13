@@ -94,6 +94,11 @@ urlpatterns = [
         name="comanda_pedir_cuenta",
     ),
     path(
+        "comandas/<int:pk>/cobrar/",
+        comandas_views.CobrarView.as_view(),
+        name="comanda_cobrar",
+    ),
+    path(
         "comandas/<int:pk>/precuenta/",
         comandas_views.PrecuentaView.as_view(),
         name="comanda_precuenta",

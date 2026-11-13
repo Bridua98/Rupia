@@ -329,6 +329,17 @@ class ComandaDetalle(models.Model):
         verbose_name="sector",
     )
     anulado = models.BooleanField("anulado", default=False, db_column="comadeta_anulado")
+    # La línea de venta que la cobra. Si se quita de la venta o la venta se
+    # cancela, el vínculo se borra solo y la línea vuelve a estar pendiente.
+    venta_detalle = models.ForeignKey(
+        "ventas.VentaDetalle",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="comadeta_ventdeta_id",
+        related_name="comanda_detalles",
+        verbose_name="línea de venta",
+    )
 
     class Meta:
         db_table = "comandas_detalles"
