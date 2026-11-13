@@ -1,6 +1,7 @@
 from django.urls import path
 
 from core.mantenimiento import mantenimiento_salida
+from ventas.reporte_ventas import ReporteVentasListView
 from ventas.views import (
     AgregarProductoView,
     AnularVentaView,
@@ -41,6 +42,22 @@ urlpatterns = [
         "exportar.pdf",
         mantenimiento_salida(VentaListView, "pdf").as_view(),
         name="venta_export_pdf",
+    ),
+    path("reportes/ventas/", ReporteVentasListView.as_view(), name="reporte_ventas"),
+    path(
+        "reportes/ventas/imprimir/",
+        mantenimiento_salida(ReporteVentasListView, "print").as_view(),
+        name="reporte_ventas_print",
+    ),
+    path(
+        "reportes/ventas/exportar.xlsx",
+        mantenimiento_salida(ReporteVentasListView, "xlsx").as_view(),
+        name="reporte_ventas_export_xlsx",
+    ),
+    path(
+        "reportes/ventas/exportar.pdf",
+        mantenimiento_salida(ReporteVentasListView, "pdf").as_view(),
+        name="reporte_ventas_export_pdf",
     ),
     path("<int:pk>/anular/", AnularVentaView.as_view(), name="venta_anular"),
     path("timbrados/", TimbradoListView.as_view(), name="timbrado_list"),
