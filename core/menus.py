@@ -72,6 +72,12 @@ def main_menu(request):
                         icon="home",
                         formulario="comandas",
                     ),
+                    item(
+                        "Cocina y barra",
+                        url_name="puesto_elegir",
+                        icon="print",
+                        formulario="puesto_sector",
+                    ),
                     item("Mesas", url_name="mesa_list", icon="layers", formulario="mesas"),
                     item(
                         "Sectores de preparación",

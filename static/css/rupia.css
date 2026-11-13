@@ -7755,3 +7755,303 @@ form.comanda-peligro {
     padding: 0.75rem;
   }
 }
+
+/* --- Mesas: puesto de cocina y barra -------------------------------------- */
+
+.puesto-head {
+  flex-wrap: wrap;
+}
+
+.puesto-controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.puesto-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.puesto-auto input {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.puesto-estado {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: #e7f4ec;
+  color: #1e6b3f;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.puesto-estado.is-error {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.puesto-cola {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.puesto-pedido {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-top: 5px solid #d4962a;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.puesto-pedido.is-demorado {
+  border-top-color: var(--danger);
+}
+
+.puesto-pedido.is-anulacion {
+  border-top-color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.puesto-pedido-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem 0.5rem;
+}
+
+.puesto-pedido-head h2 {
+  margin: 0.1rem 0 0;
+  font-size: 1.35rem;
+}
+
+.puesto-pedido-tipo {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.puesto-pedido.is-anulacion .puesto-pedido-tipo {
+  color: var(--danger);
+}
+
+.puesto-pedido-hora {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.puesto-pedido-hora span {
+  color: var(--muted);
+}
+
+.puesto-pedido.is-demorado .puesto-pedido-hora span {
+  color: var(--danger);
+  font-weight: 650;
+}
+
+.puesto-lineas {
+  margin: 0;
+  padding: 0 0.9rem;
+  list-style: none;
+}
+
+.puesto-lineas li {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--border-soft);
+  font-size: 1.05rem;
+}
+
+.puesto-cant {
+  font-weight: 700;
+}
+
+.puesto-desc {
+  font-weight: 560;
+}
+
+.puesto-nota {
+  display: block;
+  color: var(--danger);
+  font-size: 0.92rem;
+  font-style: normal;
+  font-weight: 650;
+}
+
+.puesto-pedido-pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding: 0.65rem 0.9rem 0.8rem;
+}
+
+.puesto-mozo {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.puesto-acciones {
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+.puesto-vacio {
+  padding: 2rem 0;
+  font-size: 1.05rem;
+  text-align: center;
+}
+
+.puesto-listos {
+  margin-top: 1.5rem;
+}
+
+.puesto-listos-lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.puesto-listos-lista li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--border-soft);
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.puesto-deshacer {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--forest);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.puesto-ayuda {
+  margin-top: 1.5rem;
+  font-size: 0.92rem;
+}
+
+.puesto-ayuda ol {
+  padding-left: 1.2rem;
+}
+
+.puesto-ayuda li {
+  margin: 0.4rem 0;
+}
+
+.puesto-ayuda code {
+  display: inline-block;
+  margin-top: 0.25rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-sm);
+  background: var(--canvas);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+/* Ticket de cocina: solo existe en papel. */
+.puesto-impresion {
+  display: none;
+}
+
+.puesto-ticket {
+  width: 72mm;
+  color: #000;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.3;
+  break-after: page;
+  page-break-after: always;
+}
+
+.puesto-ticket p {
+  margin: 0;
+}
+
+.puesto-ticket-sector {
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.puesto-ticket-anula {
+  margin: 1mm 0;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.puesto-ticket-titulo {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.puesto-ticket-linea {
+  display: grid;
+  grid-template-columns: 12mm 1fr;
+  gap: 2mm;
+  margin-top: 1.5mm;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.puesto-ticket-nota {
+  margin-left: 14mm;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.puesto-ticket-pie {
+  font-size: 11px;
+}
+
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 3mm;
+  }
+
+  body.puesto-screen {
+    background: #fff;
+  }
+
+  body.puesto-screen > :not(.puesto-impresion) {
+    display: none !important;
+  }
+
+  body.puesto-screen .puesto-impresion {
+    display: block;
+  }
+}
+
+@media (max-width: 560px) {
+  .puesto-cola {
+    grid-template-columns: 1fr;
+  }
+}
