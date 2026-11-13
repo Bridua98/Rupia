@@ -2543,6 +2543,14 @@ body.is-visor {
   min-width: 46rem;
 }
 
+.sheet.sheet-ventas {
+  min-width: 78rem;
+}
+
+.sheet.sheet-ventas-agrupado {
+  min-width: 52rem;
+}
+
 .reporte-modo {
   margin: 0.2rem 0 0;
   color: var(--accent);

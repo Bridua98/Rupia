@@ -85,6 +85,12 @@ def main_menu(request):
                     formulario="reporte_gastos",
                 ),
                 item(
+                    "Informe de ventas",
+                    url_name="reporte_ventas",
+                    icon="chart",
+                    formulario="reporte_ventas",
+                ),
+                item(
                     "Cuentas a pagar",
                     url_name="reporte_cuentas_pagar",
                     icon="chart",

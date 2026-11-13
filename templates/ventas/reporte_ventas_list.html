@@ -1,0 +1,220 @@
+{% extends "core/mantenimiento_list.html" %}
+{% load static %}
+{% load django_tables2 %}
+
+{% block work %}
+<div class="ledger is-reporte{% if reporte_panel %} is-informe{% endif %}{% if detail_open %} is-overlay{% endif %}" data-rupia="list">
+  <div class="ledger-main">
+    <a class="back" href="{{ back_url }}">
+      {% include "core/icon.html" with name="back" %}
+      <span>Volver</span>
+    </a>
+    <div class="stage-head">
+      <div>
+        <p class="eyebrow">{{ eyebrow }}</p>
+        <h1 class="reporte-title">
+          <span class="reporte-title-ico" aria-hidden="true">{% include "core/icon.html" with name="chart" %}</span>
+          {{ title }}
+        </h1>
+        {% if reporte_agrupado_label %}
+          <p class="reporte-modo">{{ reporte_agrupado_label }}</p>
+        {% endif %}
+        {% if reporte_totales %}
+          <p class="reporte-leyenda">Ventas cobradas · IVA incluido · Importes en Gs.</p>
+        {% endif %}
+        {% if record_count is not None and not reporte_panel %}
+          <p class="record-count">{{ record_count }} {{ record_noun }}{{ record_count|pluralize }}</p>
+        {% endif %}
+      </div>
+      <div class="stage-actions">
+        {% if reporte_panel %}
+          <p class="reporte-periodo">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.5v3M16 3.5v3M4 10h16"/></svg>
+            Desde: {{ reporte_panel.desde }} · Hasta: {{ reporte_panel.hasta }}
+          </p>
+        {% endif %}
+        {% include "core/output_menu.html" %}
+      </div>
+    </div>
+    {% if reporte_panel %}
+      <section class="reporte-kpis dash-kpis dash-kpis-4" aria-label="Resumen del período">
+        {% include "core/dash_indicador.html" with indicador=reporte_panel.total icono="venta" %}
+        {% include "core/dash_indicador.html" with indicador=reporte_panel.gravado icono="caja" %}
+        {% include "core/dash_indicador.html" with indicador=reporte_panel.iva icono="percent" %}
+        {% include "core/dash_indicador.html" with indicador=reporte_panel.comprobantes icono="pagar" %}
+      </section>
+      {{ reporte_panel.evolucion|json_script:"dash-chart-data" }}
+      <div class="reporte-charts">
+        <article class="dash-panel dash-chart-donut">
+          <header class="dash-panel-head">
+            <h3>Ventas por medio de pago</h3>
+          </header>
+          <div class="dash-panel-body dash-donut-body">
+            <div class="dash-donut" data-dash-donut>
+              <svg viewBox="0 0 180 180" role="img" aria-label="Ventas por medio de pago">
+                <g transform="rotate(-90 90 90)">
+                  {% if reporte_panel.hay_medios %}
+                    {% for porcion in reporte_panel.medios %}
+                      {% if porcion.porcentaje %}
+                        <circle
+                          class="dash-arc"
+                          data-slice="{{ porcion.nombre }}"
+                          cx="90"
+                          cy="90"
+                          r="62"
+                          stroke="{{ porcion.color }}"
+                          stroke-dasharray="{{ porcion.trazo }}"
+                          stroke-dashoffset="{{ porcion.offset }}"
+                        ></circle>
+                      {% endif %}
+                    {% endfor %}
+                  {% else %}
+                    <circle class="dash-arc is-empty" cx="90" cy="90" r="62"></circle>
+                  {% endif %}
+                </g>
+              </svg>
+              <div class="dash-donut-center">
+                <strong class="valor-gs is-texto" dir="ltr">{{ reporte_panel.total.valor_txt }}</strong>
+                <span>Total</span>
+              </div>
+            </div>
+            <ul class="dash-donut-legend">
+              {% for porcion in reporte_panel.medios %}
+                <li>
+                  <button type="button" data-slice="{{ porcion.nombre }}">
+                    <i style="background: {{ porcion.color }}"></i>
+                    <span>{{ porcion.nombre }}</span>
+                    <strong>{{ porcion.porcentaje }}%</strong>
+                  </button>
+                  <small class="valor-gs is-texto" dir="ltr">{{ porcion.importe_txt }}</small>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </article>
+        <article class="dash-panel dash-chart-line">
+          <header class="dash-panel-head">
+            <h3>Evolución de ventas</h3>
+            <strong class="reporte-evo-total valor-gs is-texto" dir="ltr">{{ reporte_panel.total.valor_txt }}</strong>
+          </header>
+          <div class="dash-panel-body">
+            <div class="dash-plot" data-dash-line>
+              <svg data-line-svg role="img" aria-label="Evolución de ventas"></svg>
+              <div class="dash-tip" data-line-tip hidden></div>
+            </div>
+          </div>
+        </article>
+      </div>
+    {% endif %}
+    {% if reporte_resumen_filtros %}
+      <ul class="reporte-filtros-resumen" aria-label="Filtros activos">
+        {% for linea in reporte_resumen_filtros %}
+          <li>{{ linea }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% if search_label %}
+      {% if reporte_panel %}
+        <section class="reporte-filtros" aria-labelledby="reporte-filtros-title">
+          <p class="reporte-filtros-title" id="reporte-filtros-title">Filtros de búsqueda</p>
+          <div class="list-toolbar">
+            {% include "core/list_search.html" %}
+          </div>
+          {% if list_filters %}
+            <form
+              id="list-filters"
+              class="list-filters is-open"
+              method="get"
+              action="{{ list_url }}"
+              data-filters-panel
+            >
+              {% if query %}
+                <input type="hidden" name="q" value="{{ query }}">
+              {% endif %}
+              <input type="hidden" name="filtros" value="1">
+              <div class="list-filters-grid">
+                {% for row in list_filters %}
+                  {% include "core/list_filter.html" %}
+                {% endfor %}
+              </div>
+              <div class="list-filters-actions">
+                <a class="button button-ghost button-compact" href="{{ list_url }}{% if query %}?q={{ query|urlencode }}{% endif %}">
+                  {% include "core/icon.html" with name="x" %}
+                  <span>Limpiar</span>
+                </a>
+                <button type="submit" class="button button-compact">
+                  {% include "core/icon.html" with name="check" %}
+                  <span>Aplicar filtros</span>
+                </button>
+              </div>
+            </form>
+          {% endif %}
+        </section>
+      {% else %}
+        <div class="list-toolbar">
+          {% include "core/list_search.html" %}
+          {% if list_filters %}
+            <button
+              type="button"
+              class="list-filters-toggle"
+              data-filters-toggle
+              aria-expanded="{% if filters_open %}true{% else %}false{% endif %}"
+              aria-controls="list-filters"
+            >
+              {% include "core/icon.html" with name="filter" %}
+              <span>Filtros{% if active_filter_count %} ({{ active_filter_count }}){% endif %}</span>
+            </button>
+          {% endif %}
+        </div>
+        {% if list_filters %}
+          <form
+            id="list-filters"
+            class="list-filters{% if filters_open %} is-open{% endif %}"
+            method="get"
+            action="{{ list_url }}"
+            data-filters-panel
+            {% if not filters_open %}hidden{% endif %}
+          >
+            {% if query %}
+              <input type="hidden" name="q" value="{{ query }}">
+            {% endif %}
+            <input type="hidden" name="filtros" value="1">
+            <p class="list-filters-title">Refiná el reporte</p>
+            <div class="list-filters-grid">
+              {% for row in list_filters %}
+                {% include "core/list_filter.html" %}
+              {% endfor %}
+            </div>
+            <div class="list-filters-actions">
+              <button type="submit" class="button button-compact">
+                {% include "core/icon.html" with name="check" %}
+                <span>Aplicar</span>
+              </button>
+              <a class="button button-ghost button-compact" href="{{ list_url }}{% if query %}?q={{ query|urlencode }}{% endif %}">
+                {% include "core/icon.html" with name="x" %}
+                <span>Limpiar filtros</span>
+              </a>
+            </div>
+          </form>
+        {% endif %}
+      {% endif %}
+    {% endif %}
+    {% if reporte_panel %}
+      <header class="reporte-resultados-head">
+        <h2>Resultados ({{ record_count }} {{ record_noun }}{{ record_count|pluralize }})</h2>
+      </header>
+    {% endif %}
+    {% render_table table %}
+    {% if list_hint %}
+      <p class="hint">{{ list_hint }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+{% if reporte_panel %}
+<script src="{% static 'js/rupia-dash.js' %}"></script>
+{% endif %}
+{% endblock %}

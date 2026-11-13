@@ -1,8 +1,10 @@
 import django_tables2 as tables
 from django.urls import reverse
 
+from core.cantidad import html_cantidad
+from core.enlaces import html_enlace_origen, url_ver_registro
 from core.moneda import html_guaranies
-from core.tables import ATTRS_MONEDA, ActionMenuColumn
+from core.tables import ATTRS_MONEDA, ATTRS_NUM, ActionMenuColumn
 from core.vista import html_bool, html_situacion
 from ventas.models import EstadoVenta, PuntoExpedicion, TipoAnulacion, TipoComprobante, Venta
 
@@ -144,3 +146,102 @@ class VentaTable(tables.Table):
 
     def render_importe(self, value):
         return html_guaranies(value or 0)
+
+
+class ReporteVentasDetalleTable(tables.Table):
+    fecha = tables.Column(verbose_name="Fecha")
+    comprobante = tables.Column(verbose_name="Comprobante")
+    tipo_comprobante = tables.Column(verbose_name="Tipo")
+    cliente = tables.Column(verbose_name="Cliente")
+    timbrado = tables.Column(verbose_name="Timbrado")
+    caja = tables.Column(verbose_name="Caja")
+    cuenta_cobro = tables.Column(verbose_name="Cuenta de cobro")
+    medio = tables.Column(verbose_name="Medio")
+    producto = tables.Column(verbose_name="Producto")
+    categoria = tables.Column(verbose_name="Categoría")
+    marca = tables.Column(verbose_name="Marca")
+    unidad_negocio = tables.Column(verbose_name="Unidad de negocio")
+    cantidad = tables.Column(verbose_name="Cantidad", attrs=ATTRS_NUM)
+    tasa_iva = tables.Column(verbose_name="IVA %", attrs=ATTRS_NUM)
+    gravado = tables.Column(verbose_name="Gravado", attrs=ATTRS_MONEDA)
+    iva = tables.Column(verbose_name="IVA", attrs=ATTRS_MONEDA)
+    subtotal = tables.Column(verbose_name="Total", attrs=ATTRS_MONEDA)
+
+    class Meta:
+        fields = (
+            "fecha",
+            "comprobante",
+            "tipo_comprobante",
+            "cliente",
+            "timbrado",
+            "caja",
+            "cuenta_cobro",
+            "medio",
+            "producto",
+            "categoria",
+            "marca",
+            "unidad_negocio",
+            "cantidad",
+            "tasa_iva",
+            "gravado",
+            "iva",
+            "subtotal",
+        )
+        orderable = False
+        template_name = "django_tables2/rupia_totales.html"
+        empty_text = "No hay ventas para los filtros elegidos."
+        attrs = {"class": "sheet sheet-reporte sheet-ventas"}
+
+    def render_fecha(self, value):
+        return value.strftime("%d/%m/%Y")
+
+    def render_comprobante(self, value, record):
+        texto = value or "—"
+        venta_id = getattr(record, "venta_id", None)
+        return html_enlace_origen(texto, url_ver_registro("venta_list", "venta", venta_id))
+
+    def render_cantidad(self, value):
+        return html_cantidad(value)
+
+    def render_tasa_iva(self, value):
+        return f"{value}%"
+
+    def render_gravado(self, value):
+        return html_guaranies(value)
+
+    def render_iva(self, value):
+        return html_guaranies(value)
+
+    def render_subtotal(self, value):
+        return html_guaranies(value)
+
+
+class ReporteVentasAgrupadoTable(tables.Table):
+    etiqueta = tables.Column(verbose_name="Agrupación")
+    detalle = tables.Column(verbose_name="Detalle")
+    lineas = tables.Column(verbose_name="Líneas", attrs=ATTRS_NUM)
+    cantidad = tables.Column(verbose_name="Cantidad", attrs=ATTRS_NUM)
+    gravado = tables.Column(verbose_name="Gravado", attrs=ATTRS_MONEDA)
+    iva = tables.Column(verbose_name="IVA", attrs=ATTRS_MONEDA)
+    subtotal = tables.Column(verbose_name="Total", attrs=ATTRS_MONEDA)
+
+    class Meta:
+        orderable = False
+        template_name = "django_tables2/rupia_totales.html"
+        empty_text = "No hay ventas para los filtros elegidos."
+        attrs = {"class": "sheet sheet-reporte sheet-ventas-agrupado"}
+
+    def render_detalle(self, value):
+        return value or "—"
+
+    def render_cantidad(self, value):
+        return html_cantidad(value)
+
+    def render_gravado(self, value):
+        return html_guaranies(value)
+
+    def render_iva(self, value):
+        return html_guaranies(value)
+
+    def render_subtotal(self, value):
+        return html_guaranies(value)

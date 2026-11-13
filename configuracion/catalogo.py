@@ -67,6 +67,11 @@ FORMULARIOS = (
         (ACCION_VER, ACCION_EXPORTAR),
     ),
     Formulario(
+        "reporte_ventas",
+        "Informe de ventas",
+        (ACCION_VER, ACCION_EXPORTAR),
+    ),
+    Formulario(
         "pagos_proveedor",
         "Pagos a proveedor",
         (ACCION_VER, ACCION_ALTA, ACCION_ANULAR, ACCION_EXPORTAR),
