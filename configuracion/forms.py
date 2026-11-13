@@ -9,7 +9,7 @@ from django.db.models import Q
 
 from configuracion.catalogo import FORMULARIOS, campo_permiso, pares_permiso
 from configuracion.fotos import EXTENSIONES, aplicar_foto, url_foto
-from configuracion.models import Perfil, PerfilPermiso, UsuarioFoto
+from configuracion.models import Ajustes, Perfil, PerfilPermiso, UsuarioFoto
 from core.forms import RupiaModelForm
 
 User = get_user_model()
@@ -350,3 +350,17 @@ class RupiaPasswordChangeForm(PasswordChangeForm):
         self.fields["new_password2"].widget.attrs.update(
             {"placeholder": " ", "autocomplete": "new-password"}
         )
+
+
+class AjustesForm(forms.ModelForm):
+    use_required_attribute = False
+
+    class Meta:
+        model = Ajustes
+        fields = ["mesas_habilitadas"]
+        labels = {"mesas_habilitadas": "Usar mesas y comandas"}
+        help_texts = {
+            "mesas_habilitadas": (
+                "Muestra el menú de mesas, sectores de preparación y comandas."
+            ),
+        }

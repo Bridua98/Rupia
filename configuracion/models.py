@@ -92,3 +92,34 @@ class UsuarioFoto(models.Model):
 
     def __str__(self):
         return self.imagen or str(self.usuario)
+
+
+class Ajustes(models.Model):
+    """Ajustes generales del sistema: una sola fila (pk=1)."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, db_column="ajus_id")
+    mesas_habilitadas = models.BooleanField(
+        "mesas y comandas",
+        default=False,
+        db_column="ajus_mesas_habilitadas",
+    )
+
+    class Meta:
+        db_table = "ajustes"
+        verbose_name = "ajustes"
+        verbose_name_plural = "ajustes"
+
+    def __str__(self):
+        return "Ajustes generales"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        if self._state.adding and type(self).objects.filter(pk=1).exists():
+            # Siempre hay una sola fila: grabar desde una instancia nueva la pisa.
+            self._state.adding = False
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def actuales(cls):
+        ajustes, _ = cls.objects.get_or_create(pk=1)
+        return ajustes

@@ -20,6 +20,7 @@ from configuracion.copia import (
     resolver_copia,
 )
 from configuracion.forms import (
+    AjustesForm,
     CuentaFotoForm,
     PerfilForm,
     RupiaPasswordChangeForm,
@@ -27,7 +28,7 @@ from configuracion.forms import (
     UsuarioForm,
 )
 from configuracion.fotos import resolver_foto
-from configuracion.models import Perfil, UsuarioFoto
+from configuracion.models import Ajustes, Perfil, UsuarioFoto
 from configuracion.permisos import PermisoRequeridoMixin, exigir_permiso, tiene_permiso
 from configuracion.tables import PerfilTable, UsuarioTable
 from core.mantenimiento import (
@@ -345,6 +346,37 @@ class CambiarContrasenaView(LoginRequiredMixin, PasswordChangeView):
     def form_valid(self, form):
         messages.success(self.request, "Tu contraseña se actualizó.")
         return super().form_valid(form)
+
+
+class AjustesView(LoginRequiredMixin, PermisoRequeridoMixin, View):
+    permiso_formulario = "ajustes"
+    permiso_accion = "ver"
+    template_name = "configuracion/ajustes.html"
+
+    def get(self, request):
+        return self._render(request, AjustesForm(instance=Ajustes.actuales()))
+
+    def post(self, request):
+        exigir_permiso(request.user, "ajustes", "modificar")
+        form = AjustesForm(request.POST, instance=Ajustes.actuales())
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Los ajustes quedaron guardados.")
+            return redirect("ajustes")
+        return self._render(request, form)
+
+    def _render(self, request, form):
+        if not tiene_permiso(request.user, "ajustes", "modificar"):
+            for field in form.fields.values():
+                field.disabled = True
+        return render(
+            request,
+            self.template_name,
+            {
+                "form": form,
+                "puede_modificar": tiene_permiso(request.user, "ajustes", "modificar"),
+            },
+        )
 
 
 class CopiaListView(PermisoRequeridoMixin, View):
