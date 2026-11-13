@@ -1,6 +1,7 @@
 from django.urls import path
 
 from core.mantenimiento import mantenimiento_salida
+from mesas import comandas_views
 from mesas.views import (
     MesaCreateView,
     MesaDeleteView,
@@ -42,6 +43,63 @@ def _mantenimiento(prefijo, nombre, listado, alta, edicion, baja):
 
 
 urlpatterns = [
+    path("tablero/", comandas_views.TableroView.as_view(), name="mesas_tablero"),
+    path("clientes/", comandas_views.BuscarClientesView.as_view(), name="mesas_clientes"),
+    path(
+        "comandas/abrir/",
+        comandas_views.AbrirComandaView.as_view(),
+        name="comanda_abrir",
+    ),
+    path(
+        "comandas/<int:pk>/",
+        comandas_views.ComandaDetalleView.as_view(),
+        name="comanda_detalle",
+    ),
+    path(
+        "comandas/<int:pk>/agregar/",
+        comandas_views.AgregarView.as_view(),
+        name="comanda_agregar",
+    ),
+    path(
+        "comandas/<int:pk>/enviar/",
+        comandas_views.EnviarView.as_view(),
+        name="comanda_enviar",
+    ),
+    path(
+        "comandas/<int:pk>/datos/",
+        comandas_views.DatosView.as_view(),
+        name="comanda_datos",
+    ),
+    path(
+        "comandas/<int:pk>/cuenta/",
+        comandas_views.PedirCuentaView.as_view(),
+        name="comanda_pedir_cuenta",
+    ),
+    path(
+        "comandas/<int:pk>/precuenta/",
+        comandas_views.PrecuentaView.as_view(),
+        name="comanda_precuenta",
+    ),
+    path(
+        "comandas/<int:pk>/anular/",
+        comandas_views.AnularComandaView.as_view(),
+        name="comanda_anular",
+    ),
+    path(
+        "comandas/<int:pk>/descartar/",
+        comandas_views.DescartarView.as_view(),
+        name="comanda_descartar",
+    ),
+    path(
+        "comandas/lineas/<int:pk>/",
+        comandas_views.LineaView.as_view(),
+        name="comanda_linea",
+    ),
+    path(
+        "comandas/lineas/<int:pk>/anular/",
+        comandas_views.AnularLineaView.as_view(),
+        name="comanda_linea_anular",
+    ),
     *_mantenimiento(
         "sectores/productos/",
         "sector_item",

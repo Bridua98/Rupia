@@ -66,6 +66,12 @@ def main_menu(request):
             group(
                 "Mesas",
                 [
+                    item(
+                        "Tablero",
+                        url_name="mesas_tablero",
+                        icon="home",
+                        formulario="comandas",
+                    ),
                     item("Mesas", url_name="mesa_list", icon="layers", formulario="mesas"),
                     item(
                         "Sectores de preparación",

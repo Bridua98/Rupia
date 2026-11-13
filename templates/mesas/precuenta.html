@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Pre-cuenta {{ comanda.titulo }} · Rupia{% endblock %}
+{% block body_class %}print-view ticket-print{% endblock %}
+{% block extra_head %}
+<style>
+  @page {
+    size: 80mm auto;
+    margin: 3mm;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<article class="print-page ticket-page" data-ticket-formato="80mm">
+  <header class="print-toolbar">
+    <a class="back" href="{% url 'comanda_detalle' comanda.pk %}">
+      {% include "core/icon.html" with name="back" %}
+      <span>Volver</span>
+    </a>
+    <p class="ticket-print-hint">Papel 80 mm</p>
+    <button type="button" class="button" onclick="window.print()">
+      {% include "core/icon.html" with name="print" %}
+      <span>Imprimir</span>
+    </button>
+  </header>
+  <div class="ticket-roll">
+    <header class="ticket-empresa">
+      {% if emisor %}<p class="ticket-empresa-nombre">{{ emisor.emisor_razon_social }}</p>{% endif %}
+      <p class="ticket-empresa-nombre">PRE-CUENTA</p>
+      <p>No válido como comprobante</p>
+    </header>
+    <p class="ticket-sep"></p>
+    <p class="ticket-meta"><span>{% if comanda.mesa_id %}Mesa{% else %}A nombre de{% endif %}</span><span>{% if comanda.mesa_id %}{{ comanda.mesa.nombre }}{% else %}{{ comanda.titulo }}{% endif %}</span></p>
+    <p class="ticket-meta"><span>Atendió</span><span>{{ comanda.mozo.first_name|default:comanda.mozo.username }}</span></p>
+    {% if comanda.personas %}<p class="ticket-meta"><span>Personas</span><span>{{ comanda.personas }}</span></p>{% endif %}
+    <p class="ticket-meta"><span>Fecha</span><span>{{ ahora|date:"d/m/Y H:i" }}</span></p>
+    {% if comanda.cliente_id %}<p class="ticket-meta"><span>Cliente</span><span>{{ comanda.cliente.razon_social }}</span></p>{% endif %}
+    <p class="ticket-sep"></p>
+    <table class="ticket-items">
+      <thead>
+        <tr>
+          <th scope="col" class="ticket-cant">Cant.</th>
+          <th scope="col" class="ticket-desc">Descripción</th>
+          <th scope="col" class="ticket-monto">Monto</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for linea in lineas %}
+          <tr>
+            <td class="ticket-cant">{{ linea.cantidad_txt }}</td>
+            <td class="ticket-desc">{{ linea.descripcion }}</td>
+            <td class="ticket-monto"><span class="valor-gs is-texto" dir="ltr">Gs. {{ linea.subtotal_txt }}</span></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3">Sin consumo.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="ticket-sep"></p>
+    <p class="ticket-total"><span>Total</span><strong class="valor-gs is-texto" dir="ltr">{{ total_txt }}</strong></p>
+    {% if por_persona %}
+      <p class="ticket-meta"><span>Por persona ({{ comanda.personas }})</span><span>{{ por_persona }}</span></p>
+    {% endif %}
+  </div>
+</article>
+{% endblock %}
