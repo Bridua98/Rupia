@@ -23,6 +23,9 @@
     maquinaSelect.addEventListener("change", function () {
       if (maquinaSelect.value) localStorage.setItem(claveMaquina, maquinaSelect.value);
       else localStorage.removeItem(claveMaquina);
+      // La máquina define el punto y el timbrado: hay que fijarla en la sesión
+      // antes de cobrar, si no la venta sale con la máquina anterior.
+      maquinaForm.submit();
     });
   }
 

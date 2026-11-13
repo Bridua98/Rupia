@@ -1330,3 +1330,49 @@ def test_sin_maquina_y_dos_puntos_pide_elegir(ingresada):
     )
     assert respuesta.url == "/ventas/punto-de-venta/"
     assert Venta.objects.filter(estado=EstadoVenta.COBRADA).count() == 0
+
+
+@pytest.mark.django_db
+def test_elegir_maquina_con_id_no_numerico_da_404(ingresada):
+    response = ingresada.post("/ventas/punto-de-venta/maquina/", {"maquina": "abc"})
+    assert response.status_code == 404
+
+
+def test_monto_rechaza_valores_no_finitos():
+    from ventas.views import _monto
+
+    assert _monto("NaN") is None
+    assert _monto("Infinity", default=Decimal("0")) == Decimal("0")
+
+
+@pytest.mark.django_db
+def test_maquina_no_emite_con_punto_que_cambio_de_tipo():
+    from ventas.cobro import resolver_emision
+
+    ticket = _punto(TipoComprobante.TICKET)
+    maquina = Maquina.objects.create(nombre="Caja 1", punto_ticket=ticket)
+    PuntoExpedicion.objects.filter(pk=ticket.pk).update(tipo=TipoComprobante.FACTURA)
+    maquina = Maquina.objects.select_related("punto_ticket").get(pk=maquina.pk)
+
+    ok, _mensaje, code, punto = resolver_emision(TipoComprobante.TICKET, maquina)
+
+    assert not ok
+    assert code == "punto"
+    assert punto is None
+
+
+@pytest.mark.django_db
+def test_timbrado_asignado_a_maquina_no_cambia_de_tipo():
+    from django.forms.models import model_to_dict
+
+    from ventas.forms import TimbradoForm
+
+    ticket = _punto(TipoComprobante.TICKET)
+    Maquina.objects.create(nombre="Caja 1", punto_ticket=ticket)
+    datos = {k: v for k, v in model_to_dict(ticket).items() if v is not None}
+    datos["tipo"] = TipoComprobante.FACTURA
+
+    form = TimbradoForm(data=datos, instance=ticket)
+
+    assert not form.is_valid()
+    assert "tipo" in form.errors

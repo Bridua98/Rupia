@@ -5,7 +5,7 @@ from django.utils.html import format_html
 from compras.models import Compra, EstadoCompra, EstadoPagoProveedor, PagoProveedor
 from core.enlaces import html_enlace_origen, url_ver_registro
 from core.moneda import html_guaranies
-from core.tables import ATTRS_MONEDA, ATTRS_NUM, ActionMenuColumn
+from core.tables import ATTRS_CODIGO, ATTRS_MONEDA, ATTRS_NUM, ActionMenuColumn
 from core.vista import html_situacion
 
 
@@ -37,8 +37,8 @@ def compra_row_actions(record, table=None):
 
 
 class CompraTable(tables.Table):
-    fecha = tables.Column(verbose_name="Fecha")
-    numero_completo = tables.Column(verbose_name="Número", empty_values=())
+    fecha = tables.Column(verbose_name="Fecha", attrs=ATTRS_CODIGO)
+    numero_completo = tables.Column(verbose_name="Número", empty_values=(), attrs=ATTRS_CODIGO)
     tipo = tables.Column(verbose_name="Tipo")
     proveedor = tables.Column(verbose_name="Proveedor", empty_values=())
     estado = tables.Column(verbose_name="Estado")
@@ -89,7 +89,7 @@ class CompraTable(tables.Table):
 
 
 class ReporteGastosDetalleTable(tables.Table):
-    fecha = tables.Column(verbose_name="Fecha")
+    fecha = tables.Column(verbose_name="Fecha", attrs=ATTRS_CODIGO)
     comprobante = tables.Column(verbose_name="Comprobante")
     tipo_comprobante = tables.Column(verbose_name="Tipo")
     proveedor = tables.Column(verbose_name="Proveedor")
@@ -193,7 +193,7 @@ def pago_proveedor_row_actions(record, table=None):
 
 
 class PagoProveedorTable(tables.Table):
-    fecha = tables.Column(verbose_name="Fecha")
+    fecha = tables.Column(verbose_name="Fecha", attrs=ATTRS_CODIGO)
     proveedor = tables.Column(verbose_name="Proveedor")
     cuenta = tables.Column(verbose_name="Cuenta")
     importe = tables.Column(verbose_name="Importe", attrs=ATTRS_MONEDA)

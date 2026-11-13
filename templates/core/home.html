@@ -247,7 +247,9 @@
     <article class="dash-panel">
       <header class="dash-panel-head">
         <h3>Ventas del día</h3>
-        <a class="dash-head-link" href="{% url 'venta_list' %}">Ver todas</a>
+        {% if tablero.enlace_ventas %}
+          <a class="dash-head-link" href="{% url 'venta_list' %}">Ver todas</a>
+        {% endif %}
       </header>
       <div class="dash-panel-body">
         <div class="dash-seg dash-seg-light" role="tablist" aria-label="Cortes de venta">
@@ -289,7 +291,7 @@
     <article class="dash-panel">
       <header class="dash-panel-head">
         <h3>Últimas actividades</h3>
-        {% if tablero.mostrar_ventas %}
+        {% if tablero.mostrar_ventas and tablero.enlace_ventas %}
           <a class="dash-head-link" href="{% url 'venta_list' %}">Ver todas</a>
         {% elif tablero.mostrar_compras %}
           <a class="dash-head-link" href="{% url 'compra_list' %}">Ver todas</a>
@@ -300,14 +302,14 @@
           <ul class="dash-feed">
             {% for act in tablero.actividades %}
               <li>
-                <a class="dash-act" href="{{ act.href }}">
+                <{% if act.href %}a href="{{ act.href }}"{% else %}div{% endif %} class="dash-act">
                   <span class="dash-act-ico is-{{ act.tipo }}" aria-hidden="true"></span>
                   <span class="dash-act-copy">
                     <strong>{{ act.titulo }}</strong>
                     <small>{{ act.cuando }}</small>
                   </span>
                   <span class="dash-act-detail">{{ act.detalle }}</span>
-                </a>
+                </{% if act.href %}a{% else %}div{% endif %}>
               </li>
             {% endfor %}
           </ul>
@@ -324,7 +326,7 @@
         <h3>Tu gestión, en buenas manos</h3>
         <p>El estado del negocio, en un solo lugar.</p>
       </div>
-      {% if tablero.mostrar_ventas %}
+      {% if tablero.enlace_pos %}
         <a class="dash-promo-btn" href="{% url 'punto_de_venta' %}">Abrir el punto de venta</a>
       {% elif tablero.mostrar_compras %}
         <a class="dash-promo-btn" href="{% url 'compra_list' %}">Ver compras</a>

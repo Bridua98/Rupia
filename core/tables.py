@@ -10,6 +10,10 @@ ATTRS_NUM = {
     "th": {"class": "sheet-col-num"},
     "td": {"class": "sheet-col-num"},
 }
+ATTRS_CODIGO = {
+    "th": {"class": "sheet-col-codigo"},
+    "td": {"class": "sheet-col-codigo"},
+}
 
 
 def mantenimiento_row_actions(record, table=None):

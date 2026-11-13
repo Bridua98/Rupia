@@ -162,4 +162,27 @@ def main_menu(request):
             icon="settings",
         ),
     ]
-    return [e for e in entries if e is not None]
+    entries = [e for e in entries if e is not None]
+    _marcar_un_solo_activo(entries)
+    return entries
+
+
+def _marcar_un_solo_activo(entries):
+    """Deja activa solo la entrada más específica.
+
+    /ventas/punto-de-venta/ también empieza con /ventas/: sin esto quedaban
+    resaltadas "Punto de venta" y "Ventas" a la vez.
+    """
+    hojas = []
+    for entry in entries:
+        hojas.extend(entry.get("children") or [entry])
+    activas = [hoja for hoja in hojas if hoja.get("active")]
+    if len(activas) > 1:
+        elegida = max(activas, key=lambda hoja: len(hoja["href"].split("?", 1)[0]))
+        for hoja in activas:
+            hoja["active"] = hoja is elegida
+    for entry in entries:
+        if entry.get("children"):
+            actual = any(child.get("active") for child in entry["children"])
+            entry["active"] = actual
+            entry["expanded"] = actual
