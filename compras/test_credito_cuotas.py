@@ -388,3 +388,26 @@ def test_pago_cae_en_disponibilidad_cuentas_pagar_y_tablero(ingresada):
     inicio = ingresada.get("/").content.decode()
     assert "Cuentas a pagar" in inicio
     assert "Gs. 3.000" in inicio
+
+
+@pytest.mark.django_db
+def test_pago_rechaza_cuota_de_compra_anulada(ingresada):
+    cuenta, proveedor, _item = _preparar()
+    compra = _confirmar_credito(ingresada, cuenta, proveedor)
+    cuota = CompraCuota.objects.get(compra=compra)
+    ingresada.post(f"/compras/{compra.pk}/anular/")
+    assert Compra.objects.get(pk=compra.pk).estado == EstadoCompra.ANULADA
+
+    ingresada.post(
+        "/compras/pagos/nueva/",
+        {
+            "proveedor": str(proveedor.pk),
+            "fecha": timezone.localdate().isoformat(),
+            "cuenta": str(cuenta.pk),
+            f"aplicar_{cuota.pk}": "8000",
+        },
+    )
+
+    assert not PagoProveedor.objects.exists()
+    _, _, totales = mayor_disponibilidad(cuenta_id=cuenta.pk)
+    assert totales["salida"] == Decimal("0")

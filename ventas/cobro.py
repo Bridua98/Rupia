@@ -249,9 +249,13 @@ def anular(venta, tipo_anulacion, usuario=None):
             raise ValidationError("Esa venta ya está anulada.", code="anulada")
         if venta.estado != EstadoVenta.COBRADA:
             raise ValidationError("Solo se puede anular una venta cobrada.", code="estado")
+        # numero_completo solo es único por timbrado: acotar por fecha e ítems
+        # para no anular movimientos de otra venta con el mismo número.
         ItemMovimiento.objects.filter(
             tipo=TipoMovimiento.VENTA,
             secuencia_origen=venta.numero_completo,
+            fecha_movimiento=venta.fecha,
+            item_id__in=venta.detalles.values("item_id"),
             es_vigente=True,
         ).update(es_vigente=False)
         if tipo_anulacion == TipoAnulacion.REUTILIZABLE:
@@ -284,10 +288,16 @@ def _liberar_numero_proximo(venta):
 
 def _punto_asignado(maquina, tipo):
     if tipo == TipoComprobante.FACTURA:
-        return maquina.punto_factura
-    if tipo == TipoComprobante.TICKET:
-        return maquina.punto_ticket
-    return None
+        punto = maquina.punto_factura
+    elif tipo == TipoComprobante.TICKET:
+        punto = maquina.punto_ticket
+    else:
+        return None
+    # Si el punto asignado cambió de tipo después de asignarlo, no sirve para
+    # emitir este comprobante: se emitiría con el timbrado equivocado.
+    if punto is not None and punto.tipo != tipo:
+        return None
+    return punto
 
 
 def resolver_emision(tipo, maquina=None, fecha=None):
@@ -1033,9 +1043,14 @@ def _validar_stock(venta):
         pedidos[item.pk] = pedidos.get(item.pk, CERO) + cantidad_base
     if not pedidos:
         return
-    items = Item.objects.filter(pk__in=pedidos).prefetch_related(
-        "unidades",
-        "movimientos",
+    # Bloquear los ítems (en orden de pk, para no cruzar bloqueos) antes de leer
+    # el stock: con varias máquinas, cada venta bloquea su propio punto de
+    # expedición y dos cajas podrían vender la última unidad a la vez.
+    items = (
+        Item.objects.select_for_update()
+        .filter(pk__in=sorted(pedidos))
+        .order_by("pk")
+        .prefetch_related("unidades")
     )
     for item in items:
         vigentes = item.movimientos.filter(es_vigente=True).select_related("unidad_medida")

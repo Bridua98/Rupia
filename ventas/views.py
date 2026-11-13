@@ -117,9 +117,18 @@ def _monto(valor, default=None):
         return Decimal(interpretar_guaranies(valor))
     except (ValidationError, InvalidOperation):
         try:
-            return Decimal(str(valor).replace(".", "").replace(",", "."))
+            monto = Decimal(str(valor).replace(".", "").replace(",", "."))
         except (InvalidOperation, ValueError):
             return default
+        return monto if monto.is_finite() else default
+
+
+def _pk_o_404(raw):
+    """Convierte un id recibido por POST; un valor no numérico es un 404, no un 500."""
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        raise Http404 from None
 
 
 class TimbradoMantenimiento:
@@ -401,10 +410,10 @@ class PuntoVentaView(PosPermisoView):
         datos = request.POST
         caja = None
         if datos.get("caja"):
-            caja = get_object_or_404(Cuenta, pk=datos.get("caja"))
+            caja = get_object_or_404(Cuenta, pk=_pk_o_404(datos.get("caja")))
         cuenta = None
         if datos.get("cuenta_cobro"):
-            cuenta = get_object_or_404(Cuenta, pk=datos.get("cuenta_cobro"))
+            cuenta = get_object_or_404(Cuenta, pk=_pk_o_404(datos.get("cuenta_cobro")))
         cliente = None
         consumidor = False
         if datos.get("asignar_ocasional"):
@@ -412,7 +421,7 @@ class PuntoVentaView(PosPermisoView):
         elif datos.get("consumidor_final") == "1":
             consumidor = True
         elif datos.get("cliente"):
-            cliente = get_object_or_404(Persona, pk=datos.get("cliente"))
+            cliente = get_object_or_404(Persona, pk=_pk_o_404(datos.get("cliente")))
         tipo = datos.get("tipo_comprobante")
         if tipo and tipo not in TipoComprobante.values:
             tipo = None
@@ -548,7 +557,7 @@ class ElegirMaquinaView(PosPermisoView):
         if raw in (None, ""):
             request.session.pop(SESION_MAQUINA, None)
         else:
-            maquina = get_object_or_404(Maquina, pk=raw)
+            maquina = get_object_or_404(Maquina, pk=_pk_o_404(raw))
             request.session[SESION_MAQUINA] = maquina.pk
         return redirect("punto_de_venta")
 

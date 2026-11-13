@@ -2,7 +2,7 @@ import django_tables2 as tables
 from django.urls import reverse
 
 from core.moneda import html_guaranies
-from core.tables import ATTRS_MONEDA, ActionMenuColumn
+from core.tables import ATTRS_CODIGO, ATTRS_MONEDA, ActionMenuColumn
 from core.vista import html_bool, html_situacion
 from ventas.models import EstadoVenta, Maquina, PuntoExpedicion, TipoAnulacion, TipoComprobante, Venta
 
@@ -126,8 +126,8 @@ def _serie_punto(punto):
 
 
 class VentaTable(tables.Table):
-    fecha = tables.Column(verbose_name="Fecha")
-    numero_completo = tables.Column(verbose_name="Número", empty_values=())
+    fecha = tables.Column(verbose_name="Fecha", attrs=ATTRS_CODIGO)
+    numero_completo = tables.Column(verbose_name="Número", empty_values=(), attrs=ATTRS_CODIGO)
     tipo_comprobante = tables.Column(verbose_name="Comprobante")
     cliente = tables.Column(verbose_name="Cliente", empty_values=())
     estado = tables.Column(verbose_name="Estado")

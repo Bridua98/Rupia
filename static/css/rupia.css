@@ -36,6 +36,15 @@
   --danger-bg: #f8ece7;
   --serif: "Fraunces", "Iowan Old Style", Palatino, Georgia, serif;
   --sans: "Outfit", "Avenir Next", "Segoe UI", sans-serif;
+  --surface: #fff;
+  --border: #e3ebe6;
+  --border-soft: #edf2ef;
+  --muted: #6f7e78;
+  --radius-sm: 8px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow-xs: 0 1px 2px rgba(16, 40, 33, 0.04);
+  --shadow-sm: 0 1px 2px rgba(16, 40, 33, 0.04), 0 4px 14px rgba(16, 40, 33, 0.04);
 }
 
 *,
@@ -49,6 +58,10 @@ body {
   margin: 0;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   min-height: 100dvh;
   color: var(--ink);
@@ -57,6 +70,9 @@ body {
   font-size: 1rem;
   font-synthesis: none;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 ::selection {
@@ -67,9 +83,9 @@ body {
 .eyebrow,
 .kicker {
   margin: 0;
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.18em;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -270,10 +286,10 @@ body {
 .app-stage h1 {
   margin: 0.2rem 0 0;
   font-family: var(--serif);
-  font-size: clamp(2.8rem, 5vw, 3.6rem);
-  font-weight: 560;
-  letter-spacing: -0.03em;
-  line-height: 0.95;
+  font-size: clamp(1.9rem, 2.6vw, 2.4rem);
+  font-weight: 520;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
 }
 
 .login-card h1 {
@@ -354,10 +370,12 @@ form {
 
 .banner {
   margin: 1.25rem 0 0;
-  padding: 0.75rem 0.9rem;
-  border-radius: 2px;
+  padding: 0.75rem 0.95rem;
+  border: 1px solid rgba(140, 51, 44, 0.16);
+  border-radius: var(--radius);
   background: var(--danger-bg);
   color: var(--danger);
+  font-size: 0.95rem;
 }
 
 .banner p {
@@ -500,15 +518,17 @@ form {
   justify-content: center;
   gap: 0.45rem;
   margin-top: 2rem;
-  padding: 0.95rem 1.35rem;
+  padding: 0.85rem 1.3rem;
   border: 0;
-  border-radius: 2px;
+  border-radius: var(--radius);
   background: var(--forest);
   color: #f6f1e8;
-  font-size: 1rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  font-size: 0.97rem;
+  font-weight: 560;
+  letter-spacing: 0.01em;
   text-decoration: none;
+  cursor: pointer;
+  transition: background-color 140ms ease, box-shadow 140ms ease;
 }
 
 .login-card .button {
@@ -1020,7 +1040,6 @@ button.topbar-icon:hover {
 }
 
 .ledger h1 {
-  font-size: 2.4rem;
   color: #14241e;
 }
 
@@ -1316,10 +1335,10 @@ button.topbar-icon:hover {
   height: 2.1rem;
   place-items: center;
   border: 0;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--forest);
-  box-shadow: inset 0 0 0 1px rgba(20, 51, 43, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(20, 51, 43, 0.22);
   font: 500 1rem/1 var(--sans);
   text-decoration: none;
 }
@@ -1388,21 +1407,31 @@ button.topbar-icon:hover {
 }
 
 .sheet th {
-  padding: 0.55rem 0.8rem;
-  border-bottom: 1px solid #e6eeea;
-  background: #f7faf8;
-  color: #7d8c86;
-  font-size: 0.72rem;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+  background: #f8faf9;
+  color: var(--muted);
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-align: left;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .sheet td {
-  padding: 0.58rem 0.8rem;
-  border-bottom: 1px solid #eef3f0;
+  padding: 0.62rem 0.8rem;
+  border-bottom: 1px solid var(--border-soft);
   color: #1c2b26;
+}
+
+.sheet tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.sheet .sheet-col-codigo {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .persona-rol {
@@ -4494,6 +4523,7 @@ body.pos-screen .app-stage {
 .pos-maquina {
   display: flex;
   align-items: center;
+  margin: 0;
 }
 
 .pos-maquina label {
@@ -4508,8 +4538,37 @@ body.pos-screen .app-stage {
   color: var(--muted);
 }
 
+.pos-maquina span {
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+}
+
 .pos-maquina select {
-  min-width: 9rem;
+  min-width: 9.5rem;
+  height: 2.15rem;
+  padding: 0 2rem 0 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236f7e78' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+      no-repeat right 0.6rem center / 0.9rem,
+    var(--surface);
+  color: var(--ink);
+  font: 500 0.88rem/1 var(--sans);
+  appearance: none;
+  cursor: pointer;
+}
+
+.pos-maquina select:hover {
+  border-color: #cfdcd5;
+}
+
+.pos-maquina select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(30, 138, 76, 0.15);
 }
 
 .pos-atajos {
@@ -5722,18 +5781,23 @@ body.pos-screen .app-stage {
 .dash-section-head {
   display: flex;
   align-items: center;
-  min-height: 2.6rem;
-  padding: 0.55rem 0.95rem;
-  border-radius: 12px;
-  background: var(--forest);
-  color: #f4f7f5;
+  gap: 0.75rem;
+  margin-top: 0.4rem;
+  color: var(--forest);
+}
+
+.dash-section-head::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
 }
 
 .dash-section-head h2 {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 650;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -5766,10 +5830,11 @@ body.pos-screen .app-stage {
 
 .dash-card {
   min-width: 0;
-  padding: 1rem 1.05rem 1.05rem;
-  border: 1px solid #e3ebe6;
-  border-radius: 16px;
-  background: #fff;
+  padding: 1.05rem 1.1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
 }
 
 .dash-card.is-ok {
@@ -5792,11 +5857,18 @@ body.pos-screen .app-stage {
 }
 
 .dash-link {
-  color: var(--forest);
+  flex: none;
+  color: var(--accent);
   font-size: 0.78rem;
-  font-weight: 650;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   text-decoration: none;
+  white-space: nowrap;
+}
+
+.dash-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .dash-link:hover {
@@ -6237,37 +6309,43 @@ body.pos-screen .app-stage {
   min-width: 0;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid #e3ebe6;
-  border-radius: 18px;
-  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
 }
 
 .dash-panel-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.5rem 0.75rem;
   min-height: 3rem;
-  padding: 0.65rem 0.9rem;
-  background: var(--forest);
-  color: #f6fbf8;
+  padding: 0.7rem 0.95rem;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .dash-panel-head h3 {
   margin: 0;
-  font-size: 0.98rem;
-  font-weight: 650;
+  font-size: 0.95rem;
+  font-weight: 620;
+  letter-spacing: -0.005em;
 }
 
 .dash-head-link {
-  color: #d7efe3;
-  font-size: 0.78rem;
-  font-weight: 650;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
   text-decoration: none;
 }
 
 .dash-head-link:hover {
-  color: #fff;
+  color: #18663d;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .dash-panel-body {
@@ -6282,16 +6360,17 @@ body.pos-screen .app-stage {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 0.15rem;
-  padding: 0.16rem;
+  padding: 0.18rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
+  background: #eff4f1;
 }
 
 .dash-seg button {
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--muted);
+  transition: background-color 140ms ease, color 140ms ease;
   cursor: pointer;
   font: inherit;
   font-size: 0.74rem;
@@ -6299,22 +6378,14 @@ body.pos-screen .app-stage {
   padding: 0.28rem 0.62rem;
 }
 
+.dash-seg button:hover {
+  color: var(--ink);
+}
+
 .dash-seg button[aria-pressed="true"] {
-  background: #1e8a4c;
-  color: #fff;
-}
-
-.dash-seg-light {
-  background: #eef4f0;
-}
-
-.dash-seg-light button {
-  color: var(--ink-soft);
-}
-
-.dash-seg-light button[aria-pressed="true"] {
-  background: var(--forest);
-  color: #fff;
+  background: var(--surface);
+  color: var(--forest);
+  box-shadow: 0 1px 2px rgba(16, 40, 33, 0.1), 0 0 0 1px rgba(16, 40, 33, 0.04);
 }
 
 .dash-legend-row {

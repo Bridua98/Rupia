@@ -112,6 +112,18 @@ class TimbradoForm(RupiaModelForm):
                 repetido = repetido.exclude(pk=self.instance.pk)
             if repetido.exists():
                 self.add_error("codigo", "Ya hay un timbrado para esa serie.")
+        if (
+            tipo
+            and self.instance.pk
+            and tipo != self.instance.tipo
+            and (
+                self.instance.maquinas_ticket.exists() or self.instance.maquinas_factura.exists()
+            )
+        ):
+            self.add_error(
+                "tipo",
+                "Este punto está asignado a una máquina: quitáselo antes de cambiar el tipo.",
+            )
         return cleaned
 
 
