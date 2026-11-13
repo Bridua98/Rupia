@@ -79,7 +79,7 @@ FORMULARIOS = (
     Formulario(
         "comandas",
         "Comandas",
-        (ACCION_VER, ACCION_ALTA, ACCION_ANULAR),
+        (ACCION_VER, ACCION_ALTA, ACCION_ANULAR, ACCION_COBRAR),
     ),
     Formulario("puesto_sector", "Cocina y barra (puesto)", (ACCION_VER,)),
     Formulario("mesas", "Mesas", ACCIONES_MANTENIMIENTO),

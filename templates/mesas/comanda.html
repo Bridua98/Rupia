@@ -32,6 +32,13 @@
       </p>
     {% endif %}
 
+    {% if en_caja %}
+      <p class="comanda-aviso is-caja">
+        Esta cuenta se está cobrando en la caja de {{ cajero }}.
+        Lo que se cargue ahora queda para cobrar aparte.
+      </p>
+    {% endif %}
+
     {% if puede_cargar %}
       <section class="comanda-bloque comanda-buscar" id="buscar">
         <form method="get" action="{% url 'comanda_detalle' comanda.pk %}#buscar" class="comanda-buscar-form" role="search">
@@ -179,6 +186,15 @@
           <button type="submit" class="button button-compact">
             {% include "core/icon.html" with name="receipt" %}
             <span>Pedir la cuenta</span>
+          </button>
+        </form>
+      {% endif %}
+      {% if puede_cobrar and hay_enviados %}
+        <form method="post" action="{% url 'comanda_cobrar' comanda.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="button button-compact comanda-cobrar">
+            {% include "core/icon.html" with name="cash" %}
+            <span>{% if en_caja %}Ir a la caja{% else %}Cobrar{% endif %}</span>
           </button>
         </form>
       {% endif %}

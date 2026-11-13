@@ -8,3 +8,7 @@ class MesasConfig(AppConfig):
 
     def ready(self):
         from mesas import forms  # noqa: F401
+        from mesas.cobro import al_confirmar_venta
+        from ventas.signals import venta_confirmada
+
+        venta_confirmada.connect(al_confirmar_venta, dispatch_uid="mesas_cerrar_cobradas")

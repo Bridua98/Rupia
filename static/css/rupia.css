@@ -8055,3 +8055,42 @@ form.comanda-peligro {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- Punto de venta: líneas que vienen de una mesa --------------------------- */
+
+.pos-product .pos-origen-mesa {
+  display: inline-block;
+  margin-top: 0.2rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: #fbf0dc;
+  color: #7a5414;
+  font-size: 0.74rem;
+  font-weight: 650;
+}
+
+.pos-cantidad-fija {
+  display: inline-block;
+  min-width: 2.5rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+.mesa-caja {
+  align-self: flex-start;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #e3edf8;
+  color: #1f4f80;
+  font-size: 0.74rem;
+  font-weight: 650;
+}
+
+.comanda-aviso.is-caja {
+  background: #e3edf8;
+  color: #1f4f80;
+}
+
+.button.comanda-cobrar {
+  background: var(--accent);
+}
