@@ -16,6 +16,9 @@
   var pendientesDeImprimir = [];
   var tituloBase = document.title;
   var vistos = idsCola();
+  var diaAbierto = false;
+  var diaPagina = 1;
+  var detallesAbiertos = {};
 
   function csrf() {
     var campo = raiz.querySelector("input[name=csrfmiddlewaretoken]");
@@ -126,16 +129,41 @@
     }, 60);
   }
 
+  function recordarDia() {
+    var panel = cola.querySelector("[data-puesto-dia]");
+    if (panel) diaAbierto = panel.open;
+    detallesAbiertos = {};
+    cola.querySelectorAll("[data-puesto-detalle][open]").forEach(function (el) {
+      detallesAbiertos[el.getAttribute("data-puesto-detalle")] = true;
+    });
+  }
+
+  function aplicarDia() {
+    var panel = cola.querySelector("[data-puesto-dia]");
+    if (panel) panel.open = diaAbierto;
+    cola.querySelectorAll("[data-puesto-detalle]").forEach(function (el) {
+      if (detallesAbiertos[el.getAttribute("data-puesto-detalle")]) el.open = true;
+    });
+  }
+
+  function urlCola() {
+    if (!diaAbierto) return colaUrl;
+    var union = colaUrl.indexOf("?") >= 0 ? "&" : "?";
+    return colaUrl + union + "dia=1&pagina=" + diaPagina;
+  }
+
   function refrescarCola(forzar) {
     // Un botón de la cola deja el foco adentro. Sin forzar, Listo no redibuja.
     if (!forzar && document.querySelector("[data-puesto-cola] :focus")) return Promise.resolve();
-    return fetch(colaUrl, { credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } })
+    recordarDia();
+    return fetch(urlCola(), { credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } })
       .then(function (respuesta) {
         if (!respuesta.ok) throw new Error(respuesta.status);
         return respuesta.text();
       })
       .then(function (html) {
         cola.innerHTML = html;
+        aplicarDia();
         marcarEstado(true);
       })
       .catch(function () {
@@ -174,6 +202,22 @@
   });
 
   // Botones de la cola (la cola se redibuja, así que se delegan).
+  cola.addEventListener("toggle", function (evento) {
+    var panel = evento.target;
+    if (!panel.hasAttribute || !panel.hasAttribute("data-puesto-dia")) return;
+    diaAbierto = panel.open;
+    if (!panel.open) diaPagina = 1;
+  }, true);
+
+  cola.addEventListener("click", function (evento) {
+    var link = evento.target.closest("[data-puesto-pagina]");
+    if (!link) return;
+    evento.preventDefault();
+    diaPagina = parseInt(link.getAttribute("data-puesto-pagina"), 10) || 1;
+    diaAbierto = true;
+    refrescarCola(true);
+  });
+
   cola.addEventListener("click", function (evento) {
     var boton = evento.target.closest("[data-puesto-imprimir]");
     if (!boton) return;

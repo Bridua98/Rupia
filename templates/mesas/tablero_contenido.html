@@ -17,6 +17,12 @@
             href="{% url 'comanda_detalle' tarjeta.comanda.pk %}"
           >
             <span class="mesa-nombre">{{ tarjeta.mesa.nombre }}</span>
+            {% if tarjeta.comanda.nombre or tarjeta.comanda.cliente_id %}
+              <span class="mesa-quien">
+                {% if tarjeta.comanda.nombre %}{{ tarjeta.comanda.nombre }}{% endif %}
+                {% if tarjeta.comanda.cliente_id %}{% if tarjeta.comanda.nombre %} · {% endif %}{{ tarjeta.comanda.cliente.razon_social }}{% endif %}
+              </span>
+            {% endif %}
             <span class="mesa-estado">{% if tarjeta.pidio_cuenta %}Pidió la cuenta{% else %}Ocupada{% endif %}</span>
             <strong class="mesa-total">{{ tarjeta.total_txt }}</strong>
             <span class="mesa-meta">{{ tarjeta.hace }} · {{ tarjeta.comanda.mozo.first_name|default:tarjeta.comanda.mozo.username }}</span>
@@ -61,6 +67,9 @@
           href="{% url 'comanda_detalle' tarjeta.comanda.pk %}"
         >
           <span class="mesa-nombre">{{ tarjeta.comanda.titulo }}</span>
+          {% if tarjeta.comanda.nombre and tarjeta.comanda.cliente_id %}
+            <span class="mesa-quien">{{ tarjeta.comanda.cliente.razon_social }}</span>
+          {% endif %}
           <span class="mesa-estado">{% if tarjeta.pidio_cuenta %}Pidió la cuenta{% else %}Abierta{% endif %}</span>
           <strong class="mesa-total">{{ tarjeta.total_txt }}</strong>
           <span class="mesa-meta">{{ tarjeta.hace }} · {{ tarjeta.comanda.mozo.first_name|default:tarjeta.comanda.mozo.username }}</span>

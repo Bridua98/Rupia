@@ -203,6 +203,42 @@ def test_la_cola_separa_abiertos_preparacion_y_listos(ingresada, usuario, carta)
     assert "0 en preparación" in listos
     assert "1 listo" in listos
     assert "Volver a la cola" in listos
+    assert 'data-puesto-dia data-pagina="1" open' not in listos
+
+
+@pytest.mark.django_db
+def test_lo_del_dia_se_abre_se_pagina_y_esconde_el_detalle_largo(ingresada, usuario, carta):  # noqa: F811
+    _habilitar()
+    for numero in range(1, 10):
+        comanda = comandas.abrir(usuario=usuario, nombre=f"Pedido {numero}")
+        comandas.agregar(comanda, carta["milanesa"], usuario=usuario)
+        comandas.enviar(comanda, usuario=usuario)
+        puesto.marcar_listo(EnvioSector.objects.get(comanda=comanda, sector=carta["cocina"]))
+
+    largo = comandas.abrir(usuario=usuario, nombre="Mesa llena")
+    for nota in ("uno", "dos", "tres", "cuatro"):
+        comandas.agregar(largo, carta["milanesa"], usuario=usuario, nota=nota)
+    comandas.enviar(largo, usuario=usuario)
+    envio = EnvioSector.objects.get(comanda=largo, sector=carta["cocina"])
+    puesto.marcar_listo(envio)
+
+    base = f"/mesas/puesto/{carta['cocina'].pk}/?parcial=1"
+    cerrado = ingresada.get(base).content.decode()
+    abierto = ingresada.get(base + "&dia=1").content.decode()
+    segunda = ingresada.get(base + "&dia=1&pagina=2").content.decode()
+
+    assert "Ver lo del día" in cerrado
+    assert "10 listos" in cerrado
+    assert 'data-puesto-dia data-pagina="1" open' not in cerrado
+    assert 'data-puesto-dia data-pagina="1" open' in abierto
+    assert "Mesa llena" in abierto
+    assert "Pedido 1" not in abierto
+    assert f'data-puesto-detalle="{envio.pk}"' in abierto
+    assert f'data-puesto-detalle="{envio.pk}" open' not in abierto
+    assert "4 ítems" in abierto
+    assert "2 de 2" in segunda
+    assert "Pedido 1" in segunda
+    assert "Mesa llena" not in segunda
 
 
 @pytest.mark.django_db

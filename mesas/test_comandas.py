@@ -29,6 +29,7 @@ from mesas.models import (
     TipoEnvio,
 )
 from negocio.models import UnidadNegocio
+from personas.models import Genero, Persona, TipoDocumento
 
 # --- Datos ---------------------------------------------------------------------
 
@@ -407,6 +408,28 @@ def test_el_tablero_muestra_libres_ocupadas_y_a_nombre(ingresada, usuario, carta
     assert f'href="/mesas/comandas/{comanda.pk}/"' in content
     assert "<html" not in parcial.content.decode()
     assert "Juan barra" in parcial.content.decode()
+
+
+@pytest.mark.django_db
+def test_el_tablero_muestra_nombre_y_cliente_de_la_mesa(ingresada, usuario, carta):
+    _habilitar()
+    cliente = Persona.objects.create(
+        tipo_documento=TipoDocumento.RUC,
+        documento="80009735-8",
+        razon_social="Cliente SA",
+        genero=Genero.SIN_DEFINIR,
+        direccion="Centro",
+        es_cliente=True,
+    )
+    mesa = servicio.abrir(usuario=usuario, mesa=carta["mesa"])
+    servicio.cambiar_datos(mesa, nombre="Cumpleaños", cliente=cliente)
+    a_nombre = servicio.abrir(usuario=usuario, nombre="Oficina", cliente=cliente)
+
+    content = ingresada.get("/mesas/tablero/").content.decode()
+
+    assert "Cumpleaños" in content
+    assert content.count("Cliente SA") == 2
+    assert a_nombre.titulo == "Oficina"
 
 
 @pytest.mark.django_db

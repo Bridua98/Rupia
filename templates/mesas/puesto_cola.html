@@ -31,9 +31,9 @@
   </section>
 </div>
 
-{% if listos %}
-  <section class="mesas-zona puesto-listos">
-    <h2 class="mesas-zona-titulo">Recién listos{% if listos_hoy %} · {{ listos_hoy }}{% endif %}</h2>
+<details class="puesto-dia" data-puesto-dia data-pagina="{{ dia.pagina }}"{% if ver_dia %} open{% endif %}>
+  <summary>Ver lo del día <span>{{ listos_hoy }} listo{{ listos_hoy|pluralize }}</span></summary>
+  {% if listos %}
     <ul class="puesto-listos-lista">
       {% for t in listos %}
         <li>
@@ -42,9 +42,18 @@
             <span>
               {% if t.anulacion %}Anulación{% else %}Pedido{% endif %}{% if t.ronda %} · ronda {{ t.ronda }}{% endif %}{% if t.listo_hora %} · listo {{ t.listo_hora }}{% endif %}
             </span>
-            <span class="puesto-listo-items">
-              {% for linea in t.lineas %}{{ linea.cantidad }}{% if linea.unidad %} {{ linea.unidad }}{% endif %} {{ linea.descripcion }}{% if not forloop.last %}, {% endif %}{% endfor %}
-            </span>
+            {% if t.lineas|length > detalle_corto %}
+              <details class="puesto-dia-detalle" data-puesto-detalle="{{ t.envio.pk }}">
+                <summary>{{ t.lineas|length }} ítem{{ t.lineas|length|pluralize }}</summary>
+                <span class="puesto-listo-items">
+                  {% for linea in t.lineas %}{{ linea.cantidad }}{% if linea.unidad %} {{ linea.unidad }}{% endif %} {{ linea.descripcion }}{% if linea.nota %} ({{ linea.nota }}){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}
+                </span>
+              </details>
+            {% else %}
+              <span class="puesto-listo-items">
+                {% for linea in t.lineas %}{{ linea.cantidad }}{% if linea.unidad %} {{ linea.unidad }}{% endif %} {{ linea.descripcion }}{% if not forloop.last %}, {% endif %}{% endfor %}
+              </span>
+            {% endif %}
           </div>
           <form method="post" action="{% url 'puesto_deshacer' t.envio.pk %}" data-puesto-listo>
             {% csrf_token %}
@@ -53,5 +62,18 @@
         </li>
       {% endfor %}
     </ul>
-  </section>
-{% endif %}
+    {% if dia.paginas > 1 %}
+      <nav class="puesto-paginas" aria-label="Páginas de lo del día">
+        {% if dia.hay_anterior %}
+          <a href="?dia=1&pagina={{ dia.pagina|add:'-1' }}" data-puesto-pagina="{{ dia.pagina|add:'-1' }}">Anterior</a>
+        {% endif %}
+        <span>{{ dia.pagina }} de {{ dia.paginas }}</span>
+        {% if dia.hay_siguiente %}
+          <a href="?dia=1&pagina={{ dia.pagina|add:'1' }}" data-puesto-pagina="{{ dia.pagina|add:'1' }}">Siguiente</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <p class="mesas-vacio puesto-vacio">Hoy no hay pedidos listos.</p>
+  {% endif %}
+</details>
