@@ -5,7 +5,8 @@ from django.utils import timezone
 
 from mesas.models import EnvioSector, EstadoEnvio
 
-ESTADOS_EN_COLA = (EstadoEnvio.PENDIENTE, EstadoEnvio.IMPRESO)
+ESTADOS_EN_COLA = (EstadoEnvio.PENDIENTE, EstadoEnvio.IMPRESO, EstadoEnvio.PREPARACION)
+ESTADOS_SIN_EMPEZAR = (EstadoEnvio.PENDIENTE, EstadoEnvio.IMPRESO)
 
 
 def _base():
@@ -19,11 +20,29 @@ def _base():
     ).prefetch_related("lineas")
 
 
+def _ordenados(sector, estados):
+    if isinstance(estados, str):
+        estados = (estados,)
+    return list(_base().filter(sector=sector, estado__in=estados).order_by("creado_en", "id"))
+
+
 def cola(sector):
     """Lo que el sector todavía tiene que preparar, del más viejo al más nuevo."""
-    return list(
-        _base().filter(sector=sector, estado__in=ESTADOS_EN_COLA).order_by("creado_en", "id")
-    )
+    return _ordenados(sector, ESTADOS_EN_COLA)
+
+
+def abiertos(sector):
+    """Todavía no se empezaron: pendientes, o impresos si el sector pide empezar."""
+    if sector.exige_empezar:
+        return _ordenados(sector, ESTADOS_SIN_EMPEZAR)
+    return _ordenados(sector, EstadoEnvio.PENDIENTE)
+
+
+def en_preparacion(sector):
+    """Ya se están trabajando."""
+    if sector.exige_empezar:
+        return _ordenados(sector, EstadoEnvio.PREPARACION)
+    return _ordenados(sector, EstadoEnvio.IMPRESO)
 
 
 def recientes_listos(sector, limite=6):
@@ -32,6 +51,13 @@ def recientes_listos(sector, limite=6):
         .filter(sector=sector, estado=EstadoEnvio.LISTO)
         .order_by("-listo_en", "-id")[:limite]
     )
+
+
+def listos_hoy(sector):
+    inicio = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
+    return EnvioSector.objects.filter(
+        sector=sector, estado=EstadoEnvio.LISTO, listo_en__gte=inicio
+    ).count()
 
 
 def _reservar(envio_id) -> bool:
@@ -68,6 +94,22 @@ def imprimir(envio):
     return _base().get(pk=envio.pk)
 
 
+def empezar(envio):
+    """Pasa el ticket a preparación. Dos pantallas no lo empiezan dos veces."""
+    if envio.estado == EstadoEnvio.LISTO:
+        raise ValidationError("Ese pedido ya estaba listo.", code="listo")
+    ahora = timezone.now()
+    EnvioSector.objects.filter(pk=envio.pk).exclude(
+        estado__in=(EstadoEnvio.PREPARACION, EstadoEnvio.LISTO)
+    ).update(
+        estado=EstadoEnvio.PREPARACION,
+        empezado_en=ahora,
+        impreso_en=envio.impreso_en or ahora,
+    )
+    envio.refresh_from_db()
+    return envio
+
+
 def marcar_listo(envio):
     if envio.estado == EstadoEnvio.LISTO:
         raise ValidationError("Ese pedido ya estaba listo.", code="listo")
@@ -85,6 +127,10 @@ def volver_a_cola(envio):
     """Deshace un 'listo' tocado por error."""
     if envio.estado != EstadoEnvio.LISTO:
         raise ValidationError("Ese pedido sigue en la cola.", code="en_cola")
-    EnvioSector.objects.filter(pk=envio.pk).update(estado=EstadoEnvio.IMPRESO, listo_en=None)
+    if envio.sector.exige_empezar and envio.empezado_en:
+        estado = EstadoEnvio.PREPARACION
+    else:
+        estado = EstadoEnvio.IMPRESO
+    EnvioSector.objects.filter(pk=envio.pk).update(estado=estado, listo_en=None)
     envio.refresh_from_db()
     return envio

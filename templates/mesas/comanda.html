@@ -135,6 +135,9 @@
               </div>
               <p class="comanda-linea-detalle">
                 {% if linea.detalle.sector_id %}<span class="comanda-sector">{{ linea.detalle.sector.nombre }}</span>{% endif %}
+                {% if linea.cocina == "en_cocina" %}<span class="comanda-cocina">En cocina</span>
+                {% elif linea.cocina == "listo" %}<span class="comanda-cocina is-listo">Listo</span>
+                {% elif linea.cocina == "en_caja" %}<span class="comanda-cocina is-caja">En caja</span>{% endif %}
                 {% if linea.detalle.nota %}{{ linea.detalle.nota }}{% endif %}
                 {% for anulacion in linea.detalle.anulaciones.all %}
                   <span class="comanda-anulacion">Anuladas {{ anulacion.cantidad|floatformat:"-3" }}: {{ anulacion.motivo }}</span>
@@ -180,7 +183,11 @@
         </form>
       {% endif %}
       {% if puede_cobrar and hay_enviados %}
-        <form method="post" action="{% url 'comanda_cobrar' comanda.pk %}">
+        <form
+          method="post"
+          action="{% url 'comanda_cobrar' comanda.pk %}"
+          {% if not en_caja %}data-mesas-confirmar="{{ confirmar_cobro }}"{% endif %}
+        >
           {% csrf_token %}
           <button type="submit" class="button button-compact comanda-cobrar">
             {% include "core/icon.html" with name="cash" %}

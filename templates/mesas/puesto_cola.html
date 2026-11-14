@@ -1,58 +1,39 @@
 <p class="mesas-resumen">
-  <span class="mesas-dato is-ocupada">{{ cola|length }} en preparación</span>
+  <span class="mesas-dato is-abierto" data-puesto-abiertos data-cantidad="{{ abiertos|length }}">{% if sector.exige_empezar %}{{ abiertos|length }} en cola{% else %}{{ abiertos|length }} abierto{{ abiertos|length|pluralize }}{% endif %}</span>
+  <span class="mesas-dato is-ocupada">{{ preparacion|length }} en preparación</span>
+  <span class="mesas-dato is-listo">{{ listos_hoy }} listo{{ listos_hoy|pluralize }}</span>
 </p>
 
-{% if cola %}
-  <div class="puesto-cola">
-    {% for t in cola %}
-      <article class="puesto-pedido{% if t.anulacion %} is-anulacion{% endif %}{% if t.demorado %} is-demorado{% endif %}">
-        <header class="puesto-pedido-head">
-          <div>
-            <p class="puesto-pedido-tipo">{% if t.anulacion %}Anulación{% else %}Pedido{% if t.ronda %} · ronda {{ t.ronda }}{% endif %}{% endif %}</p>
-            <h2>{{ t.titulo }}</h2>
-          </div>
-          <p class="puesto-pedido-hora">
-            <strong>{{ t.hora }}</strong>
-            <span>{{ t.espera }} min</span>
-          </p>
-        </header>
-        <ul class="puesto-lineas">
-          {% for linea in t.lineas %}
-            <li>
-              <span class="puesto-cant">{{ linea.cantidad }}{% if linea.unidad %} {{ linea.unidad }}{% endif %}</span>
-              <span class="puesto-desc">
-                {{ linea.descripcion }}
-                {% if linea.nota %}<em class="puesto-nota">{% if t.anulacion %}Motivo: {% endif %}{{ linea.nota }}</em>{% endif %}
-              </span>
-            </li>
-          {% endfor %}
-        </ul>
-        <footer class="puesto-pedido-pie">
-          <span class="puesto-mozo">{{ t.mozo }}{% if t.personas %} · {{ t.personas }} pers.{% endif %}{% if t.envio.estado == "PENDIENTE" %} · sin imprimir{% endif %}</span>
-          <span class="puesto-acciones">
-            <button type="button" class="button button-ghost button-compact" data-puesto-imprimir="{% url 'puesto_imprimir' t.envio.pk %}">
-              {% include "core/icon.html" with name="print" %}
-              <span>{% if t.envio.estado == "PENDIENTE" %}Imprimir{% else %}Reimprimir{% endif %}</span>
-            </button>
-            <form method="post" action="{% url 'puesto_listo' t.envio.pk %}" data-puesto-listo>
-              {% csrf_token %}
-              <button type="submit" class="button button-compact">
-                {% include "core/icon.html" with name="check" %}
-                <span>{% if t.anulacion %}Visto{% else %}Listo{% endif %}</span>
-              </button>
-            </form>
-          </span>
-        </footer>
-      </article>
-    {% endfor %}
-  </div>
-{% else %}
-  <p class="mesas-vacio puesto-vacio">No hay pedidos en preparación.</p>
-{% endif %}
+<div class="puesto-columnas">
+  <section class="puesto-columna">
+    <h2 class="mesas-zona-titulo">{% if sector.exige_empezar %}En cola{% else %}Abiertos{% endif %}</h2>
+    {% if abiertos %}
+      <div class="puesto-cola">
+        {% for t in abiertos %}
+          {% include "mesas/puesto_pedido.html" %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="mesas-vacio puesto-vacio">{% if sector.exige_empezar %}No hay pedidos en cola.{% else %}No hay pedidos abiertos.{% endif %}</p>
+    {% endif %}
+  </section>
+  <section class="puesto-columna">
+    <h2 class="mesas-zona-titulo">En preparación</h2>
+    {% if preparacion %}
+      <div class="puesto-cola">
+        {% for t in preparacion %}
+          {% include "mesas/puesto_pedido.html" %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="mesas-vacio puesto-vacio">No hay pedidos en preparación.</p>
+    {% endif %}
+  </section>
+</div>
 
 {% if listos %}
   <section class="mesas-zona puesto-listos">
-    <h2 class="mesas-zona-titulo">Recién listos</h2>
+    <h2 class="mesas-zona-titulo">Recién listos{% if listos_hoy %} · {{ listos_hoy }}{% endif %}</h2>
     <ul class="puesto-listos-lista">
       {% for t in listos %}
         <li>

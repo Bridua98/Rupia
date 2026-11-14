@@ -19,7 +19,17 @@ from inventario.models import Item
 from mesas import cobro
 from mesas import comandas as servicio
 from mesas.forms import CuentaForm
-from mesas.models import Comanda, ComandaDetalle, EstadoComanda, Mesa, Ronda
+from mesas.models import (
+    Comanda,
+    ComandaDetalle,
+    EnvioSectorLinea,
+    EstadoComanda,
+    EstadoEnvio,
+    Mesa,
+    Ronda,
+    TipoEnvio,
+)
+from mesas.puesto import ESTADOS_EN_COLA
 from mesas.views import ModuloMesasMixin
 from ventas.cobro import buscar_clientes, catalogo_productos
 from ventas.models import EstadoVenta, PuntoExpedicion
@@ -78,6 +88,14 @@ def _comandas_activas_resumen():
                 "detalles",
                 filter=Q(detalles__venta_detalle__venta__estado=EstadoVenta.EN_CURSO),
             ),
+            en_cocina=Count(
+                "envios",
+                filter=Q(
+                    envios__tipo=TipoEnvio.PEDIDO,
+                    envios__estado__in=ESTADOS_EN_COLA,
+                ),
+                distinct=True,
+            ),
         )
     )
 
@@ -90,6 +108,7 @@ def _tarjeta(comanda):
         "pidio_cuenta": comanda.estado == EstadoComanda.CUENTA_PEDIDA,
         "sin_enviar": comanda.sin_enviar,
         "en_caja": comanda.en_caja > 0,
+        "en_cocina": comanda.en_cocina,
     }
 
 
@@ -191,27 +210,65 @@ class BuscarClientesView(ComandasView):
 # --- Comanda -----------------------------------------------------------------
 
 
+def _pedido_sector(detalle):
+    for linea in detalle.envios.all():
+        if linea.envio.tipo == TipoEnvio.PEDIDO:
+            return linea.envio
+    return None
+
+
+def _cocina_linea(detalle):
+    venta = detalle.venta_detalle.venta if detalle.venta_detalle_id else None
+    if venta is not None and venta.estado == EstadoVenta.EN_CURSO:
+        return "en_caja"
+    envio = _pedido_sector(detalle)
+    if envio is None:
+        return ""
+    if envio.estado == EstadoEnvio.LISTO:
+        return "listo"
+    return "en_cocina"
+
+
 def _linea(detalle):
     return {
         "detalle": detalle,
         "cantidad_txt": formatear_cantidad(detalle.cantidad),
         "precio_txt": _gs(detalle.precio),
         "subtotal_txt": _gs(detalle.precio * detalle.cantidad),
+        "cocina": _cocina_linea(detalle),
     }
+
+
+def _confirmar_cobro(comanda, total, en_cocina):
+    texto = f"¿Cobrar {comanda.titulo} por {_gs(total)}?"
+    if en_cocina:
+        unidad = "pedido" if en_cocina == 1 else "pedidos"
+        texto += f" Quedan {en_cocina} {unidad} en cocina."
+    return texto
 
 
 class ComandaDetalleView(ComandasView):
     def get(self, request, pk):
         comanda = self.comanda(pk)
-        detalles = comanda.detalles.select_related("item", "unidad_medida", "sector")
+        envios_linea = Prefetch(
+            "envios",
+            queryset=EnvioSectorLinea.objects.select_related("envio"),
+        )
+        detalles = comanda.detalles.select_related(
+            "item", "unidad_medida", "sector", "venta_detalle", "venta_detalle__venta"
+        ).prefetch_related(envios_linea)
         pendientes = [_linea(d) for d in detalles if d.ronda_id is None and not d.anulado]
         rondas = []
         for ronda in comanda.rondas.select_related("enviada_por").prefetch_related(
             Prefetch(
                 "detalles",
                 queryset=ComandaDetalle.objects.select_related(
-                    "item", "unidad_medida", "sector"
-                ).prefetch_related("anulaciones"),
+                    "item",
+                    "unidad_medida",
+                    "sector",
+                    "venta_detalle",
+                    "venta_detalle__venta",
+                ).prefetch_related("anulaciones", envios_linea),
             )
         ):
             rondas.append(
@@ -224,6 +281,13 @@ class ComandaDetalleView(ComandasView):
         rondas.reverse()
         total = servicio.total(comanda)
         en_caja = cobro.venta_en_caja(comanda) if comanda.activa else None
+        en_cocina = (
+            comanda.envios.filter(
+                tipo=TipoEnvio.PEDIDO, estado__in=ESTADOS_EN_COLA
+            ).count()
+            if comanda.activa
+            else 0
+        )
         return render(
             request,
             "mesas/comanda.html",
@@ -241,6 +305,8 @@ class ComandaDetalleView(ComandasView):
                 "puede_cobrar": comanda.activa
                 and tiene_permiso(request.user, "comandas", "cobrar"),
                 "en_caja": en_caja,
+                "en_cocina": en_cocina,
+                "confirmar_cobro": _confirmar_cobro(comanda, total, en_cocina),
                 "cajero": (en_caja.usuario.first_name or en_caja.usuario.username)
                 if en_caja
                 else "",
