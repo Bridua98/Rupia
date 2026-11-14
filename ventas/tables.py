@@ -180,6 +180,8 @@ class ReporteVentasDetalleTable(tables.Table):
     comprobante = tables.Column(verbose_name="Comprobante")
     tipo_comprobante = tables.Column(verbose_name="Tipo")
     cliente = tables.Column(verbose_name="Cliente")
+    origen = tables.Column(verbose_name="Origen")
+    mozo = tables.Column(verbose_name="Mozo")
     timbrado = tables.Column(verbose_name="Timbrado")
     caja = tables.Column(verbose_name="Caja")
     cuenta_cobro = tables.Column(verbose_name="Cuenta de cobro")
@@ -200,6 +202,8 @@ class ReporteVentasDetalleTable(tables.Table):
             "comprobante",
             "tipo_comprobante",
             "cliente",
+            "origen",
+            "mozo",
             "timbrado",
             "caja",
             "cuenta_cobro",

@@ -21,6 +21,8 @@ from core.moneda import html_guaranies, mostrar_guaranies
 from cuentas.models import Cuenta
 from inventario.models import Item, ItemCategoria, Marca, TipoItem
 from inventario.precios import redondear_guarani
+from mesas.historial import MOSTRADOR, origen_por_detalle
+from mesas.models import Mesa
 from negocio.models import UnidadNegocio
 from personas.models import Persona
 from ventas.models import EstadoVenta, MedioPago, TipoComprobante, VentaDetalle
@@ -37,6 +39,7 @@ AGRUPAR_CAJA = "caja"
 AGRUPAR_MEDIO = "medio"
 AGRUPAR_USUARIO = "usuario"
 AGRUPAR_TIPO = "tipo"
+AGRUPAR_ORIGEN = "origen"
 
 AGRUPAR_CHOICES = (
     (AGRUPAR_DETALLE, "Sin agrupar (cada línea)"),
@@ -49,6 +52,7 @@ AGRUPAR_CHOICES = (
     (AGRUPAR_MEDIO, "Por medio de pago"),
     (AGRUPAR_USUARIO, "Por usuario"),
     (AGRUPAR_TIPO, "Por tipo de comprobante"),
+    (AGRUPAR_ORIGEN, "Por origen"),
 )
 
 AGRUPAR_LABELS = {
@@ -61,6 +65,7 @@ AGRUPAR_LABELS = {
     AGRUPAR_MEDIO: "Por medio de pago",
     AGRUPAR_USUARIO: "Por usuario",
     AGRUPAR_TIPO: "Por tipo de comprobante",
+    AGRUPAR_ORIGEN: "Por origen",
 }
 
 CERO = Decimal("0")
@@ -106,6 +111,8 @@ class FilaVenta:
     usuario: str
     usuario_id: int
     usuario_detalle: str
+    origen: str
+    mozo: str
     cantidad: Decimal
     tasa_iva: int
     gravado: Decimal
@@ -373,6 +380,9 @@ def _grupo(fila: FilaVenta, modo: str):
         return fila.medio_id, fila.medio, ""
     if modo == AGRUPAR_USUARIO:
         return fila.usuario_id, fila.usuario, fila.usuario_detalle
+    if modo == AGRUPAR_ORIGEN:
+        detalle = "" if fila.mozo == "—" else fila.mozo
+        return fila.origen, fila.origen, detalle
     return fila.tipo_comprobante_id, fila.tipo_comprobante, ""
 
 
@@ -448,6 +458,12 @@ class ReporteVentasListView(MantenimientoListView):
             "queryset": lambda: Persona.objects.filter(es_cliente=True).order_by("razon_social"),
         },
         {
+            "name": "mesa",
+            "label": "Mesa",
+            "kind": "fk",
+            "queryset": lambda: Mesa.objects.order_by("nombre"),
+        },
+        {
             "name": "item",
             "label": "Producto",
             "kind": "fk",
@@ -520,7 +536,13 @@ class ReporteVentasListView(MantenimientoListView):
         specs = _specs_detalle(self)
         if valores is None:
             valores = filter_values(self.request, specs)
-        return apply_filters(queryset, valores, specs)
+        valores = dict(valores)
+        mesa = valores.pop("mesa", None)
+        specs_sql = [spec for spec in specs if spec["name"] != "mesa"]
+        queryset = apply_filters(queryset, valores, specs_sql)
+        if mesa and str(mesa).isdigit() and Mesa.objects.filter(pk=mesa).exists():
+            queryset = queryset.filter(comanda_detalles__comanda__mesa_id=mesa).distinct()
+        return queryset
 
     def _detalle(self):
         if not hasattr(self, "_detalle_cache"):
@@ -539,6 +561,7 @@ class ReporteVentasListView(MantenimientoListView):
         netos = {}
         for lineas in por_venta.values():
             netos.update(_netos_lineas(lineas[0].venta, lineas))
+        origenes = origen_por_detalle([detalle.pk for detalle in filtrados])
         filas = []
         for detalle in filtrados:
             venta = detalle.venta
@@ -548,6 +571,7 @@ class ReporteVentasListView(MantenimientoListView):
             cuenta = venta.cuenta_cobro
             cliente = venta.cliente
             usuario_nombre, usuario_id, usuario_detalle = _nombre_usuario(venta.usuario)
+            origen, mozo = origenes.get(detalle.pk, (MOSTRADOR, "—"))
             neto = netos.get(detalle.pk, detalle.subtotal)
             gravado, iva = liquidar_linea(neto, detalle.tasa_iva)
             filas.append(
@@ -580,6 +604,8 @@ class ReporteVentasListView(MantenimientoListView):
                     usuario=usuario_nombre,
                     usuario_id=usuario_id,
                     usuario_detalle=usuario_detalle,
+                    origen=origen,
+                    mozo=mozo,
                     cantidad=detalle.cantidad,
                     tasa_iva=int(detalle.tasa_iva),
                     gravado=gravado,

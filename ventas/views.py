@@ -30,6 +30,7 @@ from core.mantenimiento import (
 from core.moneda import formatear_guaranies, interpretar_guaranies, mostrar_guaranies
 from cuentas.models import Cuenta
 from inventario.models import Item, UnidadMedida
+from mesas.historial import origen_impreso, relato_venta
 from personas.models import Persona
 from ventas.cobro import (
     actualizar_cabecera,
@@ -38,12 +39,12 @@ from ventas.cobro import (
     asegurar_cliente_desde_consulta,
     borrador,
     buscar_clientes_pos,
-    buscar_productos,
     cajas,
     cambiar_cantidad,
     cambiar_descuento,
     cambiar_unidad,
     cancelar,
+    catalogo_productos,
     cliente_ocasional,
     comprobantes_pos,
     confirmar,
@@ -273,6 +274,9 @@ class VentaListView(VentaListado, MantenimientoListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["edit_url"] = ""
+        if context.get("view_open") and context.get("view_record"):
+            context["view_extra_template"] = "mesas/servicio_relato.html"
+            context["servicio"] = relato_venta(context["view_record"])
         return context
 
 
@@ -564,38 +568,12 @@ class ElegirMaquinaView(PosPermisoView):
 
 class BuscarProductosView(PosPermisoView):
     def get(self, request):
-        query = request.GET.get("q", "")
-        try:
-            limite = min(20, max(1, int(request.GET.get("limite") or 20)))
-        except (TypeError, ValueError):
-            limite = 20
-        try:
-            offset = max(0, int(request.GET.get("offset") or 0))
-        except (TypeError, ValueError):
-            offset = 0
-        hallados = buscar_productos(query, limite=limite + 1, offset=offset, catalogo=True)
-        hay_mas = len(hallados) > limite
-        hallados = hallados[:limite]
-        resultados = []
-        for item in hallados:
-            resultados.append(
-                {
-                    "id": item.pk,
-                    "descripcion": item.descripcion,
-                    "marca": item.marca.descripcion if item.marca_id else "",
-                    "codigo": item.codigo_barra or "",
-                    "precio": _dinero(item.precio or 0),
-                    "unidad": item.unidad_medida.simbolo,
-                    "imagen": reverse("item_imagen", args=[item.imagen]) if item.imagen else "",
-                }
-            )
         return JsonResponse(
-            {
-                "resultados": resultados,
-                "hay_mas": hay_mas,
-                "offset": offset,
-                "siguiente": offset + len(resultados),
-            }
+            catalogo_productos(
+                request.GET.get("q", ""),
+                limite=request.GET.get("limite") or 20,
+                offset=request.GET.get("offset") or 0,
+            )
         )
 
 
@@ -778,6 +756,7 @@ class ComprobanteView(LoginRequiredMixin, View):
             self.template_name,
             {
                 "venta": venta,
+                "origen_txt": origen_impreso(venta),
                 "lineas": lineas,
                 "iva": iva,
                 "hora_txt": ahora.strftime("%H:%M"),

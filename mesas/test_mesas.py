@@ -52,6 +52,7 @@ def _etiquetas_menu(client):
 def test_con_el_modulo_apagado_no_hay_menu_ni_pantallas(ingresada):
     assert "Mesas" not in _etiquetas_menu(ingresada)
     assert ingresada.get("/mesas/").status_code == 404
+    assert ingresada.get("/mesas/historial/").status_code == 404
     assert ingresada.get("/mesas/sectores/").status_code == 404
     assert ingresada.get("/mesas/sectores/productos/").status_code == 404
 
@@ -65,6 +66,7 @@ def test_con_el_modulo_prendido_aparece_el_grupo_mesas(ingresada):
 
     assert [hijo["label"] for hijo in mesas["children"]] == [
         "Tablero",
+        "Historial",
         "Cocina y barra",
         "Mesas",
         "Sectores de preparación",

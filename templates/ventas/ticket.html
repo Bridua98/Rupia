@@ -38,6 +38,9 @@
       <p class="ticket-meta"><span>Cliente</span><span>{{ venta.cliente.razon_social }}</span></p>
       <p class="ticket-meta"><span>{{ venta.cliente.get_tipo_documento_display }}</span><span>{{ venta.cliente.documento }}</span></p>
     {% endif %}
+    {% if origen_txt %}
+      <p class="ticket-meta"><span>Servicio</span><span>{{ origen_txt }}</span></p>
+    {% endif %}
     <p class="ticket-sep"></p>
     <table class="ticket-items">
       <thead>

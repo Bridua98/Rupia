@@ -90,8 +90,9 @@
     }, 60);
   }
 
-  function refrescarCola() {
-    if (document.querySelector("[data-puesto-cola] :focus")) return Promise.resolve();
+  function refrescarCola(forzar) {
+    // Un botón de la cola deja el foco adentro. Sin forzar, Listo no redibuja.
+    if (!forzar && document.querySelector("[data-puesto-cola] :focus")) return Promise.resolve();
     return fetch(colaUrl, { credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } })
       .then(function (respuesta) {
         if (!respuesta.ok) throw new Error(respuesta.status);
@@ -151,8 +152,9 @@
     var form = evento.target.closest("[data-puesto-listo]");
     if (!form) return;
     evento.preventDefault();
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     post(form.getAttribute("action"))
-      .then(refrescarCola)
+      .then(function () { return refrescarCola(true); })
       .catch(function () {
         marcarEstado(false);
       });

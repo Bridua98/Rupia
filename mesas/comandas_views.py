@@ -21,7 +21,7 @@ from mesas import comandas as servicio
 from mesas.forms import CuentaForm
 from mesas.models import Comanda, ComandaDetalle, EstadoComanda, Mesa, Ronda
 from mesas.views import ModuloMesasMixin
-from ventas.cobro import buscar_clientes, buscar_productos
+from ventas.cobro import buscar_clientes, catalogo_productos
 from ventas.models import EstadoVenta, PuntoExpedicion
 
 CERO = Decimal("0")
@@ -203,8 +203,6 @@ def _linea(detalle):
 class ComandaDetalleView(ComandasView):
     def get(self, request, pk):
         comanda = self.comanda(pk)
-        query = request.GET.get("q", "").strip()
-        resultados = buscar_productos(query, limite=12) if query and comanda.activa else []
         detalles = comanda.detalles.select_related("item", "unidad_medida", "sector")
         pendientes = [_linea(d) for d in detalles if d.ronda_id is None and not d.anulado]
         rondas = []
@@ -231,10 +229,6 @@ class ComandaDetalleView(ComandasView):
             "mesas/comanda.html",
             {
                 "comanda": comanda,
-                "query": query,
-                "resultados": [
-                    {"item": item, "precio_txt": _gs(item.precio)} for item in resultados
-                ],
                 "pendientes": pendientes,
                 "rondas": rondas,
                 "total_txt": _gs(total),
@@ -259,6 +253,24 @@ class ComandaDetalleView(ComandasView):
                     exigir_destino=comanda.mesa_id is None,
                 ),
             },
+        )
+
+
+class BuscarProductosView(ComandasView):
+    """El catálogo del punto de venta, para cargar la cuenta sin recargar la página."""
+
+    permiso_accion = "alta"
+
+    def get(self, request, pk):
+        comanda = self.comanda(pk)
+        if not comanda.activa:
+            return JsonResponse({"resultados": [], "hay_mas": False, "offset": 0, "siguiente": 0})
+        return JsonResponse(
+            catalogo_productos(
+                request.GET.get("q", ""),
+                limite=request.GET.get("limite") or 20,
+                offset=request.GET.get("offset") or 0,
+            )
         )
 
 
