@@ -14,6 +14,8 @@
   var claveAuto = "rupia-puesto-auto-" + sector;
   var imprimiendo = false;
   var pendientesDeImprimir = [];
+  var tituloBase = document.title;
+  var vistos = idsCola();
 
   function csrf() {
     var campo = raiz.querySelector("input[name=csrfmiddlewaretoken]");
@@ -51,6 +53,40 @@
       if (!respuesta.ok) throw new Error(respuesta.status);
       return respuesta.json();
     });
+  }
+
+  function idsCola() {
+    if (!cola) return [];
+    return Array.prototype.map.call(cola.querySelectorAll("[data-envio]"), function (el) {
+      return el.getAttribute("data-envio");
+    });
+  }
+
+  function marcarNuevos(anteriores) {
+    var hay = false;
+    cola.querySelectorAll("[data-envio]").forEach(function (el) {
+      if (anteriores.indexOf(el.getAttribute("data-envio")) === -1) {
+        el.classList.add("is-nuevo");
+        hay = true;
+      }
+    });
+    return hay;
+  }
+
+  function actualizarTitulo() {
+    var dato = cola.querySelector("[data-puesto-abiertos]");
+    var n = dato ? parseInt(dato.getAttribute("data-cantidad") || "0", 10) : 0;
+    document.title = n ? "(" + n + ") " + tituloBase : tituloBase;
+  }
+
+  function avisarLlegada(yaSono) {
+    var actuales = idsCola();
+    var hayNuevos = marcarNuevos(vistos);
+    if (hayNuevos && !yaSono) sonar();
+    var dato = cola.querySelector("[data-puesto-abiertos]");
+    if (dato) dato.classList.toggle("is-alerta", hayNuevos);
+    vistos = actuales;
+    actualizarTitulo();
   }
 
   function sonar() {
@@ -109,7 +145,9 @@
 
   function vuelta() {
     if (!auto.checked) {
-      refrescarCola();
+      refrescarCola().then(function () {
+        avisarLlegada(false);
+      });
       return;
     }
     post(tomarUrl)
@@ -120,7 +158,9 @@
           sonar();
           imprimir(tickets);
         }
-        return refrescarCola();
+        return refrescarCola().then(function () {
+          avisarLlegada(!!tickets.length);
+        });
       })
       .catch(function () {
         marcarEstado(false);
@@ -141,7 +181,9 @@
     post(boton.getAttribute("data-puesto-imprimir"))
       .then(function (datos) {
         imprimir([datos.html]);
-        return refrescarCola();
+        return refrescarCola().then(function () {
+          avisarLlegada(true);
+        });
       })
       .catch(function () {
         marcarEstado(false);
@@ -154,12 +196,17 @@
     evento.preventDefault();
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     post(form.getAttribute("action"))
-      .then(function () { return refrescarCola(true); })
+      .then(function () {
+        return refrescarCola(true).then(function () {
+          avisarLlegada(true);
+        });
+      })
       .catch(function () {
         marcarEstado(false);
       });
   });
 
+  actualizarTitulo();
   vuelta();
   setInterval(vuelta, 5000);
 })();

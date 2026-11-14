@@ -32,8 +32,13 @@ class SectorForm(RupiaModelForm):
 
     class Meta:
         model = Sector
-        fields = ["nombre", "activo"]
-        labels = {"nombre": "Nombre", "activo": "Activo"}
+        fields = ["nombre", "activo", "exige_empezar", "minutos_demora"]
+        labels = {
+            "nombre": "Nombre",
+            "activo": "Activo",
+            "exige_empezar": "Pide empezar",
+            "minutos_demora": "Minutos de demora",
+        }
         widgets = {
             "nombre": forms.TextInput(
                 attrs={"autofocus": True, "autocomplete": "off", "maxlength": "80"}
@@ -62,6 +67,7 @@ class SectorForm(RupiaModelForm):
         campo.queryset = ItemCategoria.objects.order_by("descripcion")
         # Las etiquetas salen de las instancias ya anotadas.
         campo.choices = [(c.pk, campo.label_from_instance(c)) for c in categorias]
+        self.fields["minutos_demora"].required = False
         self._asignadas = asignadas
         if sector is not None and not self.is_bound:
             self.initial["categorias"] = [
@@ -73,6 +79,14 @@ class SectorForm(RupiaModelForm):
         if not nombre:
             raise forms.ValidationError("Escribí el nombre del sector.")
         return nombre
+
+    def clean_minutos_demora(self):
+        minutos = self.cleaned_data.get("minutos_demora")
+        if minutos in (None, ""):
+            return 15
+        if minutos < 1:
+            raise forms.ValidationError("Los minutos de demora tienen que ser 1 o más.")
+        return minutos
 
     def clean_categorias(self):
         elegidas = self.cleaned_data.get("categorias")

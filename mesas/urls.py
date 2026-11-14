@@ -53,6 +53,11 @@ urlpatterns = [
         name="puesto_imprimir",
     ),
     path(
+        "puesto/envios/<int:pk>/empezar/",
+        puesto_views.EmpezarView.as_view(),
+        name="puesto_empezar",
+    ),
+    path(
         "puesto/envios/<int:pk>/listo/",
         puesto_views.ListoView.as_view(),
         name="puesto_listo",

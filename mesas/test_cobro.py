@@ -248,6 +248,9 @@ def test_recorrido_de_cobro_por_pantalla(ingresada, usuario, carta, caja):  # no
 
     pagina = ingresada.get(f"/mesas/comandas/{comanda.pk}/").content.decode()
     assert "Cobrar" in pagina
+    assert "Quedan 3 pedidos en cocina." in pagina
+    assert "data-mesas-confirmar" in pagina
+    assert "En cocina" in pagina
 
     response = ingresada.post(f"/mesas/comandas/{comanda.pk}/cobrar/")
     assert response.url == "/ventas/punto-de-venta/"
@@ -261,6 +264,8 @@ def test_recorrido_de_cobro_por_pantalla(ingresada, usuario, carta, caja):  # no
     pagina = ingresada.get(f"/mesas/comandas/{comanda.pk}/").content.decode()
     assert "se está cobrando en la caja de ada" in pagina
     assert "Ir a la caja" in pagina
+    assert "¿Cobrar Mesa 1" not in pagina
+    assert "En caja" in pagina
 
     confirmada = ingresada.post("/ventas/punto-de-venta/confirmar/")
     venta = Venta.objects.get(estado=EstadoVenta.COBRADA)

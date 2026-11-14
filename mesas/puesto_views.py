@@ -10,10 +10,9 @@ from django.views import View
 from configuracion.permisos import PermisoRequeridoMixin
 from core.cantidad import formatear_cantidad
 from mesas import puesto as servicio
-from mesas.models import EnvioSector, Sector, TipoEnvio
+from mesas.models import EnvioSector, EstadoEnvio, Sector, TipoEnvio
 from mesas.views import ModuloMesasMixin
 
-MINUTOS_DEMORA = 15
 # En cocina "2 Milanesa" se entiende solo; la unidad se muestra cuando no es por unidad.
 UNIDADES_OBVIAS = {"u", "un", "uni", "und", "unid", "unidad", "unidades"}
 
@@ -26,9 +25,24 @@ def _nombre(usuario):
     return usuario.first_name or usuario.username
 
 
+def _espera(envio):
+    origen = envio.empezado_en or envio.creado_en
+    return max(0, int((timezone.now() - origen).total_seconds() // 60))
+
+
+def _demorado(envio):
+    if envio.tipo != TipoEnvio.PEDIDO:
+        return False
+    if envio.sector.exige_empezar and envio.empezado_en is None:
+        return False
+    origen = envio.empezado_en or envio.creado_en
+    espera = max(0, int((timezone.now() - origen).total_seconds() // 60))
+    return espera >= envio.sector.minutos_demora
+
+
 def _vista(envio):
     """Lo que hace falta para mostrar o imprimir un envío."""
-    espera = max(0, int((timezone.now() - envio.creado_en).total_seconds() // 60))
+    espera = _espera(envio)
     comanda = envio.comanda
     return {
         "envio": envio,
@@ -43,7 +57,10 @@ def _vista(envio):
             timezone.localtime(envio.listo_en).strftime("%H:%M") if envio.listo_en else ""
         ),
         "espera": espera,
-        "demorado": espera >= MINUTOS_DEMORA and envio.tipo == TipoEnvio.PEDIDO,
+        "demorado": _demorado(envio),
+        "exige_empezar": envio.sector.exige_empezar,
+        "sin_empezar": envio.sector.exige_empezar
+        and envio.estado in (EstadoEnvio.PENDIENTE, EstadoEnvio.IMPRESO),
         "lineas": [
             {
                 "cantidad": formatear_cantidad(linea.cantidad),
@@ -81,14 +98,20 @@ class PuestoElegirView(PuestoBaseView):
         return render(request, "mesas/puesto_elegir.html", {"sectores": sectores})
 
 
+def _contexto(sector):
+    return {
+        "sector": sector,
+        "abiertos": [_vista(envio) for envio in servicio.abiertos(sector)],
+        "preparacion": [_vista(envio) for envio in servicio.en_preparacion(sector)],
+        "listos": [_vista(envio) for envio in servicio.recientes_listos(sector)],
+        "listos_hoy": servicio.listos_hoy(sector),
+    }
+
+
 class PuestoView(PuestoBaseView):
     def get(self, request, pk):
         sector = self.sector(pk)
-        contexto = {
-            "sector": sector,
-            "cola": [_vista(envio) for envio in servicio.cola(sector)],
-            "listos": [_vista(envio) for envio in servicio.recientes_listos(sector)],
-        }
+        contexto = _contexto(sector)
         if request.GET.get("parcial"):
             return render(request, "mesas/puesto_cola.html", contexto)
         return render(request, "mesas/puesto.html", contexto)
@@ -109,6 +132,18 @@ class ImprimirView(PuestoBaseView):
     def post(self, request, pk):
         envio = servicio.imprimir(self.envio(pk))
         return JsonResponse({"id": envio.pk, "html": _ticket(request, envio)})
+
+
+class EmpezarView(PuestoBaseView):
+    def post(self, request, pk):
+        envio = self.envio(pk)
+        try:
+            servicio.empezar(envio)
+        except ValidationError as exc:
+            messages.info(request, exc.messages[0])
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"ok": True})
+        return redirect("puesto_sector", pk=envio.sector_id)
 
 
 class ListoView(PuestoBaseView):

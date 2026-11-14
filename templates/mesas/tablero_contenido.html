@@ -21,6 +21,7 @@
             <strong class="mesa-total">{{ tarjeta.total_txt }}</strong>
             <span class="mesa-meta">{{ tarjeta.hace }} · {{ tarjeta.comanda.mozo.first_name|default:tarjeta.comanda.mozo.username }}</span>
             {% if tarjeta.sin_enviar %}<span class="mesa-alerta">{{ tarjeta.sin_enviar }} sin enviar</span>{% endif %}
+            {% if tarjeta.en_cocina %}<span class="mesa-alerta is-cocina">{{ tarjeta.en_cocina }} en cocina</span>{% endif %}
             {% if tarjeta.en_caja %}<span class="mesa-caja">En caja</span>{% endif %}
           </a>
         {% elif puede_abrir %}
@@ -64,6 +65,7 @@
           <strong class="mesa-total">{{ tarjeta.total_txt }}</strong>
           <span class="mesa-meta">{{ tarjeta.hace }} · {{ tarjeta.comanda.mozo.first_name|default:tarjeta.comanda.mozo.username }}</span>
           {% if tarjeta.sin_enviar %}<span class="mesa-alerta">{{ tarjeta.sin_enviar }} sin enviar</span>{% endif %}
+          {% if tarjeta.en_cocina %}<span class="mesa-alerta is-cocina">{{ tarjeta.en_cocina }} en cocina</span>{% endif %}
           {% if tarjeta.en_caja %}<span class="mesa-caja">En caja</span>{% endif %}
         </a>
       {% endfor %}

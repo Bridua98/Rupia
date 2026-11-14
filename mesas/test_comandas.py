@@ -17,6 +17,7 @@ from inventario.models import (
     UnidadMedida,
 )
 from mesas import comandas as servicio
+from mesas import puesto
 from mesas.models import (
     Comanda,
     ComandaAnulacion,
@@ -452,6 +453,10 @@ def test_recorrido_cargar_enviar_y_pedir_cuenta(ingresada, carta):
 
     enviado = ingresada.post(f"{base}enviar/", follow=True)
     assert "Ronda 1 enviada a Barra, Cocina." in enviado.content.decode()
+    pagina = ingresada.get(base).content.decode()
+    assert pagina.count("En cocina") == 2
+    tablero = ingresada.get("/mesas/tablero/").content.decode()
+    assert "2 en cocina" in tablero
 
     cuenta = ingresada.post(f"{base}cuenta/")
     assert cuenta.url == f"{base}precuenta/"
@@ -461,6 +466,23 @@ def test_recorrido_cargar_enviar_y_pedir_cuenta(ingresada, carta):
     assert "Gs. 75.000" in precuenta
     comanda.refresh_from_db()
     assert comanda.estado == EstadoComanda.CUENTA_PEDIDA
+
+
+@pytest.mark.django_db
+def test_la_comanda_pasa_a_listo_cuando_cocina_termina(ingresada, usuario, carta):
+    _habilitar()
+    comanda = servicio.abrir(usuario=usuario, mesa=carta["mesa"])
+    servicio.agregar(comanda, carta["milanesa"], usuario=usuario)
+    servicio.enviar(comanda, usuario=usuario)
+    puesto.marcar_listo(EnvioSector.objects.get(sector=carta["cocina"]))
+
+    pagina = ingresada.get(f"/mesas/comandas/{comanda.pk}/").content.decode()
+    tablero = ingresada.get("/mesas/tablero/").content.decode()
+
+    assert "Listo" in pagina
+    assert "En cocina" not in pagina
+    assert "en cocina" not in tablero
+    assert "¿Cobrar Mesa 1 por Gs. 45.000?" in pagina
 
 
 @pytest.mark.django_db

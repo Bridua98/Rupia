@@ -13,6 +13,16 @@ class Sector(models.Model):
         db_column="sect_nombre",
     )
     activo = models.BooleanField("activo", default=True, db_column="sect_activo")
+    exige_empezar = models.BooleanField(
+        "pide empezar",
+        default=False,
+        db_column="sect_exige_empezar",
+    )
+    minutos_demora = models.PositiveSmallIntegerField(
+        "minutos de demora",
+        default=15,
+        db_column="sect_minutos_demora",
+    )
 
     class Meta:
         db_table = "sectores"
@@ -397,6 +407,7 @@ class TipoEnvio(models.TextChoices):
 class EstadoEnvio(models.TextChoices):
     PENDIENTE = "PENDIENTE", "Pendiente"
     IMPRESO = "IMPRESO", "Impreso"
+    PREPARACION = "PREPARACION", "En preparación"
     LISTO = "LISTO", "Listo"
 
 
@@ -436,7 +447,7 @@ class EnvioSector(models.Model):
     )
     estado = models.CharField(
         "estado",
-        max_length=9,
+        max_length=11,
         choices=EstadoEnvio.choices,
         default=EstadoEnvio.PENDIENTE,
         db_column="envi_estado",
@@ -450,6 +461,9 @@ class EnvioSector(models.Model):
     )
     creado_en = models.DateTimeField("creado", db_column="envi_creado_en")
     impreso_en = models.DateTimeField("impreso", null=True, blank=True, db_column="envi_impreso_en")
+    empezado_en = models.DateTimeField(
+        "empezado", null=True, blank=True, db_column="envi_empezado_en"
+    )
     listo_en = models.DateTimeField("listo", null=True, blank=True, db_column="envi_listo_en")
 
     class Meta:
