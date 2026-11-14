@@ -5,10 +5,11 @@ from decimal import Decimal, InvalidOperation
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Sum
+from django.urls import reverse
 from django.utils import timezone
 
 from core.cantidad import formatear_cantidad
-from core.moneda import formatear_guaranies
+from core.moneda import formatear_guaranies, mostrar_guaranies
 from cuentas.models import Cuenta
 from inventario.models import Item, ItemMovimiento, TipoItem, TipoMovimiento
 from inventario.precios import redondear_guarani
@@ -543,6 +544,40 @@ def buscar_productos(query: str, *, limite=12, offset=0, catalogo=False):
             | Q(categoria__descripcion__icontains=query)
         ).order_by("marca__descripcion", "descripcion")[offset : offset + limite]
     )
+
+
+def catalogo_productos(query: str, *, limite=20, offset=0) -> dict:
+    """La misma búsqueda del punto de venta: catálogo, marca, código y páginas."""
+    try:
+        limite = min(20, max(1, int(limite or 20)))
+    except (TypeError, ValueError):
+        limite = 20
+    try:
+        offset = max(0, int(offset or 0))
+    except (TypeError, ValueError):
+        offset = 0
+    hallados = buscar_productos(query, limite=limite + 1, offset=offset, catalogo=True)
+    hay_mas = len(hallados) > limite
+    hallados = hallados[:limite]
+    resultados = []
+    for item in hallados:
+        resultados.append(
+            {
+                "id": item.pk,
+                "descripcion": item.descripcion,
+                "marca": item.marca.descripcion if item.marca_id else "",
+                "codigo": item.codigo_barra or "",
+                "precio": mostrar_guaranies(item.precio or 0),
+                "unidad": item.unidad_medida.simbolo,
+                "imagen": reverse("item_imagen", args=[item.imagen]) if item.imagen else "",
+            }
+        )
+    return {
+        "resultados": resultados,
+        "hay_mas": hay_mas,
+        "offset": offset,
+        "siguiente": offset + len(resultados),
+    }
 
 
 def buscar_clientes(query: str, *, limite=12):

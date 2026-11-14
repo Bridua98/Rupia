@@ -73,6 +73,12 @@ def main_menu(request):
                         formulario="comandas",
                     ),
                     item(
+                        "Historial",
+                        url_name="servicio_historial",
+                        icon="calendar",
+                        formulario="comandas",
+                    ),
+                    item(
                         "Cocina y barra",
                         url_name="puesto_elegir",
                         icon="print",

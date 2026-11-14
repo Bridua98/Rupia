@@ -157,6 +157,22 @@ def test_listo_reimprimir_y_deshacer(ingresada, usuario, carta):  # noqa: F811
 
 
 @pytest.mark.django_db
+def test_al_marcar_listo_la_cola_muestra_el_pedido_para_devolverlo(ingresada, usuario, carta):  # noqa: F811
+    _habilitar()
+    _pedido(usuario, carta, milanesa="1", cerveza="2")
+    cocina = EnvioSector.objects.get(sector=carta["cocina"])
+    puesto.marcar_listo(cocina)
+
+    parcial = ingresada.get(f"/mesas/puesto/{carta['cocina'].pk}/?parcial=1").content.decode()
+
+    assert "0 en preparación" in parcial
+    assert "No hay pedidos en preparación." in parcial
+    assert "Milanesa" in parcial
+    assert "Volver a la cola" in parcial
+    assert "listo " in parcial
+
+
+@pytest.mark.django_db
 def test_el_puesto_pide_permiso_y_modulo(client, django_user_model, ingresada, carta):  # noqa: F811
     assert ingresada.get("/mesas/puesto/").status_code == 404
 

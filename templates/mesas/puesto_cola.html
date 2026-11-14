@@ -56,7 +56,15 @@
     <ul class="puesto-listos-lista">
       {% for t in listos %}
         <li>
-          <span>{{ t.titulo }}{% if t.ronda %} · ronda {{ t.ronda }}{% endif %}{% if t.anulacion %} · anulación{% endif %}</span>
+          <div class="puesto-listo-dato">
+            <strong>{{ t.titulo }}</strong>
+            <span>
+              {% if t.anulacion %}Anulación{% else %}Pedido{% endif %}{% if t.ronda %} · ronda {{ t.ronda }}{% endif %}{% if t.listo_hora %} · listo {{ t.listo_hora }}{% endif %}
+            </span>
+            <span class="puesto-listo-items">
+              {% for linea in t.lineas %}{{ linea.cantidad }}{% if linea.unidad %} {{ linea.unidad }}{% endif %} {{ linea.descripcion }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            </span>
+          </div>
           <form method="post" action="{% url 'puesto_deshacer' t.envio.pk %}" data-puesto-listo>
             {% csrf_token %}
             <button type="submit" class="puesto-deshacer">Volver a la cola</button>

@@ -439,8 +439,8 @@ def test_recorrido_cargar_enviar_y_pedir_cuenta(ingresada, carta):
     comanda = Comanda.objects.get()
     base = f"/mesas/comandas/{comanda.pk}/"
 
-    busqueda = ingresada.get(base, {"q": "cerv"})
-    assert "Cerveza" in busqueda.content.decode()
+    busqueda = ingresada.get(f"{base}buscar/", {"q": "cerv"}).json()
+    assert "Cerveza" in [item["descripcion"] for item in busqueda["resultados"]]
 
     ingresada.post(f"{base}agregar/", {"item": carta["cerveza"].pk, "q": "cerv"})
     ingresada.post(f"{base}agregar/", {"item": carta["milanesa"].pk})
@@ -511,10 +511,12 @@ def test_quien_solo_ve_no_abre_ni_carga(client, django_user_model, usuario, cart
     tablero = client.get("/mesas/tablero/").content.decode()
     abrir = client.post("/mesas/comandas/abrir/", {"nombre": "X"})
     agregar = client.post(f"/mesas/comandas/{comanda.pk}/agregar/", {"item": carta["cerveza"].pk})
+    buscar = client.get(f"/mesas/comandas/{comanda.pk}/buscar/?q=cerveza")
 
     assert "Cuenta a nombre" not in tablero
     assert abrir.status_code == 403
     assert agregar.status_code == 403
+    assert buscar.status_code == 403
 
 
 @pytest.mark.django_db
@@ -530,3 +532,19 @@ def test_el_aviso_de_stock_llega_a_la_pantalla(ingresada, carta):
 
     assert "no hay stock suficiente de Agua" in response.content.decode()
     assert comanda.detalles.count() == 1
+
+
+@pytest.mark.django_db
+def test_la_cuenta_usa_el_buscador_de_venta(ingresada, usuario, carta):
+    _habilitar()
+    comanda = servicio.abrir(usuario=usuario, mesa=carta["mesa"])
+
+    pagina = ingresada.get(f"/mesas/comandas/{comanda.pk}/").content.decode()
+    catalogo = ingresada.get(f"/mesas/comandas/{comanda.pk}/buscar/?q=").json()
+    por_marca = ingresada.get(f"/mesas/comandas/{comanda.pk}/buscar/?q=Genérica").json()
+
+    assert "data-comanda-modal-productos" in pagina
+    assert "Buscar por nombre, marca, código o código de barras..." in pagina
+    assert "Cerveza" in [item["descripcion"] for item in catalogo["resultados"]]
+    assert catalogo["resultados"][0]["marca"]
+    assert all(item["marca"] == "Genérica" for item in por_marca["resultados"])

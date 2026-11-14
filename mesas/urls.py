@@ -2,6 +2,7 @@ from django.urls import path
 
 from core.mantenimiento import mantenimiento_salida
 from mesas import comandas_views, puesto_views
+from mesas.historial_views import HistorialServiciosView
 from mesas.views import (
     MesaCreateView,
     MesaDeleteView,
@@ -62,6 +63,7 @@ urlpatterns = [
         name="puesto_deshacer",
     ),
     path("tablero/", comandas_views.TableroView.as_view(), name="mesas_tablero"),
+    path("historial/", HistorialServiciosView.as_view(), name="servicio_historial"),
     path("clientes/", comandas_views.BuscarClientesView.as_view(), name="mesas_clientes"),
     path(
         "comandas/abrir/",
@@ -77,6 +79,11 @@ urlpatterns = [
         "comandas/<int:pk>/agregar/",
         comandas_views.AgregarView.as_view(),
         name="comanda_agregar",
+    ),
+    path(
+        "comandas/<int:pk>/buscar/",
+        comandas_views.BuscarProductosView.as_view(),
+        name="comanda_buscar_productos",
     ),
     path(
         "comandas/<int:pk>/enviar/",

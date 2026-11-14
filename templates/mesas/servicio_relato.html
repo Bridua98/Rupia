@@ -1,0 +1,89 @@
+<section class="view-panel-section" aria-labelledby="view-panel-servicio">
+  <h3 class="view-panel-section-title" id="view-panel-servicio">Servicio</h3>
+  {% if servicio.aviso %}
+    <p class="hint servicio-aviso">{{ servicio.aviso }}</p>
+  {% endif %}
+  {% if servicio.solo_mostrador %}
+    <p>Mostrador. Esta venta se cargó en el punto de venta, sin mesa ni pedido.</p>
+  {% endif %}
+  {% for cuenta in servicio.cuentas %}
+    <dl class="view-field-list">
+      <div class="view-field">
+        <dt>Origen</dt>
+        <dd>{{ cuenta.origen }}</dd>
+      </div>
+      <div class="view-field">
+        <dt>Mozo</dt>
+        <dd>{{ cuenta.mozo }}</dd>
+      </div>
+      <div class="view-field">
+        <dt>Personas</dt>
+        <dd>{{ cuenta.personas }}</dd>
+      </div>
+      <div class="view-field">
+        <dt>Abierta</dt>
+        <dd>{{ cuenta.abierta }}</dd>
+      </div>
+      <div class="view-field">
+        <dt>Cerrada</dt>
+        <dd>{{ cuenta.cerrada }}</dd>
+      </div>
+      <div class="view-field">
+        <dt>Estado</dt>
+        <dd>{{ cuenta.estado }}</dd>
+      </div>
+      {% if cuenta.motivo %}
+        <div class="view-field">
+          <dt>Motivo</dt>
+          <dd>{{ cuenta.motivo }}</dd>
+        </div>
+      {% endif %}
+    </dl>
+    {% if cuenta.url %}
+      <p class="servicio-enlace"><a href="{{ cuenta.url }}">Ver el historial del servicio</a></p>
+    {% endif %}
+    {% for ronda in cuenta.rondas %}
+      <article class="servicio-ronda">
+        <h4>
+          {{ ronda.titulo }}{% if ronda.cuando %} · {{ ronda.cuando }}{% endif %}{% if ronda.quien %} · {{ ronda.quien }}{% endif %}
+        </h4>
+        <ul class="servicio-lineas">
+          {% for linea in ronda.lineas %}
+            <li{% if linea.anulado %} class="is-anulado"{% endif %}>
+              <span>{{ linea.cantidad }} {{ linea.item }}</span>
+              {% if linea.sector %}<span class="servicio-nota">{{ linea.sector }}</span>{% endif %}
+              {% if linea.nota %}<span class="servicio-nota">{{ linea.nota }}</span>{% endif %}
+              {% if linea.anulado %}<span class="servicio-nota">Anulado</span>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </article>
+    {% endfor %}
+    {% if cuenta.anulaciones %}
+      <h4 class="servicio-subtitulo">Anulaciones</h4>
+      <ul class="servicio-lineas">
+        {% for anulacion in cuenta.anulaciones %}
+          <li>
+            {{ anulacion.cantidad }} {{ anulacion.item }} · {{ anulacion.motivo }}
+            {% if anulacion.ronda %}· {{ anulacion.ronda }}{% endif %}
+            {% if anulacion.cuando %}· {{ anulacion.cuando }}{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endfor %}
+  {% if servicio.mostrador %}
+    <p class="hint">También hay productos cargados en el mostrador.</p>
+  {% endif %}
+  {% if servicio.comprobantes %}
+    <h4 class="servicio-subtitulo">Comprobantes</h4>
+    <ul class="servicio-lineas">
+      {% for comp in servicio.comprobantes %}
+        <li>
+          {% if comp.url %}<a href="{{ comp.url }}">{{ comp.texto }}</a>{% else %}{{ comp.texto }}{% endif %}
+          · {{ comp.estado }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>

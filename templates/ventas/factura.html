@@ -26,6 +26,7 @@
   <p>Factura N° {{ venta.numero_completo }}</p>
   <p>Fecha {{ venta.fecha|date:"d/m/Y" }} · Condición: Contado</p>
   <p>Cliente {{ venta.cliente.razon_social }} · {{ venta.cliente.get_tipo_documento_display }} {{ venta.cliente.documento }}</p>
+  {% if origen_txt %}<p>Servicio {{ origen_txt }}</p>{% endif %}
   {% if venta.cliente.direccion %}<p>{{ venta.cliente.direccion }}</p>{% endif %}
   <table class="sheet print-table">
     <thead>

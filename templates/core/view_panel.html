@@ -10,17 +10,22 @@
     {% if view_anulado %}
       <p class="view-anulado-banner">Este registro está anulado.</p>
     {% endif %}
-    <section class="view-panel-section" aria-labelledby="view-panel-datos">
-      <h3 class="view-panel-section-title" id="view-panel-datos">Datos del registro</h3>
-      <dl class="view-field-list">
-        {% for row in view_fields %}
-          <div class="view-field">
-            <dt>{{ row.label }}</dt>
-            <dd>{{ row.value }}</dd>
-          </div>
-        {% endfor %}
-      </dl>
-    </section>
+    {% if view_fields %}
+      <section class="view-panel-section" aria-labelledby="view-panel-datos">
+        <h3 class="view-panel-section-title" id="view-panel-datos">Datos del registro</h3>
+        <dl class="view-field-list">
+          {% for row in view_fields %}
+            <div class="view-field">
+              <dt>{{ row.label }}</dt>
+              <dd>{{ row.value }}</dd>
+            </div>
+          {% endfor %}
+        </dl>
+      </section>
+    {% endif %}
+    {% if view_extra_template %}
+      {% include view_extra_template %}
+    {% endif %}
     {% for table in view_tables %}
       <section class="view-panel-section" aria-labelledby="view-panel-{{ forloop.counter }}">
         <h3 class="view-panel-section-title" id="view-panel-{{ forloop.counter }}">{{ table.title }}</h3>

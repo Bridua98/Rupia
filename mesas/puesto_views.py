@@ -39,6 +39,9 @@ def _vista(envio):
         "fecha": timezone.localtime(envio.creado_en).strftime("%d/%m/%Y"),
         "mozo": _nombre(envio.usuario),
         "personas": comanda.personas,
+        "listo_hora": (
+            timezone.localtime(envio.listo_en).strftime("%H:%M") if envio.listo_en else ""
+        ),
         "espera": espera,
         "demorado": espera >= MINUTOS_DEMORA and envio.tipo == TipoEnvio.PEDIDO,
         "lineas": [

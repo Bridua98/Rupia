@@ -40,47 +40,37 @@
     {% endif %}
 
     {% if puede_cargar %}
-      <section class="comanda-bloque comanda-buscar" id="buscar">
-        <form method="get" action="{% url 'comanda_detalle' comanda.pk %}#buscar" class="comanda-buscar-form" role="search">
-          <label class="sr-only" for="comanda-q">Buscar producto</label>
+      <section
+        class="comanda-bloque comanda-buscar"
+        id="buscar"
+        data-comanda-buscar
+        data-buscar-url="{% url 'comanda_buscar_productos' comanda.pk %}"
+      >
+        <form class="pos-search" method="post" action="{% url 'comanda_agregar' comanda.pk %}" data-comanda-agregar>
+          {% csrf_token %}
+          <input type="hidden" name="item" value="" data-comanda-item>
+          <span aria-hidden="true">{% include "core/icon.html" with name="search" %}</span>
           <input
             type="search"
-            id="comanda-q"
-            name="q"
-            value="{{ query }}"
-            placeholder="Buscar producto o código…"
+            placeholder="Buscar por nombre, marca, código o código de barras..."
             autocomplete="off"
-            data-mesas-buscar
-            {% if query %}autofocus{% endif %}
+            aria-label="Buscar producto"
+            data-comanda-buscar-abrir
+            readonly
           >
-          <button type="submit" class="button button-compact">
-            {% include "core/icon.html" with name="search" %}
-            <span>Buscar</span>
-          </button>
         </form>
-        {% if query %}
-          {% if resultados %}
-            <ul class="comanda-resultados">
-              {% for resultado in resultados %}
-                <li>
-                  <form method="post" action="{% url 'comanda_agregar' comanda.pk %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="item" value="{{ resultado.item.pk }}">
-                    <input type="hidden" name="q" value="{{ query }}">
-                    <button type="submit" class="comanda-producto">
-                      <span class="comanda-producto-nombre">{{ resultado.item.descripcion }}</span>
-                      <span class="comanda-producto-precio">{{ resultado.precio_txt }}</span>
-                      <span class="comanda-producto-mas" aria-hidden="true">+</span>
-                    </button>
-                  </form>
-                </li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <p class="mesas-vacio">No encontré productos con «{{ query }}».</p>
-          {% endif %}
-        {% endif %}
       </section>
+      <dialog class="pos-modal" data-comanda-modal-productos>
+        <form method="dialog" class="pos-modal-head">
+          <h2>Buscar productos</h2>
+          <button type="submit" class="pos-modal-close" aria-label="Cerrar">{% include "core/icon.html" with name="x" %}</button>
+        </form>
+        <label class="pos-modal-search">
+          {% include "core/icon.html" with name="search" %}
+          <input type="search" placeholder="Nombre, marca, código o código de barras..." autocomplete="off" aria-label="Buscar en el catálogo" data-comanda-modal-q>
+        </label>
+        <ul class="pos-modal-list" data-comanda-modal-list></ul>
+      </dialog>
     {% endif %}
 
     {% if pendientes %}
