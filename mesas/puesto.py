@@ -45,6 +45,20 @@ def en_preparacion(sector):
     return _ordenados(sector, EstadoEnvio.IMPRESO)
 
 
+POR_PAGINA_DIA = 8
+DETALLE_CORTO = 3
+
+
+def _inicio_del_dia():
+    return timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def _listos_de_hoy(sector):
+    return _base().filter(
+        sector=sector, estado=EstadoEnvio.LISTO, listo_en__gte=_inicio_del_dia()
+    )
+
+
 def recientes_listos(sector, limite=6):
     return list(
         _base()
@@ -54,10 +68,30 @@ def recientes_listos(sector, limite=6):
 
 
 def listos_hoy(sector):
-    inicio = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
-    return EnvioSector.objects.filter(
-        sector=sector, estado=EstadoEnvio.LISTO, listo_en__gte=inicio
-    ).count()
+    return _listos_de_hoy(sector).count()
+
+
+def listos_del_dia(sector, pagina=1, por_pagina=POR_PAGINA_DIA):
+    """Los listos de hoy, de a una página. La primera es la más reciente."""
+    try:
+        numero = int(pagina)
+    except (TypeError, ValueError):
+        numero = 1
+    if numero < 1:
+        numero = 1
+    ordenados = _listos_de_hoy(sector).order_by("-listo_en", "-id")
+    total = ordenados.count()
+    paginas = max(1, (total + por_pagina - 1) // por_pagina)
+    numero = min(numero, paginas)
+    desde = (numero - 1) * por_pagina
+    return {
+        "items": list(ordenados[desde : desde + por_pagina]),
+        "total": total,
+        "pagina": numero,
+        "paginas": paginas if total else 1,
+        "hay_anterior": numero > 1,
+        "hay_siguiente": numero < paginas,
+    }
 
 
 def _reservar(envio_id) -> bool:

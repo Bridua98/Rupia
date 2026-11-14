@@ -98,20 +98,34 @@ class PuestoElegirView(PuestoBaseView):
         return render(request, "mesas/puesto_elegir.html", {"sectores": sectores})
 
 
-def _contexto(sector):
+def _pagina(valor):
+    try:
+        return max(int(valor), 1)
+    except (TypeError, ValueError):
+        return 1
+
+
+def _contexto(sector, pagina=1, ver_dia=False):
+    dia = servicio.listos_del_dia(sector, pagina=pagina if ver_dia else 1)
     return {
         "sector": sector,
         "abiertos": [_vista(envio) for envio in servicio.abiertos(sector)],
         "preparacion": [_vista(envio) for envio in servicio.en_preparacion(sector)],
-        "listos": [_vista(envio) for envio in servicio.recientes_listos(sector)],
-        "listos_hoy": servicio.listos_hoy(sector),
+        "listos": [_vista(envio) for envio in dia["items"]],
+        "listos_hoy": dia["total"],
+        "dia": dia,
+        "ver_dia": ver_dia,
+        "detalle_corto": servicio.DETALLE_CORTO,
     }
 
 
 class PuestoView(PuestoBaseView):
     def get(self, request, pk):
         sector = self.sector(pk)
-        contexto = _contexto(sector)
+        ver_dia = request.GET.get("dia") == "1"
+        contexto = _contexto(
+            sector, pagina=_pagina(request.GET.get("pagina")), ver_dia=ver_dia
+        )
         if request.GET.get("parcial"):
             return render(request, "mesas/puesto_cola.html", contexto)
         return render(request, "mesas/puesto.html", contexto)

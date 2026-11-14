@@ -7431,6 +7431,13 @@ body.pos-screen .app-stage {
   font-size: 1.05rem;
 }
 
+.mesa-quien {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
 .mesa-estado {
   color: var(--muted);
   font-size: 0.78rem;
@@ -8028,8 +8035,51 @@ form.comanda-peligro {
   text-align: center;
 }
 
-.puesto-listos {
+.puesto-dia {
   margin-top: 1.5rem;
+}
+
+.puesto-dia > summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.puesto-dia > summary span {
+  color: var(--muted);
+  font-weight: 560;
+}
+
+.puesto-dia-detalle {
+  margin-top: 0.15rem;
+}
+
+.puesto-dia-detalle > summary {
+  color: var(--forest);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.puesto-paginas {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.puesto-paginas a {
+  color: var(--forest);
+  font-weight: 650;
+  text-decoration: underline;
 }
 
 .puesto-listos-lista {
